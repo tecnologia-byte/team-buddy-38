@@ -10,7 +10,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import logoAsset from "@/assets/ivad-logo.png.asset.json";
 
 export function BrandLogo({ className = "h-10 w-10" }: { className?: string }) {
