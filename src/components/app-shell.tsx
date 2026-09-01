@@ -123,6 +123,21 @@ function NavLink({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { cargando, sesionActiva } = usePortal();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!cargando && !sesionActiva) void router.navigate({ to: "/" });
+  }, [cargando, sesionActiva, router]);
+
+  if (cargando || !sesionActiva) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Cargando…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-background">
       <div className="flex-1 pb-28">{children}</div>
@@ -130,6 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
 
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
