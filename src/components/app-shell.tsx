@@ -142,9 +142,9 @@ export function Avatar({
   foto,
 }: {
   iniciales: string;
-  estado?: "activo" | "ausente" | "vacaciones";
+  estado?: "activo" | "ausente" | "vacaciones" | undefined;
   size?: "sm" | "md" | "lg";
-  foto?: string;
+  foto?: string | undefined;
 }) {
   const dims = size === "lg" ? "h-20 w-20 text-2xl" : size === "sm" ? "h-9 w-9 text-xs" : "h-14 w-14 text-base";
   const color =

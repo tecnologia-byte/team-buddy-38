@@ -89,7 +89,7 @@ type Contexto = Estado & {
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
   iniciarSesion: (email: string) => void;
-  guardarColaborador: (datos: Partial<Colaborador> & { id?: string }) => void;
+  guardarColaborador: (datos: Partial<Colaborador> & { id?: string | undefined }) => void;
   eliminarColaborador: (id: string) => void;
   subirFoto: (id: string, dataUrl: string) => void;
   aprobarFoto: (id: string) => void;
@@ -145,7 +145,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     setEstado((p) => ({ ...p, sesionEmail: email }));
   }, []);
 
-  const guardarColaborador = useCallback((datos: Partial<Colaborador> & { id?: string }) => {
+  const guardarColaborador = useCallback((datos: Partial<Colaborador> & { id?: string | undefined }) => {
     setEstado((p) => {
       if (datos.id && p.colaboradores.some((c) => c.id === datos.id)) {
         return {
