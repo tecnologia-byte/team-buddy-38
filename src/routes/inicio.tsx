@@ -35,10 +35,10 @@ const accesos = [
 ] as const;
 
 const resumen = [
-  { valor: "24", label: "Empleados activos", cta: "Ver equipo", to: "/equipo", tono: "primary" },
-  { valor: "18", label: "Asistencias registradas", cta: "Ver asistencia", to: "/asistencia", tono: "accent" },
-  { valor: "5", label: "Tareas pendientes", cta: "Ver tareas", to: "/tareas", tono: "primary" },
-  { valor: "2", label: "Solicitudes pendientes", cta: "Ver solicitudes", to: "/solicitudes", tono: "accent" },
+  { valor: "24", label: "Empleados activos", cta: "Ver equipo", to: "/equipo", tono: "primary", icon: Users },
+  { valor: "18", label: "Asistencias registradas", cta: "Ver asistencia", to: "/asistencia", tono: "accent", icon: CalendarCheck },
+  { valor: "5", label: "Tareas pendientes", cta: "Ver tareas", to: "/tareas", tono: "primary", icon: ClipboardList },
+  { valor: "2", label: "Solicitudes pendientes", cta: "Ver solicitudes", to: "/solicitudes", tono: "accent", icon: DollarSign },
 ] as const;
 
 function Inicio() {
