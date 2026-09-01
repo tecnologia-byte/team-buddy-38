@@ -20,6 +20,7 @@ import { Route as MasRouteImport } from './routes/mas'
 import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 import { Route as TareasRouteImport } from './routes/tareas'
 import { Route as RrhhColaboradoresRouteImport } from './routes/rrhh.colaboradores'
@@ -79,6 +80,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SolicitudesRoute = SolicitudesRouteImport.update({
   id: '/solicitudes',
   path: '/solicitudes',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/sitemap.xml'
     | '/solicitudes'
     | '/tareas'
     | '/rrhh/colaboradores'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/sitemap.xml'
     | '/solicitudes'
     | '/tareas'
     | '/rrhh/colaboradores'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/sitemap.xml'
     | '/solicitudes'
     | '/tareas'
     | '/rrhh/colaboradores'
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   NominaRoute: typeof NominaRoute
   NotificacionesRoute: typeof NotificacionesRoute
   PerfilRoute: typeof PerfilRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SolicitudesRoute: typeof SolicitudesRoute
   TareasRoute: typeof TareasRoute
   RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/solicitudes': {
       id: '/solicitudes'
       path: '/solicitudes'
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   NominaRoute: NominaRoute,
   NotificacionesRoute: NotificacionesRoute,
   PerfilRoute: PerfilRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SolicitudesRoute: SolicitudesRoute,
   TareasRoute: TareasRoute,
   RrhhColaboradoresRoute: RrhhColaboradoresRoute,
