@@ -38,16 +38,46 @@ const accesos = [
   { to: "/nomina", label: "Nómina", icon: DollarSign },
 ] as const;
 
-const resumen = [
-  { valor: "24", label: "Empleados activos", cta: "Ver equipo", to: "/equipo", tono: "primary", icon: Users },
-  { valor: "18", label: "Asistencias registradas", cta: "Ver asistencia", to: "/asistencia", tono: "accent", icon: CalendarCheck },
-  { valor: "5", label: "Tareas pendientes", cta: "Ver tareas", to: "/tareas", tono: "primary", icon: ClipboardList },
-  { valor: "2", label: "Solicitudes pendientes", cta: "Ver solicitudes", to: "/solicitudes", tono: "accent", icon: DollarSign },
-] as const;
+
 
 function Inicio() {
   const { sesion, colaboradorActual, esAdmin, esRRHH, misAvisos, fotosPendientes } = usePortal();
-  const nuevos = misAvisos.filter((a) => a.nuevo).length + 3;
+  const { colaboradores, pagos } = usePortal();
+  const nuevos = misAvisos.filter((a) => a.nuevo).length;
+  const resumen = [
+    {
+      valor: String(colaboradores.filter((c) => c.estado === "activo").length),
+      label: "Empleados activos",
+      cta: "Ver equipo",
+      to: "/equipo",
+      tono: "primary",
+      icon: Users,
+    },
+    {
+      valor: "0",
+      label: "Asistencias registradas",
+      cta: "Ver asistencia",
+      to: "/asistencia",
+      tono: "accent",
+      icon: CalendarCheck,
+    },
+    {
+      valor: "0",
+      label: "Tareas pendientes",
+      cta: "Ver tareas",
+      to: "/tareas",
+      tono: "primary",
+      icon: ClipboardList,
+    },
+    {
+      valor: String(pagos.filter((p) => p.estado === "Pendiente").length),
+      label: "Pagos pendientes",
+      cta: "Ver nómina",
+      to: "/nomina",
+      tono: "accent",
+      icon: DollarSign,
+    },
+  ] as const;
   const primerNombre = (colaboradorActual?.nombre ?? sesion.nombre).split(" ")[0];
   return (
     <AppShell>
@@ -60,9 +90,11 @@ function Inicio() {
             aria-label="Notificaciones"
           >
             <Bell className="h-6 w-6" />
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-              {nuevos}
-            </span>
+            {nuevos > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+                {nuevos}
+              </span>
+            ) : null}
           </Link>
         </div>
         <div className="mt-5 flex items-start justify-between gap-4">

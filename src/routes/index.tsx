@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePortal } from "@/lib/portal-store";
 
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -29,10 +28,15 @@ export const Route = createFileRoute("/")({
 
 function Login() {
   const navigate = useNavigate();
-  const { autenticar } = usePortal();
+  const { autenticar, crearPrimerAdmin, portalVacio, cargando } = usePortal();
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [cargo, setCargo] = useState("");
   const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const registro = portalVacio && !cargando;
 
   return (
     <div className="brand-gradient flex min-h-screen flex-col items-center justify-center px-6 py-12">
@@ -49,16 +53,48 @@ function Login() {
 
         <form
           className="surface-card space-y-4 p-6"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (autenticar(email, clave)) {
-              setError("");
-              navigate({ to: "/inicio" });
-            } else {
-              setError("Correo o contraseña incorrectos. Solicítalos a un administrador.");
-            }
+            setEnviando(true);
+            setError("");
+            const r = registro
+              ? await crearPrimerAdmin({ email, clave, nombre, cargo: cargo || "Administración" })
+              : await autenticar(email, clave);
+            setEnviando(false);
+            if (r.ok) navigate({ to: "/inicio" });
+            else setError(r.error ?? "No se pudo iniciar sesión.");
           }}
         >
+          {registro ? (
+            <div className="rounded-lg bg-brand-soft px-3 py-2 text-xs text-primary">
+              El portal está vacío. Crea la primera cuenta de administrador para empezar a registrar
+              al personal.
+            </div>
+          ) : null}
+
+          {registro ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="nombre">Nombre completo</Label>
+                <Input
+                  id="nombre"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cargo">Cargo</Label>
+                <Input
+                  id="cargo"
+                  value={cargo}
+                  onChange={(e) => setCargo(e.target.value)}
+                  placeholder="Administración"
+                />
+              </div>
+            </>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="email">Correo corporativo</Label>
             <Input
@@ -80,19 +116,25 @@ function Login() {
               required
             />
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 text-muted-foreground">
-              <Checkbox defaultChecked /> Recordarme
-            </label>
-            <span className="font-medium text-primary">¿Olvidaste tu clave?</span>
-          </div>
+          {registro ? null : (
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-muted-foreground">
+                <Checkbox defaultChecked /> Recordarme
+              </label>
+              <span className="font-medium text-primary">¿Olvidaste tu clave?</span>
+            </div>
+          )}
           {error ? (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </p>
           ) : null}
-          <Button type="submit" className="w-full">
-            Iniciar sesión
+          <Button type="submit" className="w-full" disabled={enviando}>
+            {enviando
+              ? "Procesando…"
+              : registro
+                ? "Crear cuenta de administrador"
+                : "Iniciar sesión"}
           </Button>
 
           <p className="border-t border-border pt-4 text-center text-xs text-muted-foreground">

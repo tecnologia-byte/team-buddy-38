@@ -104,7 +104,7 @@ function GestionColaboradores() {
     `${c.nombre} ${c.cargo} ${c.area}`.toLowerCase().includes(busqueda.toLowerCase()),
   );
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!borrador) return;
     const r = esquema.safeParse(borrador);
     if (!r.success) {
@@ -116,10 +116,15 @@ function GestionColaboradores() {
       return;
     }
     setErrores({});
-    guardarColaborador({ ...r.data, estado: borrador.estado, id: borrador.id });
-    toast.success(borrador.id ? "Colaborador actualizado" : "Colaborador creado");
+    const res = await guardarColaborador({ ...r.data, estado: borrador.estado, id: borrador.id });
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo guardar");
+      return;
+    }
+    toast.success("Colaborador actualizado");
     setBorrador(null);
   };
+
 
   return (
     <AppShell>
@@ -138,9 +143,16 @@ function GestionColaboradores() {
       </AppHeader>
 
       <div className="space-y-3 px-4 py-5">
-        <Button className="w-full" onClick={() => setBorrador({ ...vacio })}>
-          <Plus className="mr-2 h-4 w-4" /> Nuevo colaborador
-        </Button>
+        <Link to="/admin" className="block">
+          <Button className="w-full">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo colaborador (crear acceso)
+          </Button>
+        </Link>
+        <p className="px-1 text-xs text-muted-foreground">
+          Los colaboradores se agregan creando su acceso en Administradores → Usuarios; luego puedes
+          completar aquí su expediente.
+        </p>
+
 
         {lista.map((c) => (
           <article key={c.id} className="surface-card flex items-center gap-3 p-4">

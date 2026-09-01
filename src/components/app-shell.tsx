@@ -1,3 +1,4 @@
+import { usePortal } from "@/lib/portal-store";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -28,6 +29,8 @@ export function AppHeader({
   children?: ReactNode;
 }) {
   const router = useRouter();
+  const { misAvisos } = usePortal();
+  const nuevos = misAvisos.filter((a) => a.nuevo).length;
   return (
     <header className="brand-gradient text-primary-foreground">
       <div className="flex items-center gap-3 px-4 pb-4 pt-5">
@@ -51,9 +54,11 @@ export function AppHeader({
         </div>
         <Link to="/notificaciones" className="relative p-1 opacity-90" aria-label="Notificaciones">
           <Bell className="h-6 w-6" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-            3
-          </span>
+          {nuevos > 0 ? (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+              {nuevos}
+            </span>
+          ) : null}
         </Link>
       </div>
       {children}
