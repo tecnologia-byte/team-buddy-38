@@ -104,7 +104,7 @@ function GestionColaboradores() {
     `${c.nombre} ${c.cargo} ${c.area}`.toLowerCase().includes(busqueda.toLowerCase()),
   );
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!borrador) return;
     const r = esquema.safeParse(borrador);
     if (!r.success) {
@@ -116,10 +116,15 @@ function GestionColaboradores() {
       return;
     }
     setErrores({});
-    guardarColaborador({ ...r.data, estado: borrador.estado, id: borrador.id });
-    toast.success(borrador.id ? "Colaborador actualizado" : "Colaborador creado");
+    const res = await guardarColaborador({ ...r.data, estado: borrador.estado, id: borrador.id });
+    if (!res.ok) {
+      toast.error(res.error ?? "No se pudo guardar");
+      return;
+    }
+    toast.success("Colaborador actualizado");
     setBorrador(null);
   };
+
 
   return (
     <AppShell>
