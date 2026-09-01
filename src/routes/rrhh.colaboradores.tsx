@@ -200,14 +200,14 @@ function GestionColaboradores() {
                 id="nombre"
                 label="Nombre completo"
                 valor={borrador.nombre}
-                error={errores.nombre}
+                error={errores["nombre"]}
                 onChange={(v) => setBorrador({ ...borrador, nombre: v })}
               />
               <Campo
                 id="cargo"
                 label="Cargo"
                 valor={borrador.cargo}
-                error={errores.cargo}
+                error={errores["cargo"]}
                 onChange={(v) => setBorrador({ ...borrador, cargo: v })}
               />
               <div className="space-y-2">
@@ -232,21 +232,21 @@ function GestionColaboradores() {
                 id="email"
                 label="Correo corporativo"
                 valor={borrador.email}
-                error={errores.email}
+                error={errores["email"]}
                 onChange={(v) => setBorrador({ ...borrador, email: v })}
               />
               <Campo
                 id="telefono"
                 label="Teléfono"
                 valor={borrador.telefono}
-                error={errores.telefono}
+                error={errores["telefono"]}
                 onChange={(v) => setBorrador({ ...borrador, telefono: v })}
               />
               <Campo
                 id="salario"
                 label="Salario mensual (RD$)"
                 valor={borrador.salario}
-                error={errores.salario}
+                error={errores["salario"]}
                 onChange={(v) => setBorrador({ ...borrador, salario: v })}
               />
               <div className="space-y-2">
@@ -291,7 +291,7 @@ function Campo({
   id: string;
   label: string;
   valor: string;
-  error?: string;
+  error?: string | undefined;
   onChange: (v: string) => void;
 }) {
   return (
