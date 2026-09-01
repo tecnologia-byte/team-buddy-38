@@ -285,10 +285,10 @@ export const cuentasIniciales: Cuenta[] = [
   {
     email: "admin@ivad.com.do",
     clave: "IvadAdmin2026*",
-    nombre: "Manuel Gómez Marcano",
+    nombre: "Luis Alonzo Sánchez",
     rol: "Administrador",
-    cargo: "Director de Tecnología",
-    iniciales: "MG",
+    cargo: "Tecnología",
+    iniciales: "LS",
   },
 ];
 
