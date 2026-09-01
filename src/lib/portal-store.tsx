@@ -7,9 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { empleados, usuariosDemo, type Empleado, type UsuarioDemo } from "@/lib/data";
+import { cuentasIniciales, empleados, type Cuenta, type Empleado } from "@/lib/data";
 
-export type Rol = UsuarioDemo["rol"];
+export type Rol = Cuenta["rol"];
+export type { Cuenta };
 
 export type EstadoFoto = "sin_foto" | "pendiente" | "aprobada" | "rechazada";
 
@@ -71,13 +72,15 @@ export type DatosColaborador = {
 
 type Estado = {
   sesionEmail: string;
+  cuentas: Cuenta[];
   colaboradores: Colaborador[];
   pagos: Pago[];
   avisos: Aviso[];
 };
 
 const estadoInicial: Estado = {
-  sesionEmail: "ana.rodriguez@ivad.com.do",
+  sesionEmail: cuentasIniciales[0]!.email,
+  cuentas: cuentasIniciales,
   colaboradores: colaboradoresIniciales,
   pagos: pagosIniciales,
   avisos: [],
@@ -86,13 +89,15 @@ const estadoInicial: Estado = {
 const CLAVE = "ivad-portal-v1";
 
 type Contexto = Estado & {
-  sesion: UsuarioDemo;
+  sesion: Cuenta;
   colaboradorActual?: Colaborador | undefined;
   esAdmin: boolean;
   esRRHH: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
-  iniciarSesion: (email: string) => void;
+  autenticar: (email: string, clave: string) => boolean;
+  guardarCuenta: (cuenta: Cuenta, emailOriginal?: string) => { ok: boolean; error?: string };
+  eliminarCuenta: (email: string) => void;
   guardarColaborador: (datos: DatosColaborador) => void;
   eliminarColaborador: (id: string) => void;
   subirFoto: (id: string, dataUrl: string) => void;
@@ -136,8 +141,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   }, [estado]);
 
   const sesion = useMemo(
-    () => usuariosDemo.find((u) => u.email === estado.sesionEmail) ?? usuariosDemo[3]!,
-    [estado.sesionEmail],
+    () => estado.cuentas.find((u) => u.email === estado.sesionEmail) ?? estado.cuentas[0] ?? cuentasIniciales[0]!,
+    [estado.cuentas, estado.sesionEmail],
   );
 
   const colaboradorActual = useMemo(
@@ -145,8 +150,59 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [estado.colaboradores, sesion.email],
   );
 
-  const iniciarSesion = useCallback((email: string) => {
-    setEstado((p) => ({ ...p, sesionEmail: email }));
+  const autenticar = useCallback((email: string, clave: string) => {
+    const correo = email.trim().toLowerCase();
+    let ok = false;
+    setEstado((p) => {
+      const cuenta = p.cuentas.find((c) => c.email.toLowerCase() === correo && c.clave === clave);
+      if (!cuenta) return p;
+      ok = true;
+      return { ...p, sesionEmail: cuenta.email };
+    });
+    return ok;
+  }, []);
+
+  const guardarCuenta = useCallback((cuenta: Cuenta, emailOriginal?: string) => {
+    const email = cuenta.email.trim().toLowerCase();
+    if (!email.includes("@")) return { ok: false, error: "Correo no válido" };
+    if (cuenta.clave.trim().length < 6)
+      return { ok: false, error: "La contraseña debe tener al menos 6 caracteres" };
+    let error: string | undefined;
+    setEstado((p) => {
+      const duplicada = p.cuentas.some(
+        (c) => c.email.toLowerCase() === email && c.email !== emailOriginal,
+      );
+      if (duplicada) {
+        error = "Ya existe una cuenta con ese correo";
+        return p;
+      }
+      const nueva: Cuenta = {
+        ...cuenta,
+        email,
+        nombre: cuenta.nombre.trim() || "Sin nombre",
+        cargo: cuenta.cargo.trim() || "Sin cargo",
+        iniciales: iniciales(cuenta.nombre || "NC"),
+      };
+      const existe = emailOriginal
+        ? p.cuentas.some((c) => c.email === emailOriginal)
+        : false;
+      return {
+        ...p,
+        sesionEmail: p.sesionEmail === emailOriginal ? nueva.email : p.sesionEmail,
+        cuentas: existe
+          ? p.cuentas.map((c) => (c.email === emailOriginal ? nueva : c))
+          : [...p.cuentas, nueva],
+      };
+    });
+    return error ? { ok: false, error } : { ok: true };
+  }, []);
+
+  const eliminarCuenta = useCallback((email: string) => {
+    setEstado((p) =>
+      p.cuentas.length <= 1 || p.sesionEmail === email
+        ? p
+        : { ...p, cuentas: p.cuentas.filter((c) => c.email !== email) },
+    );
   }, []);
 
   const guardarColaborador = useCallback((datos: DatosColaborador) => {
@@ -313,7 +369,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     esRRHH: sesion.rol === "Administrador" || sesion.rol === "Recursos Humanos",
     fotosPendientes: estado.colaboradores.filter((c) => c.estadoFoto === "pendiente"),
     misAvisos: estado.avisos.filter((a) => a.para === sesion.email),
-    iniciarSesion,
+    autenticar,
+    guardarCuenta,
+    eliminarCuenta,
     guardarColaborador,
     eliminarColaborador,
     subirFoto,
