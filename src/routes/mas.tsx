@@ -12,9 +12,10 @@ import {
   Settings,
   ShieldCheck,
   User,
+  Users,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
-import { usuarioActual } from "@/lib/data";
+import { usePortal } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/mas")({
   head: () => ({
@@ -49,18 +50,66 @@ const extras = [
 ];
 
 function Mas() {
+  const { sesion, colaboradorActual, esAdmin, esRRHH, fotosPendientes } = usePortal();
   return (
     <AppShell>
       <AppHeader titulo="Más" />
       <div className="space-y-6 px-4 py-5">
         <Link to="/perfil" className="surface-card flex items-center gap-3 p-4">
-          <Avatar iniciales={usuarioActual.iniciales} estado="activo" />
+          <Avatar
+            iniciales={colaboradorActual?.iniciales ?? sesion.iniciales}
+            estado="activo"
+            foto={colaboradorActual?.foto}
+          />
           <div>
-            <p className="font-display font-bold text-foreground">{usuarioActual.nombre}</p>
-            <p className="text-sm text-accent">{usuarioActual.cargo}</p>
-            <p className="text-xs text-muted-foreground">{usuarioActual.email}</p>
+            <p className="font-display font-bold text-foreground">
+              {colaboradorActual?.nombre ?? sesion.nombre}
+            </p>
+            <p className="text-sm text-accent">{colaboradorActual?.cargo ?? sesion.cargo}</p>
+            <p className="text-xs text-muted-foreground">{sesion.email}</p>
           </div>
         </Link>
+
+        {esRRHH || esAdmin ? (
+          <section>
+            <SectionTitle>Gestión interna</SectionTitle>
+            <div className="space-y-3">
+              {esAdmin ? (
+                <Link to="/admin" className="surface-card flex items-center gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                    <ShieldCheck className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">Administradores</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Contabilidad, pagos de nómina, recibos y aprobación de fotos
+                    </span>
+                  </span>
+                  {fotosPendientes.length > 0 ? (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
+                      {fotosPendientes.length}
+                    </span>
+                  ) : null}
+                </Link>
+              ) : null}
+              {esRRHH ? (
+                <Link to="/rrhh/colaboradores" className="surface-card flex items-center gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Users className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">
+                      Gestión de colaboradores
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Crear y editar nombre, cargo, área y datos de contacto
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <SectionTitle>Módulos</SectionTitle>

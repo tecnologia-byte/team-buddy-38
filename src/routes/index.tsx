@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usuariosDemo } from "@/lib/data";
+import { usePortal } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/")({
 
 function Login() {
   const navigate = useNavigate();
+  const { iniciarSesion } = usePortal();
   const [email, setEmail] = useState("ana.rodriguez@ivad.com.do");
   const [clave, setClave] = useState("demo1234");
 
@@ -48,6 +50,7 @@ function Login() {
           className="surface-card space-y-4 p-6"
           onSubmit={(e) => {
             e.preventDefault();
+            iniciarSesion(email.trim().toLowerCase());
             navigate({ to: "/inicio" });
           }}
         >
