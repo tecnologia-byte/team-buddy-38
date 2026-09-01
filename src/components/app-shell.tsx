@@ -173,9 +173,7 @@ export function Avatar({
   return (
     <div className="relative shrink-0">
       <div
-        className={`${dims} flex items-center justify-center overflow-hidden rounded-full ${
-          fondoLogo ? "bg-primary" : "bg-card"
-        } ring-4 ring-accent ring-offset-2 ring-offset-background`}
+        className={`${dims} flex items-center justify-center overflow-hidden rounded-full bg-card ring-4 ring-accent ring-offset-2 ring-offset-background`}
       >
         {foto ? (
           <img src={foto} alt={`Foto de ${iniciales}`} className="h-full w-full object-cover" />
