@@ -96,6 +96,8 @@ export type Database = {
           email: string
           estado: string
           estado_foto: string
+          firma: string | null
+          firma_actualizada: string | null
           foto: string | null
           foto_pendiente: string | null
           id: string
@@ -114,6 +116,8 @@ export type Database = {
           email?: string
           estado?: string
           estado_foto?: string
+          firma?: string | null
+          firma_actualizada?: string | null
           foto?: string | null
           foto_pendiente?: string | null
           id: string
@@ -132,6 +136,8 @@ export type Database = {
           email?: string
           estado?: string
           estado_foto?: string
+          firma?: string | null
+          firma_actualizada?: string | null
           foto?: string | null
           foto_pendiente?: string | null
           id?: string
@@ -143,6 +149,56 @@ export type Database = {
           telefono?: string
         }
         Relationships: []
+      }
+      soporte_tickets: {
+        Row: {
+          asunto: string
+          categoria: string
+          creador_id: string
+          created_at: string
+          email: string
+          estado: string
+          id: string
+          mensaje: string
+          nombre: string
+          respuesta: string | null
+          updated_at: string
+        }
+        Insert: {
+          asunto: string
+          categoria?: string
+          creador_id: string
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          mensaje: string
+          nombre?: string
+          respuesta?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asunto?: string
+          categoria?: string
+          creador_id?: string
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          mensaje?: string
+          nombre?: string
+          respuesta?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soporte_tickets_creador_id_fkey"
+            columns: ["creador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

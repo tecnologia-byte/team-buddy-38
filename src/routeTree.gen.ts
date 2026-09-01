@@ -22,6 +22,7 @@ import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
+import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as TareasRouteImport } from './routes/tareas'
 import { Route as RrhhColaboradoresRouteImport } from './routes/rrhh.colaboradores'
 
@@ -90,6 +91,11 @@ const SolicitudesRoute = SolicitudesRouteImport.update({
   path: '/solicitudes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoporteRoute = SoporteRouteImport.update({
+  id: '/soporte',
+  path: '/soporte',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TareasRoute = TareasRouteImport.update({
   id: '/tareas',
   path: '/tareas',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/sitemap.xml'
     | '/solicitudes'
+    | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/sitemap.xml'
     | '/solicitudes'
+    | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
   id:
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/sitemap.xml'
     | '/solicitudes'
+    | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
   fileRoutesById: FileRoutesById
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SolicitudesRoute: typeof SolicitudesRoute
+  SoporteRoute: typeof SoporteRoute
   TareasRoute: typeof TareasRoute
   RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
 }
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SolicitudesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soporte': {
+      id: '/soporte'
+      path: '/soporte'
+      fullPath: '/soporte'
+      preLoaderRoute: typeof SoporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tareas': {
       id: '/tareas'
       path: '/tareas'
@@ -349,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SolicitudesRoute: SolicitudesRoute,
+  SoporteRoute: SoporteRoute,
   TareasRoute: TareasRoute,
   RrhhColaboradoresRoute: RrhhColaboradoresRoute,
 }

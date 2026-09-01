@@ -28,6 +28,21 @@ export type Colaborador = Empleado & {
   motivoRechazo?: string | undefined;
   salario: number;
   rol?: Rol | undefined;
+  firma?: string | undefined;
+  firmaActualizada?: string | undefined;
+};
+
+export type Ticket = {
+  id: string;
+  creadorId: string;
+  nombre: string;
+  email: string;
+  categoria: string;
+  asunto: string;
+  mensaje: string;
+  estado: "Abierto" | "En proceso" | "Resuelto";
+  respuesta?: string | undefined;
+  fecha: string;
 };
 
 export type Pago = {
@@ -78,6 +93,8 @@ type Contexto = {
   esRRHH: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
+  tickets: Ticket[];
+  misTickets: Ticket[];
   autenticar: (email: string, clave: string) => Promise<Resultado>;
   crearPrimerAdmin: (datos: {
     email: string;
@@ -94,6 +111,20 @@ type Contexto = {
   aprobarFoto: (id: string) => Promise<Resultado>;
   rechazarFoto: (id: string, motivo: string) => Promise<Resultado>;
   actualizarPago: (id: string, cambios: Partial<Pago>) => Promise<Resultado>;
+  guardarFirma: (id: string, dataUrl: string) => Promise<Resultado>;
+  borrarFirma: (id: string) => Promise<Resultado>;
+  crearTicket: (datos: {
+    categoria: string;
+    asunto: string;
+    mensaje: string;
+    nombre?: string;
+    email?: string;
+  }) => Promise<Resultado>;
+  responderTicket: (
+    id: string,
+    respuesta: string,
+    estado?: Ticket["estado"],
+  ) => Promise<Resultado>;
   marcarAvisosLeidos: () => Promise<void>;
   recargar: () => Promise<void>;
 };
@@ -123,6 +154,8 @@ type FilaPerfil = {
   foto_pendiente: string | null;
   estado_foto: string;
   motivo_rechazo: string | null;
+  firma: string | null;
+  firma_actualizada: string | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -141,6 +174,8 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   fotoPendiente: p.foto_pendiente ?? undefined,
   estadoFoto: (p.estado_foto as EstadoFoto) ?? "sin_foto",
   motivoRechazo: p.motivo_rechazo ?? undefined,
+  firma: p.firma ?? undefined,
+  firmaActualizada: p.firma_actualizada ? fecha(p.firma_actualizada) : undefined,
   rol,
 });
 
@@ -151,6 +186,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
 
   const cargar = useCallback(async () => {
     const { data: sesionData } = await supabase.auth.getSession();
@@ -161,6 +197,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       setColaboradores([]);
       setPagos([]);
       setAvisos([]);
+      setTickets([]);
       try {
         const r = await portalVacioFn();
         setPortalVacio(r.vacio);
@@ -171,11 +208,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [perfilesRes, rolesRes, pagosRes, avisosRes] = await Promise.all([
+    const [perfilesRes, rolesRes, pagosRes, avisosRes, ticketsRes] = await Promise.all([
       supabase.from("perfiles").select("*").order("nombre"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("pagos").select("*").order("created_at", { ascending: false }),
       supabase.from("avisos").select("*").order("created_at", { ascending: false }),
+      supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
     ]);
 
     const mapaRoles = new Map<string, Rol>();
@@ -207,6 +245,21 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         detalle: a.detalle,
         fecha: fecha(a.created_at),
         nuevo: a.nuevo,
+      })),
+    );
+
+    setTickets(
+      (ticketsRes.data ?? []).map((t) => ({
+        id: t.id,
+        creadorId: t.creador_id,
+        nombre: t.nombre,
+        email: t.email,
+        categoria: t.categoria,
+        asunto: t.asunto,
+        mensaje: t.mensaje,
+        estado: t.estado as Ticket["estado"],
+        respuesta: t.respuesta ?? undefined,
+        fecha: fecha(t.created_at),
       })),
     );
     setCargando(false);
@@ -426,6 +479,80 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [pagos, crearAviso, cargar],
   );
 
+  const guardarFirma = useCallback(
+    async (id: string, dataUrl: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ firma: dataUrl, firma_actualizada: new Date().toISOString() } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (id !== userId) {
+        await crearAviso(
+          id,
+          "Tu firma digital fue registrada",
+          "Se usará automáticamente en el espacio de 'Recibido por' de tus recibos de pago.",
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [userId, crearAviso, cargar],
+  );
+
+  const borrarFirma = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ firma: null, firma_actualizada: null } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const crearTicket = useCallback(
+    async (datos: {
+      categoria: string;
+      asunto: string;
+      mensaje: string;
+      nombre?: string;
+      email?: string;
+    }): Promise<Resultado> => {
+      if (!userId) return { ok: false, error: "Inicia sesión para enviar tu solicitud." };
+      const { error } = await supabase.from("soporte_tickets").insert({
+        creador_id: userId,
+        nombre: (datos.nombre ?? sesion.nombre).slice(0, 120),
+        email: (datos.email ?? sesion.email).slice(0, 200),
+        categoria: datos.categoria,
+        asunto: datos.asunto.slice(0, 150),
+        mensaje: datos.mensaje.slice(0, 2000),
+      } as never);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [userId, sesion.nombre, sesion.email, cargar],
+  );
+
+  const responderTicket = useCallback(
+    async (id: string, respuesta: string, estado?: Ticket["estado"]): Promise<Resultado> => {
+      const t = tickets.find((x) => x.id === id);
+      const { error } = await supabase
+        .from("soporte_tickets")
+        .update({ respuesta, estado: estado ?? "Resuelto" } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (t) {
+        await crearAviso(t.creadorId, `Respuesta a tu caso: ${t.asunto}`, respuesta);
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [tickets, crearAviso, cargar],
+  );
+
   const marcarAvisosLeidos = useCallback(async () => {
     if (!userId) return;
     await supabase.from("avisos").update({ nuevo: false }).eq("para_id", userId);
@@ -447,6 +574,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     esRRHH: sesion.rol === "Administrador" || sesion.rol === "Recursos Humanos",
     fotosPendientes: colaboradores.filter((c) => c.estadoFoto === "pendiente"),
     misAvisos: avisos.filter((a) => a.para === sesion.email),
+    tickets,
+    misTickets: tickets.filter((t) => t.creadorId === userId),
     autenticar,
     crearPrimerAdmin,
     cerrarSesion,
@@ -458,6 +587,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     aprobarFoto,
     rechazarFoto,
     actualizarPago,
+    guardarFirma,
+    borrarFirma,
+    crearTicket,
+    responderTicket,
     marcarAvisosLeidos,
     recargar: cargar,
   };
