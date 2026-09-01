@@ -17,6 +17,7 @@ import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
+import { Route as TareasRouteImport } from './routes/tareas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const SolicitudesRoute = SolicitudesRouteImport.update({
   path: '/solicitudes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TareasRoute = TareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/perfil'
     | '/solicitudes'
+    | '/tareas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/perfil'
     | '/solicitudes'
+    | '/tareas'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/perfil'
     | '/solicitudes'
+    | '/tareas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   NominaRoute: typeof NominaRoute
   PerfilRoute: typeof PerfilRoute
   SolicitudesRoute: typeof SolicitudesRoute
+  TareasRoute: typeof TareasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SolicitudesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tareas': {
+      id: '/tareas'
+      path: '/tareas'
+      fullPath: '/tareas'
+      preLoaderRoute: typeof TareasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   NominaRoute: NominaRoute,
   PerfilRoute: PerfilRoute,
   SolicitudesRoute: SolicitudesRoute,
+  TareasRoute: TareasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
