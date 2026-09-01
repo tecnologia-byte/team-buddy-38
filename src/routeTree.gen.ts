@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AsistenciaRouteImport } from './routes/asistencia'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -21,10 +22,16 @@ import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 import { Route as TareasRouteImport } from './routes/tareas'
+import { Route as RrhhColaboradoresRouteImport } from './routes/rrhh.colaboradores'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AsistenciaRoute = AsistenciaRouteImport.update({
@@ -82,9 +89,15 @@ const TareasRoute = TareasRouteImport.update({
   path: '/tareas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RrhhColaboradoresRoute = RrhhColaboradoresRouteImport.update({
+  id: '/rrhh/colaboradores',
+  path: '/rrhh/colaboradores',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
@@ -96,9 +109,11 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
+  '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
@@ -110,10 +125,12 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
+  '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
@@ -125,11 +142,13 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
   '/tareas': typeof TareasRoute
+  '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/asistencia'
     | '/calendario'
     | '/chat'
@@ -141,9 +160,11 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/solicitudes'
     | '/tareas'
+    | '/rrhh/colaboradores'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/asistencia'
     | '/calendario'
     | '/chat'
@@ -155,9 +176,11 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/solicitudes'
     | '/tareas'
+    | '/rrhh/colaboradores'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/asistencia'
     | '/calendario'
     | '/chat'
@@ -169,10 +192,12 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/solicitudes'
     | '/tareas'
+    | '/rrhh/colaboradores'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AsistenciaRoute: typeof AsistenciaRoute
   CalendarioRoute: typeof CalendarioRoute
   ChatRoute: typeof ChatRoute
@@ -184,6 +209,7 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   SolicitudesRoute: typeof SolicitudesRoute
   TareasRoute: typeof TareasRoute
+  RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +219,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/asistencia': {
@@ -272,11 +305,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TareasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rrhh/colaboradores': {
+      id: '/rrhh/colaboradores'
+      path: '/rrhh/colaboradores'
+      fullPath: '/rrhh/colaboradores'
+      preLoaderRoute: typeof RrhhColaboradoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AsistenciaRoute: AsistenciaRoute,
   CalendarioRoute: CalendarioRoute,
   ChatRoute: ChatRoute,
@@ -288,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   SolicitudesRoute: SolicitudesRoute,
   TareasRoute: TareasRoute,
+  RrhhColaboradoresRoute: RrhhColaboradoresRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,11 +6,14 @@ import {
   ClipboardList,
   DollarSign,
   Megaphone,
+  ShieldCheck,
   User,
+  UserCog,
   Users,
 } from "lucide-react";
 import { AppShell, Avatar, BrandLogo, SectionTitle } from "@/components/app-shell";
-import { anuncios, usuarioActual } from "@/lib/data";
+import { anuncios } from "@/lib/data";
+import { usePortal } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/inicio")({
   head: () => ({
@@ -43,6 +46,9 @@ const resumen = [
 ] as const;
 
 function Inicio() {
+  const { sesion, colaboradorActual, esAdmin, esRRHH, misAvisos, fotosPendientes } = usePortal();
+  const nuevos = misAvisos.filter((a) => a.nuevo).length + 3;
+  const primerNombre = (colaboradorActual?.nombre ?? sesion.nombre).split(" ")[0];
   return (
     <AppShell>
       <div className="brand-gradient px-4 pb-24 pt-6 text-primary-foreground">
@@ -55,19 +61,23 @@ function Inicio() {
           >
             <Bell className="h-6 w-6" />
             <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-              3
+              {nuevos}
             </span>
           </Link>
         </div>
         <div className="mt-5 flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold">¡Hola, {usuarioActual.primerNombre}!</h1>
+            <h1 className="font-display text-2xl font-bold">¡Hola, {primerNombre}!</h1>
             <p className="mt-1 text-sm font-semibold opacity-90">Bienvenida a IVAD</p>
             <p className="mt-1 text-sm opacity-70">
               Aquí tienes un resumen de lo que sucede hoy.
             </p>
           </div>
-          <Avatar iniciales={usuarioActual.iniciales} size="lg" />
+          <Avatar
+            iniciales={colaboradorActual?.iniciales ?? sesion.iniciales}
+            size="lg"
+            foto={colaboradorActual?.foto}
+          />
         </div>
       </div>
 
@@ -84,6 +94,47 @@ function Inicio() {
             </Link>
           ))}
         </div>
+
+        {esAdmin || esRRHH ? (
+          <section>
+            <SectionTitle>Gestión interna</SectionTitle>
+            <div className="space-y-3">
+              {esAdmin ? (
+                <Link to="/admin" className="surface-card flex items-center gap-3 p-4">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                    <ShieldCheck className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">Administradores</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Contabilidad de nómina, pagos y recibos del personal
+                    </span>
+                  </span>
+                  {fotosPendientes.length > 0 ? (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
+                      {fotosPendientes.length}
+                    </span>
+                  ) : null}
+                </Link>
+              ) : null}
+              {esRRHH ? (
+                <Link to="/rrhh/colaboradores" className="surface-card flex items-center gap-3 p-4">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <UserCog className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">
+                      Gestión de colaboradores
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Crear y editar nombre, cargo y área
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <SectionTitle>Resumen del día</SectionTitle>

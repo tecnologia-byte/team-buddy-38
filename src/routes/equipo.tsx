@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Cake, Mail, Phone, Search } from "lucide-react";
 import { AppShell, Avatar, BrandLogo } from "@/components/app-shell";
-import { areas, empleados } from "@/lib/data";
+import { areas } from "@/lib/data";
+import { usePortal } from "@/lib/portal-store";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/equipo")({
 
 function Equipo() {
   const [q, setQ] = useState("");
+  const { colaboradores: empleados } = usePortal();
 
   const filtrados = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -30,7 +32,7 @@ function Equipo() {
     return empleados.filter((e) =>
       [e.nombre, e.cargo, e.area].some((v) => v.toLowerCase().includes(t)),
     );
-  }, [q]);
+  }, [q, empleados]);
 
   return (
     <AppShell>
@@ -69,7 +71,7 @@ function Equipo() {
             <p className="text-sm text-muted-foreground">{filtrados.length} colaboradores</p>
             {filtrados.map((e) => (
               <article key={e.id} className="surface-card flex gap-3 p-4">
-                <Avatar iniciales={e.iniciales} estado={e.estado} />
+                <Avatar iniciales={e.iniciales} estado={e.estado} foto={e.foto} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-display font-bold text-foreground">{e.nombre}</h3>
