@@ -281,9 +281,9 @@ function CuentasUsuarios() {
     <div className="space-y-5">
       <form
         className="surface-card space-y-3 p-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const r = guardarCuenta(form, editando ?? undefined);
+          const r = await guardarCuenta(form, editando ?? undefined);
           if (!r.ok) {
             toast.error(r.error ?? "No se pudo guardar la cuenta");
             return;
@@ -384,13 +384,13 @@ function CuentasUsuarios() {
                 <Etiqueta texto={u.rol} tono="accent" />
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <Etiqueta texto={`Clave: ${u.clave}`} tono="muted" />
+                <Etiqueta texto={u.cargo || "Sin cargo"} tono="muted" />
                 <div className="ml-auto flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setForm(u);
+                      setForm({ ...u, clave: "" });
                       setEditando(u.email);
                     }}
                   >
@@ -400,9 +400,10 @@ function CuentasUsuarios() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        eliminarCuenta(u.email);
-                        toast.info(`Acceso de ${u.nombre} eliminado`);
+                      onClick={async () => {
+                        const r = await eliminarCuenta(u.email);
+                        if (r.ok) toast.info(`Acceso de ${u.nombre} eliminado`);
+                        else toast.error(r.error ?? "No se pudo eliminar");
                       }}
                     >
                       <Trash2 className="h-4 w-4" />

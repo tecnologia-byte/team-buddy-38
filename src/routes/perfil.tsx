@@ -14,7 +14,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
-import { usuarioActual } from "@/lib/data";
 import { usePortal } from "@/lib/portal-store";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -43,7 +42,6 @@ function Perfil() {
   const [subiendo, setSubiendo] = useState(false);
 
   const c = colaboradorActual;
-  const total = usuarioActual.vacacionesDisponibles + usuarioActual.vacacionesTomadas;
 
   const elegirFoto = (archivo?: File | null) => {
     if (!archivo || !c) return;
@@ -58,7 +56,7 @@ function Perfil() {
     setSubiendo(true);
     const lector = new FileReader();
     lector.onload = () => {
-      subirFoto(c.id, String(lector.result));
+      void subirFoto(c.id, String(lector.result));
       setSubiendo(false);
       toast.success("Foto enviada a revisión de Recursos Humanos");
     };
@@ -144,13 +142,13 @@ function Perfil() {
 
         <section className="surface-card p-4">
           <SectionTitle>Balance de vacaciones</SectionTitle>
-          <Progress value={(usuarioActual.vacacionesTomadas / total) * 100} />
+          <Progress value={0} />
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 text-muted-foreground">
-              <Umbrella className="h-4 w-4" /> {usuarioActual.vacacionesTomadas} días tomados
+              <Umbrella className="h-4 w-4" /> 0 días tomados
             </span>
             <span className="font-semibold text-foreground">
-              {usuarioActual.vacacionesDisponibles} disponibles
+              0 disponibles
             </span>
           </div>
           <Link to="/solicitudes" className="mt-4 block">
@@ -173,7 +171,7 @@ function Perfil() {
           >
             Información laboral
           </SectionTitle>
-          <Dato icon={Briefcase} label="Año de ingreso" valor={c?.ingreso ?? usuarioActual.ingreso} />
+          <Dato icon={Briefcase} label="Año de ingreso" valor={c?.ingreso || "—"} />
           <Dato icon={Shield} label="Área" valor={c?.area ?? "—"} />
           <Dato icon={Mail} label="Correo" valor={c?.email ?? sesion.email} />
           <Dato icon={Phone} label="Teléfono" valor={c?.telefono ?? "—"} />
