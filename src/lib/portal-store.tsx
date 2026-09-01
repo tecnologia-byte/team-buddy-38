@@ -14,10 +14,10 @@ export type Rol = UsuarioDemo["rol"];
 export type EstadoFoto = "sin_foto" | "pendiente" | "aprobada" | "rechazada";
 
 export type Colaborador = Empleado & {
-  foto?: string;
-  fotoPendiente?: string;
+  foto?: string | undefined;
+  fotoPendiente?: string | undefined;
   estadoFoto: EstadoFoto;
-  motivoRechazo?: string;
+  motivoRechazo?: string | undefined;
   salario: number;
 };
 
@@ -65,6 +65,10 @@ const pagosIniciales: Pago[] = colaboradoresIniciales.map((c) => ({
   recibo: Number(c.id) % 2 === 0 ? "Enviado" : "No enviado",
 }));
 
+export type DatosColaborador = {
+  [K in keyof Colaborador]?: Colaborador[K] | undefined;
+};
+
 type Estado = {
   sesionEmail: string;
   colaboradores: Colaborador[];
@@ -83,13 +87,13 @@ const CLAVE = "ivad-portal-v1";
 
 type Contexto = Estado & {
   sesion: UsuarioDemo;
-  colaboradorActual?: Colaborador;
+  colaboradorActual?: Colaborador | undefined;
   esAdmin: boolean;
   esRRHH: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
   iniciarSesion: (email: string) => void;
-  guardarColaborador: (datos: Partial<Colaborador> & { id?: string | undefined }) => void;
+  guardarColaborador: (datos: DatosColaborador) => void;
   eliminarColaborador: (id: string) => void;
   subirFoto: (id: string, dataUrl: string) => void;
   aprobarFoto: (id: string) => void;
@@ -145,7 +149,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     setEstado((p) => ({ ...p, sesionEmail: email }));
   }, []);
 
-  const guardarColaborador = useCallback((datos: Partial<Colaborador> & { id?: string | undefined }) => {
+  const guardarColaborador = useCallback((datos: DatosColaborador) => {
     setEstado((p) => {
       if (datos.id && p.colaboradores.some((c) => c.id === datos.id)) {
         return {
