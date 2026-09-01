@@ -86,7 +86,7 @@ const estadoInicial: Estado = {
   avisos: [],
 };
 
-const CLAVE = "ivad-portal-v2";
+const CLAVE = "ivad-portal-v3";
 
 type Contexto = Estado & {
   sesion: Cuenta;
