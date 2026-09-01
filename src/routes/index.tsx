@@ -80,9 +80,43 @@ function Login() {
           <Button type="submit" className="w-full">
             Iniciar sesión
           </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Demo: usa las credenciales precargadas para entrar.
-          </p>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
+              Usuarios de prueba (toca uno para autocompletar)
+            </p>
+            <ul className="space-y-2">
+              {usuariosDemo.map((u) => (
+                <li key={u.email}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(u.email);
+                      setClave(u.clave);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors ${
+                      email === u.email ? "border-primary bg-secondary" : "border-border"
+                    }`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                      {u.iniciales}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        {u.nombre}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {u.email} · {u.clave}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                      {u.rol}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </form>
       </div>
     </div>
