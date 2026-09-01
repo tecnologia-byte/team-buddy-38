@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AsistenciaRouteImport } from './routes/asistencia'
 import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as EquipoRouteImport } from './routes/equipo'
 import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as NominaRouteImport } from './routes/nomina'
@@ -33,6 +34,11 @@ const AsistenciaRoute = AsistenciaRouteImport.update({
 const CalendarioRoute = CalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipoRoute = EquipoRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/nomina': typeof NominaRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/nomina': typeof NominaRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/nomina': typeof NominaRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/asistencia'
     | '/calendario'
+    | '/chat'
     | '/equipo'
     | '/inicio'
     | '/nomina'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/asistencia'
     | '/calendario'
+    | '/chat'
     | '/equipo'
     | '/inicio'
     | '/nomina'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/asistencia'
     | '/calendario'
+    | '/chat'
     | '/equipo'
     | '/inicio'
     | '/nomina'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AsistenciaRoute: typeof AsistenciaRoute
   CalendarioRoute: typeof CalendarioRoute
+  ChatRoute: typeof ChatRoute
   EquipoRoute: typeof EquipoRoute
   InicioRoute: typeof InicioRoute
   NominaRoute: typeof NominaRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/calendario'
       fullPath: '/calendario'
       preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipo': {
@@ -239,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AsistenciaRoute: AsistenciaRoute,
   CalendarioRoute: CalendarioRoute,
+  ChatRoute: ChatRoute,
   EquipoRoute: EquipoRoute,
   InicioRoute: InicioRoute,
   NominaRoute: NominaRoute,
