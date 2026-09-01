@@ -139,10 +139,12 @@ export function Avatar({
   iniciales,
   estado,
   size = "md",
+  foto,
 }: {
   iniciales: string;
   estado?: "activo" | "ausente" | "vacaciones";
   size?: "sm" | "md" | "lg";
+  foto?: string;
 }) {
   const dims = size === "lg" ? "h-20 w-20 text-2xl" : size === "sm" ? "h-9 w-9 text-xs" : "h-14 w-14 text-base";
   const color =
@@ -150,9 +152,13 @@ export function Avatar({
   return (
     <div className="relative shrink-0">
       <div
-        className={`${dims} flex items-center justify-center rounded-full border-2 border-accent bg-brand-soft font-display font-bold text-primary`}
+        className={`${dims} flex items-center justify-center overflow-hidden rounded-full border-2 border-accent bg-brand-soft font-display font-bold text-primary`}
       >
-        {iniciales}
+        {foto ? (
+          <img src={foto} alt={`Foto de ${iniciales}`} className="h-full w-full object-cover" />
+        ) : (
+          iniciales
+        )}
       </div>
       {estado ? (
         <span
