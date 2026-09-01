@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { usuariosDemo } from "@/lib/data";
 import { usePortal } from "@/lib/portal-store";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,9 +29,10 @@ export const Route = createFileRoute("/")({
 
 function Login() {
   const navigate = useNavigate();
-  const { iniciarSesion } = usePortal();
-  const [email, setEmail] = useState("ana.rodriguez@ivad.com.do");
-  const [clave, setClave] = useState("demo1234");
+  const { autenticar } = usePortal();
+  const [email, setEmail] = useState("");
+  const [clave, setClave] = useState("");
+  const [error, setError] = useState("");
 
   return (
     <div className="brand-gradient flex min-h-screen flex-col items-center justify-center px-6 py-12">
@@ -50,8 +51,12 @@ function Login() {
           className="surface-card space-y-4 p-6"
           onSubmit={(e) => {
             e.preventDefault();
-            iniciarSesion(email.trim().toLowerCase());
-            navigate({ to: "/inicio" });
+            if (autenticar(email, clave)) {
+              setError("");
+              navigate({ to: "/inicio" });
+            } else {
+              setError("Correo o contraseña incorrectos. Solicítalos a un administrador.");
+            }
           }}
         >
           <div className="space-y-2">
@@ -81,46 +86,19 @@ function Login() {
             </label>
             <span className="font-medium text-primary">¿Olvidaste tu clave?</span>
           </div>
+          {error ? (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
           <Button type="submit" className="w-full">
             Iniciar sesión
           </Button>
 
-          <div className="border-t border-border pt-4">
-            <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
-              Usuarios de prueba (toca uno para autocompletar)
-            </p>
-            <ul className="space-y-2">
-              {usuariosDemo.map((u) => (
-                <li key={u.email}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail(u.email);
-                      setClave(u.clave);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors ${
-                      email === u.email ? "border-primary bg-secondary" : "border-border"
-                    }`}
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                      {u.iniciales}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">
-                        {u.nombre}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {u.email} · {u.clave}
-                      </span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                      {u.rol}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <p className="border-t border-border pt-4 text-center text-xs text-muted-foreground">
+            Las credenciales son creadas por un administrador. Si no tienes acceso, comunícate con
+            Recursos Humanos.
+          </p>
         </form>
       </div>
     </div>
