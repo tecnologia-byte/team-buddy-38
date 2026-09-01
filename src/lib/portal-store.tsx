@@ -152,13 +152,16 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const guardarColaborador = useCallback((datos: DatosColaborador) => {
     setEstado((p) => {
       if (datos.id && p.colaboradores.some((c) => c.id === datos.id)) {
+        const cambios = Object.fromEntries(
+          Object.entries(datos).filter(([, v]) => v !== undefined),
+        ) as Partial<Colaborador>;
         return {
           ...p,
           colaboradores: p.colaboradores.map((c) =>
             c.id === datos.id
               ? {
                   ...c,
-                  ...datos,
+                  ...cambios,
                   iniciales: datos.nombre ? iniciales(datos.nombre) : c.iniciales,
                 }
               : c,
