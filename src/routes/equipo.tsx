@@ -36,7 +36,7 @@ function Equipo() {
     <AppShell>
       <header className="brand-gradient rounded-b-3xl px-4 pb-6 pt-6 text-primary-foreground">
         <div className="flex justify-center">
-          <BrandLogo className="h-12 w-12" />
+          <BrandLogo className="h-20 w-20" />
         </div>
         <h1 className="mt-4 font-display text-2xl font-bold">Equipo de Trabajo</h1>
         <p className="mt-1 text-sm opacity-75">Conoce a tu equipo y colaboradores de otras áreas.</p>
