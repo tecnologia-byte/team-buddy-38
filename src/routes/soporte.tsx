@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, LifeBuoy, MessageCircle, Send, Sparkles, X } from "lucide-react";
-import { AppShell, AppHeader, SectionTitle } from "@/components/app-shell";
+import { LifeBuoy, Send, X } from "lucide-react";
+import { AppShell, AppHeader, BrandLogo, SectionTitle } from "@/components/app-shell";
 import { usePortal } from "@/lib/portal-store";
 import { soporteIaFn } from "@/lib/soporte.functions";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -79,14 +79,14 @@ function Soporte() {
   const [enviando, setEnviando] = useState(false);
 
   return (
-    <AppShell>
+    <AppShell wide>
       <AppHeader titulo="Soporte" subtitulo="Preguntas, quejas y asistencia" volver />
-      <div className="space-y-6 px-4 py-5 pb-24">
-        <section className="brand-gradient rounded-2xl p-4 text-primary-foreground">
+      <div className="space-y-6 px-4 py-5 pb-24 md:grid md:grid-cols-2 md:items-start md:gap-8 md:space-y-0 md:px-8 md:py-8">
+        <section className="brand-gradient rounded-2xl p-4 text-primary-foreground md:col-span-2 md:p-6">
           <LifeBuoy className="h-6 w-6 text-accent" />
           <h1 className="mt-2 font-display text-lg font-bold">¿En qué te ayudamos?</h1>
           <p className="mt-1 text-sm opacity-90">
-            Busca tu duda en las preguntas frecuentes, pregúntale al asistente con IA o envíanos tu
+            Busca tu duda en las preguntas frecuentes, pregúntale al asistente de soporte o envíanos tu
             caso: Recursos Humanos y Administración lo responden desde el portal.
           </p>
         </section>
@@ -184,7 +184,7 @@ function Soporte() {
         </section>
 
         {misTickets.length > 0 ? (
-          <section>
+          <section className="md:col-span-2">
             <SectionTitle>Mis casos ({misTickets.length})</SectionTitle>
             <div className="space-y-3">
               {misTickets.map((t) => (
@@ -281,23 +281,26 @@ function ChatIA() {
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente con IA"}
-        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-card)]"
+        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente de soporte"}
+        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary shadow-[var(--shadow-card)] md:bottom-6 md:right-6"
       >
-        {abierto ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {abierto ? (
+          <X className="h-6 w-6 text-primary-foreground" />
+        ) : (
+          <BrandLogo className="h-full w-full" />
+        )}
       </button>
 
       {abierto ? (
-        <div className="fixed bottom-36 right-4 z-40 flex h-[26rem] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="fixed bottom-36 right-4 z-40 flex h-[26rem] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] md:bottom-24 md:right-6 md:h-[32rem] md:w-[24rem]">
           <header className="brand-gradient flex items-center gap-2 px-3 py-3 text-primary-foreground">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <Bot className="h-5 w-5" />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary">
+              <BrandLogo className="h-full w-full" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-sm font-semibold">Asistente IVAD</p>
-              <p className="text-[11px] opacity-80">Soporte con IA · 24/7</p>
+              <p className="text-[11px] opacity-80">Soporte al colaborador · 24/7</p>
             </div>
-            <Sparkles className="h-4 w-4 opacity-80" />
           </header>
 
           <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">

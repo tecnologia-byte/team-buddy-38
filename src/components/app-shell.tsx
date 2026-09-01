@@ -122,7 +122,7 @@ function NavLink({
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, wide }: { children: ReactNode; wide?: boolean }) {
   const { cargando, sesionActiva } = usePortal();
   const router = useRouter();
 
@@ -139,7 +139,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-background">
+    <div
+      className={`mx-auto flex min-h-screen flex-col bg-background ${wide ? "max-w-5xl" : "max-w-lg"}`}
+    >
       <div className="flex-1 pb-28">{children}</div>
       <BottomNav />
     </div>
