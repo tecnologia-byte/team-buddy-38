@@ -161,13 +161,11 @@ export function Avatar({
   estado,
   size = "md",
   foto,
-  fondoLogo = false,
 }: {
   iniciales: string;
   estado?: "activo" | "ausente" | "vacaciones" | undefined;
   size?: "sm" | "md" | "lg";
   foto?: string | undefined;
-  fondoLogo?: boolean;
 }) {
   const dims = size === "lg" ? "h-20 w-20" : size === "sm" ? "h-9 w-9" : "h-14 w-14";
   const color =
@@ -175,9 +173,7 @@ export function Avatar({
   return (
     <div className="relative shrink-0">
       <div
-        className={`${dims} flex items-center justify-center overflow-hidden rounded-full ${
-          fondoLogo ? "bg-primary" : "bg-card"
-        } ring-4 ring-accent ring-offset-2 ring-offset-background`}
+        className={`${dims} flex items-center justify-center overflow-hidden rounded-full bg-card ring-4 ring-accent ring-offset-2 ring-offset-background`}
       >
         {foto ? (
           <img src={foto} alt={`Foto de ${iniciales}`} className="h-full w-full object-cover" />
