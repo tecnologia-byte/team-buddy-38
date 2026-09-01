@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, LifeBuoy, MessageCircle, Send, Sparkles, X } from "lucide-react";
-import { AppShell, AppHeader, SectionTitle } from "@/components/app-shell";
+import { LifeBuoy, Send, X } from "lucide-react";
+import { AppShell, AppHeader, BrandLogo, SectionTitle } from "@/components/app-shell";
 import { usePortal } from "@/lib/portal-store";
 import { soporteIaFn } from "@/lib/soporte.functions";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -79,10 +79,10 @@ function Soporte() {
   const [enviando, setEnviando] = useState(false);
 
   return (
-    <AppShell>
+    <AppShell wide>
       <AppHeader titulo="Soporte" subtitulo="Preguntas, quejas y asistencia" volver />
-      <div className="space-y-6 px-4 py-5 pb-24">
-        <section className="brand-gradient rounded-2xl p-4 text-primary-foreground">
+      <div className="space-y-6 px-4 py-5 pb-24 md:grid md:grid-cols-2 md:items-start md:gap-8 md:space-y-0 md:px-8 md:py-8">
+        <section className="brand-gradient rounded-2xl p-4 text-primary-foreground md:col-span-2 md:p-6">
           <LifeBuoy className="h-6 w-6 text-accent" />
           <h1 className="mt-2 font-display text-lg font-bold">¿En qué te ayudamos?</h1>
           <p className="mt-1 text-sm opacity-90">
@@ -184,7 +184,7 @@ function Soporte() {
         </section>
 
         {misTickets.length > 0 ? (
-          <section>
+          <section className="md:col-span-2">
             <SectionTitle>Mis casos ({misTickets.length})</SectionTitle>
             <div className="space-y-3">
               {misTickets.map((t) => (
