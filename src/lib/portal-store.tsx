@@ -111,7 +111,7 @@ type Contexto = Estado & {
 // Se guarda en globalThis para que las recargas en caliente (HMR) no creen
 // dos contextos distintos y rompan el provider.
 const g = globalThis as unknown as {
-  __ivadPortalContext?: React.Context<Contexto | null>;
+  __ivadPortalContext?: Context<Contexto | null>;
 };
 const PortalContext =
   g.__ivadPortalContext ?? (g.__ivadPortalContext = createContext<Contexto | null>(null));
