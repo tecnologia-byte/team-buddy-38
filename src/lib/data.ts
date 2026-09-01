@@ -268,3 +268,47 @@ export const chatRRHH = [
 
 export const pesos = (valor: number) =>
   valor.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export type UsuarioDemo = {
+  email: string;
+  clave: string;
+  nombre: string;
+  rol: "Administrador" | "Recursos Humanos" | "Supervisor" | "Colaborador";
+  cargo: string;
+  iniciales: string;
+};
+
+export const usuariosDemo: UsuarioDemo[] = [
+  {
+    email: "manuel.gomez@ivad.com.do",
+    clave: "ivad2026",
+    nombre: "Manuel Gómez Marcano",
+    rol: "Administrador",
+    cargo: "Director de Tecnología",
+    iniciales: "MG",
+  },
+  {
+    email: "laura.fernandez@ivad.com.do",
+    clave: "rrhh2026",
+    nombre: "Laura Fernández",
+    rol: "Recursos Humanos",
+    cargo: "Coordinadora de RRHH",
+    iniciales: "LF",
+  },
+  {
+    email: "maria.rox@ivad.com.do",
+    clave: "super2026",
+    nombre: "María Rox Lara",
+    rol: "Supervisor",
+    cargo: "Gerente Sr. de Planificación & Control",
+    iniciales: "MR",
+  },
+  {
+    email: "ana.rodriguez@ivad.com.do",
+    clave: "demo1234",
+    nombre: "Ana Rodríguez",
+    rol: "Colaborador",
+    cargo: "Asistente Administrativa",
+    iniciales: "AR",
+  },
+];
