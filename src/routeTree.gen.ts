@@ -15,6 +15,7 @@ import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as EquipoRouteImport } from './routes/equipo'
 import { Route as InicioRouteImport } from './routes/inicio'
+import { Route as MasRouteImport } from './routes/mas'
 import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
@@ -51,6 +52,11 @@ const InicioRoute = InicioRouteImport.update({
   path: '/inicio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MasRoute = MasRouteImport.update({
+  id: '/mas',
+  path: '/mas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NominaRoute = NominaRouteImport.update({
   id: '/nomina',
   path: '/nomina',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/equipo'
     | '/inicio'
+    | '/mas'
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/equipo'
     | '/inicio'
+    | '/mas'
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/equipo'
     | '/inicio'
+    | '/mas'
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   EquipoRoute: typeof EquipoRoute
   InicioRoute: typeof InicioRoute
+  MasRoute: typeof MasRoute
   NominaRoute: typeof NominaRoute
   NotificacionesRoute: typeof NotificacionesRoute
   PerfilRoute: typeof PerfilRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InicioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mas': {
+      id: '/mas'
+      path: '/mas'
+      fullPath: '/mas'
+      preLoaderRoute: typeof MasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nomina': {
       id: '/nomina'
       path: '/nomina'
@@ -262,6 +282,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   EquipoRoute: EquipoRoute,
   InicioRoute: InicioRoute,
+  MasRoute: MasRoute,
   NominaRoute: NominaRoute,
   NotificacionesRoute: NotificacionesRoute,
   PerfilRoute: PerfilRoute,
