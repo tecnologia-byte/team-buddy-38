@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as EquipoRouteImport } from './routes/equipo'
 import { Route as InicioRouteImport } from './routes/inicio'
+import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 
@@ -36,6 +37,11 @@ const InicioRoute = InicioRouteImport.update({
   path: '/inicio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NominaRoute = NominaRouteImport.update({
+  id: '/nomina',
+  path: '/nomina',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PerfilRoute = PerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof CalendarioRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/calendario': typeof CalendarioRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
 }
@@ -69,21 +77,36 @@ export interface FileRoutesById {
   '/calendario': typeof CalendarioRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
+  '/nomina': typeof NominaRoute
   '/perfil': typeof PerfilRoute
   '/solicitudes': typeof SolicitudesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/calendario' | '/equipo' | '/inicio' | '/perfil' | '/solicitudes'
+    | '/'
+    | '/calendario'
+    | '/equipo'
+    | '/inicio'
+    | '/nomina'
+    | '/perfil'
+    | '/solicitudes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calendario' | '/equipo' | '/inicio' | '/perfil' | '/solicitudes'
+  to:
+    | '/'
+    | '/calendario'
+    | '/equipo'
+    | '/inicio'
+    | '/nomina'
+    | '/perfil'
+    | '/solicitudes'
   id:
     | '__root__'
     | '/'
     | '/calendario'
     | '/equipo'
     | '/inicio'
+    | '/nomina'
     | '/perfil'
     | '/solicitudes'
   fileRoutesById: FileRoutesById
@@ -93,6 +116,7 @@ export interface RootRouteChildren {
   CalendarioRoute: typeof CalendarioRoute
   EquipoRoute: typeof EquipoRoute
   InicioRoute: typeof InicioRoute
+  NominaRoute: typeof NominaRoute
   PerfilRoute: typeof PerfilRoute
   SolicitudesRoute: typeof SolicitudesRoute
 }
@@ -127,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InicioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nomina': {
+      id: '/nomina'
+      path: '/nomina'
+      fullPath: '/nomina'
+      preLoaderRoute: typeof NominaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/perfil': {
       id: '/perfil'
       path: '/perfil'
@@ -149,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarioRoute: CalendarioRoute,
   EquipoRoute: EquipoRoute,
   InicioRoute: InicioRoute,
+  NominaRoute: NominaRoute,
   PerfilRoute: PerfilRoute,
   SolicitudesRoute: SolicitudesRoute,
 }
