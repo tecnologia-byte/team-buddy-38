@@ -281,23 +281,26 @@ function ChatIA() {
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente con IA"}
-        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-card)]"
+        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente de soporte"}
+        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary shadow-[var(--shadow-card)] md:bottom-6 md:right-6"
       >
-        {abierto ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {abierto ? (
+          <X className="h-6 w-6 text-primary-foreground" />
+        ) : (
+          <BrandLogo className="h-full w-full" />
+        )}
       </button>
 
       {abierto ? (
-        <div className="fixed bottom-36 right-4 z-40 flex h-[26rem] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="fixed bottom-36 right-4 z-40 flex h-[26rem] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] md:bottom-24 md:right-6 md:h-[32rem] md:w-[24rem]">
           <header className="brand-gradient flex items-center gap-2 px-3 py-3 text-primary-foreground">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <Bot className="h-5 w-5" />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary">
+              <BrandLogo className="h-full w-full" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-sm font-semibold">Asistente IVAD</p>
-              <p className="text-[11px] opacity-80">Soporte con IA · 24/7</p>
+              <p className="text-[11px] opacity-80">Soporte al colaborador · 24/7</p>
             </div>
-            <Sparkles className="h-4 w-4 opacity-80" />
           </header>
 
           <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
