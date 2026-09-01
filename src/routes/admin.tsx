@@ -8,15 +8,19 @@ import {
   Lock,
   Receipt,
   ShieldCheck,
+  Trash2,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { usePortal } from "@/lib/portal-store";
-import { pesos, usuariosDemo } from "@/lib/data";
+import { pesos, roles, type Cuenta } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -67,9 +71,10 @@ function Admin() {
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
         <Tabs defaultValue="contabilidad">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="contabilidad">Nómina</TabsTrigger>
             <TabsTrigger value="fotos">Fotos</TabsTrigger>
+            <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
             <TabsTrigger value="accesos">Accesos</TabsTrigger>
           </TabsList>
 
@@ -78,6 +83,9 @@ function Admin() {
           </TabsContent>
           <TabsContent value="fotos" className="mt-4">
             <RevisionFotos />
+          </TabsContent>
+          <TabsContent value="usuarios" className="mt-4">
+            <CuentasUsuarios />
           </TabsContent>
           <TabsContent value="accesos" className="mt-4">
             <Accesos />
@@ -250,8 +258,168 @@ function RevisionFotos() {
   );
 }
 
+const cuentaVacia: Cuenta = {
+  email: "",
+  clave: "",
+  nombre: "",
+  rol: "Colaborador",
+  cargo: "",
+  iniciales: "",
+};
+
+function CuentasUsuarios() {
+  const { cuentas, sesion, guardarCuenta, eliminarCuenta } = usePortal();
+  const [form, setForm] = useState<Cuenta>(cuentaVacia);
+  const [editando, setEditando] = useState<string | null>(null);
+
+  const limpiar = () => {
+    setForm(cuentaVacia);
+    setEditando(null);
+  };
+
+  return (
+    <div className="space-y-5">
+      <form
+        className="surface-card space-y-3 p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const r = guardarCuenta(form, editando ?? undefined);
+          if (!r.ok) {
+            toast.error(r.error ?? "No se pudo guardar la cuenta");
+            return;
+          }
+          toast.success(
+            editando ? "Credenciales actualizadas" : `Cuenta creada para ${form.nombre}`,
+          );
+          limpiar();
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <UserPlus className="h-5 w-5 text-accent" />
+          <h3 className="font-display font-bold text-foreground">
+            {editando ? "Editar credenciales" : "Crear credenciales de usuario"}
+          </h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Los usuarios no pueden registrarse por su cuenta: aquí digitas su correo, contraseña y
+          rol de acceso.
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="c-nombre">Nombre completo</Label>
+          <Input
+            id="c-nombre"
+            value={form.nombre}
+            onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="c-cargo">Cargo</Label>
+          <Input
+            id="c-cargo"
+            value={form.cargo}
+            onChange={(e) => setForm((p) => ({ ...p, cargo: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="c-email">Correo corporativo</Label>
+          <Input
+            id="c-email"
+            type="email"
+            placeholder="nombre@ivad.com.do"
+            value={form.email}
+            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="c-clave">Contraseña asignada</Label>
+          <Input
+            id="c-clave"
+            value={form.clave}
+            onChange={(e) => setForm((p) => ({ ...p, clave: e.target.value }))}
+            placeholder="Mínimo 6 caracteres"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="c-rol">Rol de acceso</Label>
+          <select
+            id="c-rol"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.rol}
+            onChange={(e) => setForm((p) => ({ ...p, rol: e.target.value as Cuenta["rol"] }))}
+          >
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit" className="flex-1">
+            {editando ? "Guardar cambios" : "Crear cuenta"}
+          </Button>
+          {editando ? (
+            <Button type="button" variant="outline" onClick={limpiar}>
+              Cancelar
+            </Button>
+          ) : null}
+        </div>
+      </form>
+
+      <section>
+        <SectionTitle>Cuentas registradas ({cuentas.length})</SectionTitle>
+        <div className="space-y-3">
+          {cuentas.map((u) => (
+            <article key={u.email} className="surface-card p-4">
+              <div className="flex items-center gap-3">
+                <Avatar iniciales={u.iniciales} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-foreground">{u.nombre}</p>
+                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                </div>
+                <Etiqueta texto={u.rol} tono="accent" />
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Etiqueta texto={`Clave: ${u.clave}`} tono="muted" />
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setForm(u);
+                      setEditando(u.email);
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  {u.email !== sesion.email ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        eliminarCuenta(u.email);
+                        toast.info(`Acceso de ${u.nombre} eliminado`);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function Accesos() {
-  const { sesion, colaboradores } = usePortal();
+  const { sesion, colaboradores, cuentas } = usePortal();
   const permisos: Record<string, string> = {
     Administrador: "Contabilidad, nómina, recibos, fotos y colaboradores",
     "Recursos Humanos": "Colaboradores, perfiles y revisión de fotos",
@@ -267,7 +435,7 @@ function Accesos() {
           Sesión activa: <strong className="text-foreground">{sesion.nombre}</strong> ({sesion.rol})
         </p>
       </div>
-      {usuariosDemo.map((u) => (
+      {cuentas.map((u) => (
         <article key={u.email} className="surface-card p-4">
           <div className="flex items-center gap-3">
             <Avatar iniciales={u.iniciales} size="sm" />
