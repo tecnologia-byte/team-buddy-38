@@ -109,6 +109,7 @@ function Inicio() {
             iniciales={colaboradorActual?.iniciales ?? sesion.iniciales}
             size="lg"
             foto={colaboradorActual?.foto}
+            fondoLogo
           />
         </div>
       </div>
