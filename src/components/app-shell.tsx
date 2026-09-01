@@ -161,11 +161,13 @@ export function Avatar({
   estado,
   size = "md",
   foto,
+  fondoLogo = false,
 }: {
   iniciales: string;
   estado?: "activo" | "ausente" | "vacaciones" | undefined;
   size?: "sm" | "md" | "lg";
   foto?: string | undefined;
+  fondoLogo?: boolean;
 }) {
   const dims = size === "lg" ? "h-20 w-20" : size === "sm" ? "h-9 w-9" : "h-14 w-14";
   const color =
