@@ -86,7 +86,7 @@ function Soporte() {
           <LifeBuoy className="h-6 w-6 text-accent" />
           <h1 className="mt-2 font-display text-lg font-bold">¿En qué te ayudamos?</h1>
           <p className="mt-1 text-sm opacity-90">
-            Busca tu duda en las preguntas frecuentes, pregúntale al asistente con IA o envíanos tu
+            Busca tu duda en las preguntas frecuentes, pregúntale al asistente de soporte o envíanos tu
             caso: Recursos Humanos y Administración lo responden desde el portal.
           </p>
         </section>
