@@ -19,21 +19,27 @@ export function BrandLogo({ className = "h-10 w-10" }: { className?: string }) {
 export function AppHeader({
   titulo,
   subtitulo,
-  volverA,
+  volver,
   children,
 }: {
   titulo: string;
   subtitulo?: string;
-  volverA?: string;
+  volver?: boolean;
   children?: ReactNode;
 }) {
+  const router = useRouter();
   return (
     <header className="brand-gradient text-primary-foreground">
       <div className="flex items-center gap-3 px-4 pb-4 pt-5">
-        {volverA ? (
-          <Link to={volverA} className="-ml-1 p-1 opacity-90" aria-label="Volver">
+        {volver ? (
+          <button
+            type="button"
+            onClick={() => router.history.back()}
+            className="-ml-1 p-1 opacity-90"
+            aria-label="Volver"
+          >
             <ChevronLeft className="h-6 w-6" />
-          </Link>
+          </button>
         ) : (
           <Link to="/mas" className="-ml-1 p-1 opacity-90" aria-label="Menú">
             <Menu className="h-6 w-6" />
