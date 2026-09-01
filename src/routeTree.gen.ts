@@ -10,33 +10,180 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AsistenciaRouteImport } from './routes/asistencia'
+import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as ChatRouteImport } from './routes/chat'
+import { Route as EquipoRouteImport } from './routes/equipo'
+import { Route as InicioRouteImport } from './routes/inicio'
+import { Route as MasRouteImport } from './routes/mas'
+import { Route as NominaRouteImport } from './routes/nomina'
+import { Route as NotificacionesRouteImport } from './routes/notificaciones'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as SolicitudesRouteImport } from './routes/solicitudes'
+import { Route as TareasRouteImport } from './routes/tareas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AsistenciaRoute = AsistenciaRouteImport.update({
+  id: '/asistencia',
+  path: '/asistencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarioRoute = CalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EquipoRoute = EquipoRouteImport.update({
+  id: '/equipo',
+  path: '/equipo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InicioRoute = InicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MasRoute = MasRouteImport.update({
+  id: '/mas',
+  path: '/mas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NominaRoute = NominaRouteImport.update({
+  id: '/nomina',
+  path: '/nomina',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificacionesRoute = NotificacionesRouteImport.update({
+  id: '/notificaciones',
+  path: '/notificaciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SolicitudesRoute = SolicitudesRouteImport.update({
+  id: '/solicitudes',
+  path: '/solicitudes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TareasRoute = TareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/asistencia': typeof AsistenciaRoute
+  '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
+  '/equipo': typeof EquipoRoute
+  '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
+  '/nomina': typeof NominaRoute
+  '/notificaciones': typeof NotificacionesRoute
+  '/perfil': typeof PerfilRoute
+  '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/asistencia': typeof AsistenciaRoute
+  '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
+  '/equipo': typeof EquipoRoute
+  '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
+  '/nomina': typeof NominaRoute
+  '/notificaciones': typeof NotificacionesRoute
+  '/perfil': typeof PerfilRoute
+  '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/asistencia': typeof AsistenciaRoute
+  '/calendario': typeof CalendarioRoute
+  '/chat': typeof ChatRoute
+  '/equipo': typeof EquipoRoute
+  '/inicio': typeof InicioRoute
+  '/mas': typeof MasRoute
+  '/nomina': typeof NominaRoute
+  '/notificaciones': typeof NotificacionesRoute
+  '/perfil': typeof PerfilRoute
+  '/solicitudes': typeof SolicitudesRoute
+  '/tareas': typeof TareasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/asistencia'
+    | '/calendario'
+    | '/chat'
+    | '/equipo'
+    | '/inicio'
+    | '/mas'
+    | '/nomina'
+    | '/notificaciones'
+    | '/perfil'
+    | '/solicitudes'
+    | '/tareas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/asistencia'
+    | '/calendario'
+    | '/chat'
+    | '/equipo'
+    | '/inicio'
+    | '/mas'
+    | '/nomina'
+    | '/notificaciones'
+    | '/perfil'
+    | '/solicitudes'
+    | '/tareas'
+  id:
+    | '__root__'
+    | '/'
+    | '/asistencia'
+    | '/calendario'
+    | '/chat'
+    | '/equipo'
+    | '/inicio'
+    | '/mas'
+    | '/nomina'
+    | '/notificaciones'
+    | '/perfil'
+    | '/solicitudes'
+    | '/tareas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AsistenciaRoute: typeof AsistenciaRoute
+  CalendarioRoute: typeof CalendarioRoute
+  ChatRoute: typeof ChatRoute
+  EquipoRoute: typeof EquipoRoute
+  InicioRoute: typeof InicioRoute
+  MasRoute: typeof MasRoute
+  NominaRoute: typeof NominaRoute
+  NotificacionesRoute: typeof NotificacionesRoute
+  PerfilRoute: typeof PerfilRoute
+  SolicitudesRoute: typeof SolicitudesRoute
+  TareasRoute: typeof TareasRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +195,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/asistencia': {
+      id: '/asistencia'
+      path: '/asistencia'
+      fullPath: '/asistencia'
+      preLoaderRoute: typeof AsistenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendario': {
+      id: '/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipo': {
+      id: '/equipo'
+      path: '/equipo'
+      fullPath: '/equipo'
+      preLoaderRoute: typeof EquipoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inicio': {
+      id: '/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof InicioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mas': {
+      id: '/mas'
+      path: '/mas'
+      fullPath: '/mas'
+      preLoaderRoute: typeof MasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nomina': {
+      id: '/nomina'
+      path: '/nomina'
+      fullPath: '/nomina'
+      preLoaderRoute: typeof NominaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notificaciones': {
+      id: '/notificaciones'
+      path: '/notificaciones'
+      fullPath: '/notificaciones'
+      preLoaderRoute: typeof NotificacionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/solicitudes': {
+      id: '/solicitudes'
+      path: '/solicitudes'
+      fullPath: '/solicitudes'
+      preLoaderRoute: typeof SolicitudesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tareas': {
+      id: '/tareas'
+      path: '/tareas'
+      fullPath: '/tareas'
+      preLoaderRoute: typeof TareasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AsistenciaRoute: AsistenciaRoute,
+  CalendarioRoute: CalendarioRoute,
+  ChatRoute: ChatRoute,
+  EquipoRoute: EquipoRoute,
+  InicioRoute: InicioRoute,
+  MasRoute: MasRoute,
+  NominaRoute: NominaRoute,
+  NotificacionesRoute: NotificacionesRoute,
+  PerfilRoute: PerfilRoute,
+  SolicitudesRoute: SolicitudesRoute,
+  TareasRoute: TareasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
