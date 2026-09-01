@@ -89,7 +89,7 @@ function Inicio() {
                       : "bg-primary text-primary-foreground"
                   }`}
                 >
-                  <ClipboardList className="h-5 w-5" />
+                  <item.icon className="h-5 w-5" />
                 </span>
                 <div>
                   <p className="font-display text-2xl font-bold text-foreground">{item.valor}</p>
