@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
   type ReactNode,
+  type Context,
 } from "react";
 import { cuentasIniciales, empleados, type Cuenta, type Empleado } from "@/lib/data";
 
@@ -107,7 +108,13 @@ type Contexto = Estado & {
   marcarAvisosLeidos: () => void;
 };
 
-const PortalContext = createContext<Contexto | null>(null);
+// Se guarda en globalThis para que las recargas en caliente (HMR) no creen
+// dos contextos distintos y rompan el provider.
+const g = globalThis as unknown as {
+  __ivadPortalContext?: Context<Contexto | null>;
+};
+const PortalContext =
+  g.__ivadPortalContext ?? (g.__ivadPortalContext = createContext<Contexto | null>(null));
 
 const ahora = () =>
   new Date().toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
