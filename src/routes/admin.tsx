@@ -5,7 +5,9 @@ import {
   Banknote,
   Camera,
   Check,
+  LifeBuoy,
   Lock,
+  PenLine,
   Receipt,
   ShieldCheck,
   Trash2,
@@ -14,6 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
+import { FirmaPad } from "@/components/firma-pad";
+import { ReciboPago } from "@/components/recibo-pago";
 import { usePortal } from "@/lib/portal-store";
 import { pesos, roles, type Cuenta } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -71,15 +75,25 @@ function Admin() {
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
         <Tabs defaultValue="contabilidad">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="contabilidad">Nómina</TabsTrigger>
+            <TabsTrigger value="firmas">Firmas</TabsTrigger>
             <TabsTrigger value="fotos">Fotos</TabsTrigger>
+          </TabsList>
+          <TabsList className="mt-2 grid w-full grid-cols-3">
             <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+            <TabsTrigger value="soporte">Soporte</TabsTrigger>
             <TabsTrigger value="accesos">Accesos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="contabilidad" className="mt-4">
             <Contabilidad />
+          </TabsContent>
+          <TabsContent value="firmas" className="mt-4">
+            <Firmas />
+          </TabsContent>
+          <TabsContent value="soporte" className="mt-4">
+            <CasosSoporte />
           </TabsContent>
           <TabsContent value="fotos" className="mt-4">
             <RevisionFotos />
@@ -185,6 +199,183 @@ function Contabilidad() {
           })}
         </div>
       </section>
+    </div>
+  );
+}
+
+function Firmas() {
+  const { colaboradores, pagos, guardarFirma, borrarFirma } = usePortal();
+  const [activo, setActivo] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const conFirma = colaboradores.filter((c) => c.firma).length;
+
+  return (
+    <div className="space-y-5">
+      <div className="surface-card p-4">
+        <div className="flex items-center gap-2">
+          <PenLine className="h-5 w-5 text-accent" />
+          <h3 className="font-display font-bold text-foreground">Firmas digitales</h3>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Recoge la firma de cada colaborador una sola vez. El sistema la coloca automáticamente en
+          el espacio de <strong>“Recibido por”</strong> de su recibo de pago.
+        </p>
+        <p className="mt-2 text-xs font-semibold text-foreground">
+          {conFirma} de {colaboradores.length} colaboradores con firma registrada
+        </p>
+      </div>
+
+      {colaboradores.map((c) => {
+        const pago = pagos.find((p) => p.colaboradorId === c.id);
+        const abierto = activo === c.id;
+        return (
+          <article key={c.id} className="surface-card p-4">
+            <div className="flex items-center gap-3">
+              <Avatar iniciales={c.iniciales} size="sm" foto={c.foto} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{c.nombre}</p>
+                <p className="truncate text-xs text-muted-foreground">{c.cargo || "Sin cargo"}</p>
+              </div>
+              <Etiqueta
+                texto={c.firma ? "Firmado" : "Sin firma"}
+                tono={c.firma ? "success" : "muted"}
+              />
+            </div>
+
+            {c.firma ? (
+              <div className="mt-3 rounded-lg border border-border bg-card p-2">
+                <img
+                  src={c.firma}
+                  alt={`Firma digital de ${c.nombre}`}
+                  className="mx-auto max-h-16 object-contain"
+                />
+                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                  Registrada el {c.firmaActualizada ?? "—"}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setActivo(abierto ? null : c.id)}>
+                {abierto ? "Cerrar" : c.firma ? "Volver a firmar" : "Recoger firma"}
+              </Button>
+              {c.firma ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const r = await borrarFirma(c.id);
+                    if (r.ok) toast.info(`Firma de ${c.nombre} eliminada`);
+                    else toast.error(r.error ?? "No se pudo eliminar");
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+
+            {abierto ? (
+              <div className="mt-3">
+                <FirmaPad
+                  guardando={guardando}
+                  etiqueta="Guardar firma"
+                  onGuardar={async (dataUrl) => {
+                    setGuardando(true);
+                    const r = await guardarFirma(c.id, dataUrl);
+                    setGuardando(false);
+                    if (r.ok) {
+                      toast.success(`Firma de ${c.nombre} guardada`);
+                      setActivo(null);
+                    } else {
+                      toast.error(r.error ?? "No se pudo guardar la firma");
+                    }
+                  }}
+                />
+              </div>
+            ) : null}
+
+            {pago ? (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-medium text-primary underline">
+                  Ver recibo con la firma
+                </summary>
+                <div className="mt-2">
+                  <ReciboPago pago={pago} colaborador={c} />
+                </div>
+              </details>
+            ) : null}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function CasosSoporte() {
+  const { tickets, responderTicket } = usePortal();
+  const [respuestas, setRespuestas] = useState<Record<string, string>>({});
+
+  if (tickets.length === 0) {
+    return (
+      <div className="surface-card p-6 text-center">
+        <LifeBuoy className="mx-auto h-8 w-8 text-accent" />
+        <p className="mt-3 font-semibold text-foreground">No hay casos de soporte</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Las quejas y dudas enviadas desde la página de Soporte aparecerán aquí.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {tickets.map((t) => (
+        <article key={t.id} className="surface-card p-4">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-foreground">{t.asunto}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {t.nombre} · {t.categoria} · {t.fecha}
+              </p>
+            </div>
+            <Etiqueta texto={t.estado} tono={t.estado === "Resuelto" ? "success" : "accent"} />
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{t.mensaje}</p>
+          {t.respuesta ? (
+            <p className="mt-2 rounded-lg bg-brand-soft p-2 text-sm text-foreground">
+              <strong>Respuesta:</strong> {t.respuesta}
+            </p>
+          ) : (
+            <>
+              <Textarea
+                className="mt-3"
+                rows={2}
+                placeholder="Escribe la respuesta al colaborador"
+                value={respuestas[t.id] ?? ""}
+                onChange={(e) =>
+                  setRespuestas((p) => ({ ...p, [t.id]: e.target.value.slice(0, 1000) }))
+                }
+              />
+              <Button
+                size="sm"
+                className="mt-2"
+                onClick={async () => {
+                  const texto = (respuestas[t.id] ?? "").trim();
+                  if (texto.length < 3) {
+                    toast.error("Escribe una respuesta");
+                    return;
+                  }
+                  const r = await responderTicket(t.id, texto);
+                  if (r.ok) toast.success("Respuesta enviada al colaborador");
+                  else toast.error(r.error ?? "No se pudo responder");
+                }}
+              >
+                Responder y resolver
+              </Button>
+            </>
+          )}
+        </article>
+      ))}
     </div>
   );
 }

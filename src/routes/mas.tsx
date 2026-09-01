@@ -39,13 +39,18 @@ const modulos = [
   { to: "/nomina", label: "Nómina", desc: "Histórico de pagos", icon: DollarSign },
   { to: "/solicitudes", label: "Solicitudes", desc: "Permisos y aprobaciones", icon: FileCheck },
   { to: "/chat", label: "Chat con RR.HH.", desc: "Consultas al departamento", icon: MessageSquare },
+  {
+    to: "/soporte",
+    label: "Soporte",
+    desc: "Preguntas frecuentes, casos y asistente IA",
+    icon: LifeBuoy,
+  },
 ] as const;
 
 const extras = [
   { label: "Directorio de áreas", icon: Building2 },
   { label: "Capacitaciones", icon: GraduationCap },
   { label: "Políticas y reglamento", icon: ShieldCheck },
-  { label: "Soporte técnico", icon: LifeBuoy },
   { label: "Configuración", icon: Settings },
 ];
 
