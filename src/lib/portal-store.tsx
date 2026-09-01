@@ -314,7 +314,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
             "Para agregar un colaborador crea primero su acceso en Administradores → Usuarios.",
         };
       }
-      const fila: Record<string, unknown> = {};
+      const fila: Record<string, string | number> = {};
       const campos: Array<[keyof Colaborador, string]> = [
         ["nombre", "nombre"],
         ["cargo", "cargo"],
@@ -327,11 +327,11 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       ];
       for (const [clave, columna] of campos) {
         const valor = datos[clave];
-        if (valor !== undefined) fila[columna] = valor;
+        if (valor !== undefined) fila[columna] = valor as string | number;
       }
       if (datos.nombre) fila["iniciales"] = inicialesDe(datos.nombre);
 
-      const { error } = await supabase.from("perfiles").update(fila).eq("id", datos.id);
+      const { error } = await supabase.from("perfiles").update(fila as never).eq("id", datos.id);
       if (error) return { ok: false, error: error.message };
       await cargar();
       return { ok: true };
@@ -406,12 +406,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const actualizarPago = useCallback(
     async (id: string, cambios: Partial<Pago>): Promise<Resultado> => {
       const pago = pagos.find((p) => p.id === id);
-      const fila: Record<string, unknown> = {};
+      const fila: Record<string, string | number> = {};
       if (cambios.estado) fila["estado"] = cambios.estado;
       if (cambios.recibo) fila["recibo"] = cambios.recibo;
       if (cambios.monto !== undefined) fila["monto"] = cambios.monto;
       if (cambios.periodo) fila["periodo"] = cambios.periodo;
-      const { error } = await supabase.from("pagos").update(fila).eq("id", id);
+      const { error } = await supabase.from("pagos").update(fila as never).eq("id", id);
       if (error) return { ok: false, error: error.message };
       if (cambios.recibo === "Enviado" && pago) {
         await crearAviso(
