@@ -46,7 +46,7 @@ function Inicio() {
     <AppShell>
       <div className="brand-gradient px-4 pb-24 pt-6 text-primary-foreground">
         <div className="flex items-center justify-between">
-          <BrandLogo className="h-16 w-16" />
+          <BrandLogo className="h-24 w-24" />
           <Link to="/notificaciones" className="text-xs font-medium opacity-80">
             3 notificaciones
           </Link>
