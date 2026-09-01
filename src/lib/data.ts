@@ -269,7 +269,7 @@ export const chatRRHH = [
 export const pesos = (valor: number) =>
   valor.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export type UsuarioDemo = {
+export type Cuenta = {
   email: string;
   clave: string;
   nombre: string;
@@ -278,37 +278,24 @@ export type UsuarioDemo = {
   iniciales: string;
 };
 
-export const usuariosDemo: UsuarioDemo[] = [
+export type UsuarioDemo = Cuenta;
+
+/** Única cuenta precargada: el administrador crea las demás credenciales. */
+export const cuentasIniciales: Cuenta[] = [
   {
-    email: "manuel.gomez@ivad.com.do",
-    clave: "ivad2026",
+    email: "admin@ivad.com.do",
+    clave: "IvadAdmin2026*",
     nombre: "Manuel Gómez Marcano",
     rol: "Administrador",
     cargo: "Director de Tecnología",
     iniciales: "MG",
   },
-  {
-    email: "laura.fernandez@ivad.com.do",
-    clave: "rrhh2026",
-    nombre: "Laura Fernández",
-    rol: "Recursos Humanos",
-    cargo: "Coordinadora de RRHH",
-    iniciales: "LF",
-  },
-  {
-    email: "maria.rox@ivad.com.do",
-    clave: "super2026",
-    nombre: "María Rox Lara",
-    rol: "Supervisor",
-    cargo: "Gerente Sr. de Planificación & Control",
-    iniciales: "MR",
-  },
-  {
-    email: "ana.rodriguez@ivad.com.do",
-    clave: "demo1234",
-    nombre: "Ana Rodríguez",
-    rol: "Colaborador",
-    cargo: "Asistente Administrativa",
-    iniciales: "AR",
-  },
 ];
+
+export const roles: Cuenta["rol"][] = [
+  "Administrador",
+  "Recursos Humanos",
+  "Supervisor",
+  "Colaborador",
+];
+
