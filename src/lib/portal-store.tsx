@@ -8,10 +8,16 @@ import {
   type ReactNode,
   type Context,
 } from "react";
-import { cuentasIniciales, empleados, type Cuenta, type Empleado } from "@/lib/data";
+import { supabase } from "@/integrations/supabase/client";
+import { iniciales as inicialesDe, type Cuenta, type Empleado, type Rol } from "@/lib/data";
+import {
+  guardarCuentaFn,
+  eliminarCuentaFn,
+  crearPrimerAdminFn,
+  portalVacioFn,
+} from "@/lib/cuentas.functions";
 
-export type Rol = Cuenta["rol"];
-export type { Cuenta };
+export type { Cuenta, Rol };
 
 export type EstadoFoto = "sin_foto" | "pendiente" | "aprobada" | "rechazada";
 
@@ -21,6 +27,7 @@ export type Colaborador = Empleado & {
   estadoFoto: EstadoFoto;
   motivoRechazo?: string | undefined;
   salario: number;
+  rol?: Rol | undefined;
 };
 
 export type Pago = {
@@ -41,342 +48,408 @@ export type Aviso = {
   nuevo: boolean;
 };
 
-const salariosBase: Record<string, number> = {
-  "1": 185000,
-  "2": 165000,
-  "3": 92000,
-  "4": 110000,
-  "5": 78000,
-  "6": 65000,
-  "7": 58000,
-  "8": 72000,
-};
-
-const colaboradoresIniciales: Colaborador[] = empleados.map((e) => ({
-  ...e,
-  estadoFoto: "sin_foto",
-  salario: salariosBase[e.id] ?? 60000,
-}));
-
-const pagosIniciales: Pago[] = colaboradoresIniciales.map((c) => ({
-  id: `p-${c.id}`,
-  colaboradorId: c.id,
-  periodo: "Mayo 2024 · 2da quincena",
-  monto: Math.round((c.salario / 2) * 100) / 100,
-  estado: Number(c.id) % 3 === 0 ? "Pendiente" : "Pagado",
-  recibo: Number(c.id) % 2 === 0 ? "Enviado" : "No enviado",
-}));
-
 export type DatosColaborador = {
   [K in keyof Colaborador]?: Colaborador[K] | undefined;
 };
 
-type Estado = {
+const sesionVacia: Cuenta = {
+  email: "",
+  clave: "",
+  nombre: "Sin sesión",
+  rol: "Colaborador",
+  cargo: "",
+  iniciales: "—",
+};
+
+type Resultado = { ok: boolean; error?: string };
+
+type Contexto = {
+  cargando: boolean;
+  sesionActiva: boolean;
+  portalVacio: boolean;
   sesionEmail: string;
+  sesion: Cuenta;
   cuentas: Cuenta[];
   colaboradores: Colaborador[];
   pagos: Pago[];
   avisos: Aviso[];
-};
-
-const estadoInicial: Estado = {
-  sesionEmail: cuentasIniciales[0]!.email,
-  cuentas: cuentasIniciales,
-  colaboradores: colaboradoresIniciales,
-  pagos: pagosIniciales,
-  avisos: [],
-};
-
-const CLAVE = "ivad-portal-v3";
-
-type Contexto = Estado & {
-  sesion: Cuenta;
   colaboradorActual?: Colaborador | undefined;
   esAdmin: boolean;
   esRRHH: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
-  autenticar: (email: string, clave: string) => boolean;
-  guardarCuenta: (cuenta: Cuenta, emailOriginal?: string) => { ok: boolean; error?: string };
-  eliminarCuenta: (email: string) => void;
-  guardarColaborador: (datos: DatosColaborador) => void;
-  eliminarColaborador: (id: string) => void;
-  subirFoto: (id: string, dataUrl: string) => void;
-  aprobarFoto: (id: string) => void;
-  rechazarFoto: (id: string, motivo: string) => void;
-  actualizarPago: (id: string, cambios: Partial<Pago>) => void;
-  marcarAvisosLeidos: () => void;
+  autenticar: (email: string, clave: string) => Promise<Resultado>;
+  crearPrimerAdmin: (datos: {
+    email: string;
+    clave: string;
+    nombre: string;
+    cargo: string;
+  }) => Promise<Resultado>;
+  cerrarSesion: () => Promise<void>;
+  guardarCuenta: (cuenta: Cuenta & { area?: string }, emailOriginal?: string) => Promise<Resultado>;
+  eliminarCuenta: (email: string) => Promise<Resultado>;
+  guardarColaborador: (datos: DatosColaborador) => Promise<Resultado>;
+  eliminarColaborador: (id: string) => Promise<Resultado>;
+  subirFoto: (id: string, dataUrl: string) => Promise<Resultado>;
+  aprobarFoto: (id: string) => Promise<Resultado>;
+  rechazarFoto: (id: string, motivo: string) => Promise<Resultado>;
+  actualizarPago: (id: string, cambios: Partial<Pago>) => Promise<Resultado>;
+  marcarAvisosLeidos: () => Promise<void>;
+  recargar: () => Promise<void>;
 };
 
 // Se guarda en globalThis para que las recargas en caliente (HMR) no creen
 // dos contextos distintos y rompan el provider.
-const g = globalThis as unknown as {
-  __ivadPortalContext?: Context<Contexto | null>;
-};
+const g = globalThis as unknown as { __ivadPortalContext?: Context<Contexto | null> };
 const PortalContext =
   g.__ivadPortalContext ?? (g.__ivadPortalContext = createContext<Contexto | null>(null));
 
-const ahora = () =>
-  new Date().toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
+const fecha = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
 
-const iniciales = (nombre: string) =>
-  nombre
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
+type FilaPerfil = {
+  id: string;
+  nombre: string;
+  cargo: string;
+  area: string;
+  email: string;
+  telefono: string;
+  ingreso: string;
+  cumple: string;
+  estado: string;
+  iniciales: string;
+  salario: number;
+  foto: string | null;
+  foto_pendiente: string | null;
+  estado_foto: string;
+  motivo_rechazo: string | null;
+};
+
+const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
+  id: p.id,
+  nombre: p.nombre,
+  cargo: p.cargo,
+  area: p.area,
+  email: p.email,
+  telefono: p.telefono,
+  ingreso: p.ingreso,
+  cumple: p.cumple,
+  estado: (p.estado as Colaborador["estado"]) ?? "activo",
+  iniciales: p.iniciales || inicialesDe(p.nombre),
+  salario: Number(p.salario ?? 0),
+  foto: p.foto ?? undefined,
+  fotoPendiente: p.foto_pendiente ?? undefined,
+  estadoFoto: (p.estado_foto as EstadoFoto) ?? "sin_foto",
+  motivoRechazo: p.motivo_rechazo ?? undefined,
+  rol,
+});
 
 export function PortalProvider({ children }: { children: ReactNode }) {
-  const [estado, setEstado] = useState<Estado>(estadoInicial);
+  const [cargando, setCargando] = useState(true);
+  const [portalVacio, setPortalVacio] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [avisos, setAvisos] = useState<Aviso[]>([]);
 
-  useEffect(() => {
-    try {
-      const guardado = localStorage.getItem(CLAVE);
-      if (guardado) setEstado({ ...estadoInicial, ...JSON.parse(guardado) });
-    } catch {
-      /* estado por defecto */
+  const cargar = useCallback(async () => {
+    const { data: sesionData } = await supabase.auth.getSession();
+    const uid = sesionData.session?.user.id ?? null;
+    setUserId(uid);
+
+    if (!uid) {
+      setColaboradores([]);
+      setPagos([]);
+      setAvisos([]);
+      try {
+        const r = await portalVacioFn();
+        setPortalVacio(r.vacio);
+      } catch {
+        setPortalVacio(false);
+      }
+      setCargando(false);
+      return;
     }
+
+    const [perfilesRes, rolesRes, pagosRes, avisosRes] = await Promise.all([
+      supabase.from("perfiles").select("*").order("nombre"),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("pagos").select("*").order("created_at", { ascending: false }),
+      supabase.from("avisos").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    const mapaRoles = new Map<string, Rol>();
+    for (const r of rolesRes.data ?? []) mapaRoles.set(r.user_id, r.role as Rol);
+
+    const lista = ((perfilesRes.data ?? []) as unknown as FilaPerfil[]).map((p) =>
+      aColaborador(p, mapaRoles.get(p.id)),
+    );
+    setColaboradores(lista);
+    setPortalVacio(lista.length === 0);
+
+    setPagos(
+      (pagosRes.data ?? []).map((p) => ({
+        id: p.id,
+        colaboradorId: p.colaborador_id,
+        periodo: p.periodo,
+        monto: Number(p.monto),
+        estado: p.estado as Pago["estado"],
+        recibo: p.recibo as Pago["recibo"],
+      })),
+    );
+
+    const porId = new Map(lista.map((c) => [c.id, c.email]));
+    setAvisos(
+      (avisosRes.data ?? []).map((a) => ({
+        id: a.id,
+        para: porId.get(a.para_id) ?? "",
+        titulo: a.titulo,
+        detalle: a.detalle,
+        fecha: fecha(a.created_at),
+        nuevo: a.nuevo,
+      })),
+    );
+    setCargando(false);
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(CLAVE, JSON.stringify(estado));
-    } catch {
-      /* cuota excedida */
-    }
-  }, [estado]);
+    void cargar();
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      void cargar();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [cargar]);
 
-  const sesion = useMemo(
-    () => estado.cuentas.find((u) => u.email === estado.sesionEmail) ?? estado.cuentas[0] ?? cuentasIniciales[0]!,
-    [estado.cuentas, estado.sesionEmail],
-  );
+  const sesion: Cuenta = useMemo(() => {
+    const yo = colaboradores.find((c) => c.id === userId);
+    if (!yo) return sesionVacia;
+    return {
+      email: yo.email,
+      clave: "",
+      nombre: yo.nombre,
+      rol: yo.rol ?? "Colaborador",
+      cargo: yo.cargo,
+      iniciales: yo.iniciales,
+    };
+  }, [colaboradores, userId]);
 
   const colaboradorActual = useMemo(
-    () => estado.colaboradores.find((c) => c.email === sesion.email),
-    [estado.colaboradores, sesion.email],
+    () => colaboradores.find((c) => c.id === userId),
+    [colaboradores, userId],
   );
 
-  const autenticar = useCallback((email: string, clave: string) => {
-    const correo = email.trim().toLowerCase();
-    let ok = false;
-    setEstado((p) => {
-      const cuenta = p.cuentas.find((c) => c.email.toLowerCase() === correo && c.clave === clave);
-      if (!cuenta) return p;
-      ok = true;
-      return { ...p, sesionEmail: cuenta.email };
+  const cuentas: Cuenta[] = useMemo(
+    () =>
+      colaboradores.map((c) => ({
+        email: c.email,
+        clave: "",
+        nombre: c.nombre,
+        rol: c.rol ?? "Colaborador",
+        cargo: c.cargo,
+        iniciales: c.iniciales,
+      })),
+    [colaboradores],
+  );
+
+  const autenticar = useCallback(async (email: string, clave: string): Promise<Resultado> => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: clave,
     });
-    return ok;
-  }, []);
+    if (error) return { ok: false, error: "Correo o contraseña incorrectos." };
+    await cargar();
+    return { ok: true };
+  }, [cargar]);
 
-  const guardarCuenta = useCallback((cuenta: Cuenta, emailOriginal?: string) => {
-    const email = cuenta.email.trim().toLowerCase();
-    if (!email.includes("@")) return { ok: false, error: "Correo no válido" };
-    if (cuenta.clave.trim().length < 6)
-      return { ok: false, error: "La contraseña debe tener al menos 6 caracteres" };
-    let error: string | undefined;
-    setEstado((p) => {
-      const duplicada = p.cuentas.some(
-        (c) => c.email.toLowerCase() === email && c.email !== emailOriginal,
-      );
-      if (duplicada) {
-        error = "Ya existe una cuenta con ese correo";
-        return p;
-      }
-      const nueva: Cuenta = {
-        ...cuenta,
-        email,
-        nombre: cuenta.nombre.trim() || "Sin nombre",
-        cargo: cuenta.cargo.trim() || "Sin cargo",
-        iniciales: iniciales(cuenta.nombre || "NC"),
-      };
-      const existe = emailOriginal
-        ? p.cuentas.some((c) => c.email === emailOriginal)
-        : false;
-      return {
-        ...p,
-        sesionEmail: p.sesionEmail === emailOriginal ? nueva.email : p.sesionEmail,
-        cuentas: existe
-          ? p.cuentas.map((c) => (c.email === emailOriginal ? nueva : c))
-          : [...p.cuentas, nueva],
-      };
-    });
-    return error ? { ok: false, error } : { ok: true };
-  }, []);
+  const crearPrimerAdmin = useCallback(
+    async (datos: { email: string; clave: string; nombre: string; cargo: string }) => {
+      const r = await crearPrimerAdminFn({ data: datos });
+      if (!r.ok) return r;
+      return autenticar(datos.email, datos.clave);
+    },
+    [autenticar],
+  );
 
-  const eliminarCuenta = useCallback((email: string) => {
-    setEstado((p) =>
-      p.cuentas.length <= 1 || p.sesionEmail === email
-        ? p
-        : { ...p, cuentas: p.cuentas.filter((c) => c.email !== email) },
-    );
-  }, []);
+  const cerrarSesion = useCallback(async () => {
+    await supabase.auth.signOut();
+    await cargar();
+  }, [cargar]);
 
-  const guardarColaborador = useCallback((datos: DatosColaborador) => {
-    setEstado((p) => {
-      if (datos.id && p.colaboradores.some((c) => c.id === datos.id)) {
-        const cambios = Object.fromEntries(
-          Object.entries(datos).filter(([, v]) => v !== undefined),
-        ) as Partial<Colaborador>;
+  const guardarCuenta = useCallback(
+    async (cuenta: Cuenta & { area?: string }, emailOriginal?: string): Promise<Resultado> => {
+      const r = await guardarCuentaFn({
+        data: {
+          email: cuenta.email,
+          ...(cuenta.clave ? { clave: cuenta.clave } : {}),
+          nombre: cuenta.nombre,
+          cargo: cuenta.cargo,
+          area: cuenta.area ?? "",
+          rol: cuenta.rol,
+          ...(emailOriginal ? { emailOriginal } : {}),
+        },
+      });
+      if (r.ok) await cargar();
+      return r;
+    },
+    [cargar],
+  );
+
+  const eliminarCuenta = useCallback(
+    async (email: string): Promise<Resultado> => {
+      const c = colaboradores.find((x) => x.email.toLowerCase() === email.toLowerCase());
+      if (!c) return { ok: false, error: "Cuenta no encontrada" };
+      const r = await eliminarCuentaFn({ data: { id: c.id } });
+      if (r.ok) await cargar();
+      return r;
+    },
+    [colaboradores, cargar],
+  );
+
+  const guardarColaborador = useCallback(
+    async (datos: DatosColaborador): Promise<Resultado> => {
+      if (!datos.id) {
         return {
-          ...p,
-          colaboradores: p.colaboradores.map((c) =>
-            c.id === datos.id
-              ? {
-                  ...c,
-                  ...cambios,
-                  iniciales: datos.nombre ? iniciales(datos.nombre) : c.iniciales,
-                }
-              : c,
-          ),
+          ok: false,
+          error:
+            "Para agregar un colaborador crea primero su acceso en Administradores → Usuarios.",
         };
       }
-      const id = `c-${Date.now()}`;
-      const nuevo: Colaborador = {
+      const fila: Record<string, unknown> = {};
+      const campos: Array<[keyof Colaborador, string]> = [
+        ["nombre", "nombre"],
+        ["cargo", "cargo"],
+        ["area", "area"],
+        ["telefono", "telefono"],
+        ["ingreso", "ingreso"],
+        ["cumple", "cumple"],
+        ["estado", "estado"],
+        ["salario", "salario"],
+      ];
+      for (const [clave, columna] of campos) {
+        const valor = datos[clave];
+        if (valor !== undefined) fila[columna] = valor;
+      }
+      if (datos.nombre) fila["iniciales"] = inicialesDe(datos.nombre);
+
+      const { error } = await supabase.from("perfiles").update(fila).eq("id", datos.id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const eliminarColaborador = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const r = await eliminarCuentaFn({ data: { id } });
+      if (r.ok) await cargar();
+      return r;
+    },
+    [cargar],
+  );
+
+  const crearAviso = useCallback(async (paraId: string, titulo: string, detalle: string) => {
+    await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
+  }, []);
+
+  const subirFoto = useCallback(
+    async (id: string, dataUrl: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ foto_pendiente: dataUrl, estado_foto: "pendiente", motivo_rechazo: null })
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const aprobarFoto = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const c = colaboradores.find((x) => x.id === id);
+      if (!c?.fotoPendiente) return { ok: false, error: "Sin foto pendiente" };
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ foto: c.fotoPendiente, foto_pendiente: null, estado_foto: "aprobada" })
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await crearAviso(
         id,
-        nombre: datos.nombre ?? "Nuevo colaborador",
-        cargo: datos.cargo ?? "Sin cargo",
-        area: datos.area ?? "Administración",
-        email: datos.email ?? "",
-        telefono: datos.telefono ?? "",
-        ingreso: datos.ingreso ?? String(new Date().getFullYear()),
-        cumple: datos.cumple ?? "—",
-        estado: datos.estado ?? "activo",
-        iniciales: iniciales(datos.nombre ?? "NC"),
-        estadoFoto: "sin_foto",
-        salario: datos.salario ?? 45000,
-      };
-      return {
-        ...p,
-        colaboradores: [...p.colaboradores, nuevo],
-        pagos: [
-          ...p.pagos,
-          {
-            id: `p-${id}`,
-            colaboradorId: id,
-            periodo: "Mayo 2024 · 2da quincena",
-            monto: Math.round((nuevo.salario / 2) * 100) / 100,
-            estado: "Pendiente",
-            recibo: "No enviado",
-          },
-        ],
-      };
-    });
-  }, []);
+        "Tu foto de perfil fue aprobada",
+        "Ya es visible para todo el equipo en el directorio.",
+      );
+      await cargar();
+      return { ok: true };
+    },
+    [colaboradores, crearAviso, cargar],
+  );
 
-  const eliminarColaborador = useCallback((id: string) => {
-    setEstado((p) => ({
-      ...p,
-      colaboradores: p.colaboradores.filter((c) => c.id !== id),
-      pagos: p.pagos.filter((pago) => pago.colaboradorId !== id),
-    }));
-  }, []);
+  const rechazarFoto = useCallback(
+    async (id: string, motivo: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ foto_pendiente: null, estado_foto: "rechazada", motivo_rechazo: motivo })
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await crearAviso(
+        id,
+        "Tu foto de perfil no aplica",
+        `${motivo} Sube una nueva foto desde Mi Perfil.`,
+      );
+      await cargar();
+      return { ok: true };
+    },
+    [crearAviso, cargar],
+  );
 
-  const subirFoto = useCallback((id: string, dataUrl: string) => {
-    setEstado((p) => ({
-      ...p,
-      colaboradores: p.colaboradores.map((c) =>
-        c.id === id
-          ? { ...c, fotoPendiente: dataUrl, estadoFoto: "pendiente", motivoRechazo: undefined }
-          : c,
-      ),
-    }));
-  }, []);
+  const actualizarPago = useCallback(
+    async (id: string, cambios: Partial<Pago>): Promise<Resultado> => {
+      const pago = pagos.find((p) => p.id === id);
+      const fila: Record<string, unknown> = {};
+      if (cambios.estado) fila["estado"] = cambios.estado;
+      if (cambios.recibo) fila["recibo"] = cambios.recibo;
+      if (cambios.monto !== undefined) fila["monto"] = cambios.monto;
+      if (cambios.periodo) fila["periodo"] = cambios.periodo;
+      const { error } = await supabase.from("pagos").update(fila).eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (cambios.recibo === "Enviado" && pago) {
+        await crearAviso(
+          pago.colaboradorId,
+          "Recibo de nómina disponible",
+          `${pago.periodo}: tu recibo fue enviado por Contabilidad.`,
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [pagos, crearAviso, cargar],
+  );
 
-  const aprobarFoto = useCallback((id: string) => {
-    setEstado((p) => {
-      const c = p.colaboradores.find((x) => x.id === id);
-      if (!c?.fotoPendiente) return p;
-      return {
-        ...p,
-        colaboradores: p.colaboradores.map((x) =>
-          x.id === id
-            ? { ...x, foto: x.fotoPendiente, fotoPendiente: undefined, estadoFoto: "aprobada" }
-            : x,
-        ),
-        avisos: [
-          {
-            id: `a-${Date.now()}`,
-            para: c.email,
-            titulo: "Tu foto de perfil fue aprobada",
-            detalle: "Ya es visible para todo el equipo en el directorio.",
-            fecha: ahora(),
-            nuevo: true,
-          },
-          ...p.avisos,
-        ],
-      };
-    });
-  }, []);
-
-  const rechazarFoto = useCallback((id: string, motivo: string) => {
-    setEstado((p) => {
-      const c = p.colaboradores.find((x) => x.id === id);
-      if (!c) return p;
-      return {
-        ...p,
-        colaboradores: p.colaboradores.map((x) =>
-          x.id === id
-            ? { ...x, fotoPendiente: undefined, estadoFoto: "rechazada", motivoRechazo: motivo }
-            : x,
-        ),
-        avisos: [
-          {
-            id: `a-${Date.now()}`,
-            para: c.email,
-            titulo: "Tu foto de perfil no aplica",
-            detalle: `${motivo} Sube una nueva foto desde Mi Perfil.`,
-            fecha: ahora(),
-            nuevo: true,
-          },
-          ...p.avisos,
-        ],
-      };
-    });
-  }, []);
-
-  const actualizarPago = useCallback((id: string, cambios: Partial<Pago>) => {
-    setEstado((p) => {
-      const pago = p.pagos.find((x) => x.id === id);
-      const colaborador = p.colaboradores.find((c) => c.id === pago?.colaboradorId);
-      const avisos =
-        cambios.recibo === "Enviado" && colaborador
-          ? [
-              {
-                id: `a-${Date.now()}`,
-                para: colaborador.email,
-                titulo: "Recibo de nómina disponible",
-                detalle: `${pago?.periodo}: tu recibo fue enviado por Contabilidad.`,
-                fecha: ahora(),
-                nuevo: true,
-              },
-              ...p.avisos,
-            ]
-          : p.avisos;
-      return {
-        ...p,
-        pagos: p.pagos.map((x) => (x.id === id ? { ...x, ...cambios } : x)),
-        avisos,
-      };
-    });
-  }, []);
-
-  const marcarAvisosLeidos = useCallback(() => {
-    setEstado((p) => ({
-      ...p,
-      avisos: p.avisos.map((a) => (a.para === p.sesionEmail ? { ...a, nuevo: false } : a)),
-    }));
-  }, []);
+  const marcarAvisosLeidos = useCallback(async () => {
+    if (!userId) return;
+    await supabase.from("avisos").update({ nuevo: false }).eq("para_id", userId);
+    await cargar();
+  }, [userId, cargar]);
 
   const valor: Contexto = {
-    ...estado,
+    cargando,
+    sesionActiva: Boolean(userId),
+    portalVacio,
+    sesionEmail: sesion.email,
     sesion,
+    cuentas,
+    colaboradores,
+    pagos,
+    avisos,
     colaboradorActual,
     esAdmin: sesion.rol === "Administrador",
     esRRHH: sesion.rol === "Administrador" || sesion.rol === "Recursos Humanos",
-    fotosPendientes: estado.colaboradores.filter((c) => c.estadoFoto === "pendiente"),
-    misAvisos: estado.avisos.filter((a) => a.para === sesion.email),
+    fotosPendientes: colaboradores.filter((c) => c.estadoFoto === "pendiente"),
+    misAvisos: avisos.filter((a) => a.para === sesion.email),
     autenticar,
+    crearPrimerAdmin,
+    cerrarSesion,
     guardarCuenta,
     eliminarCuenta,
     guardarColaborador,
@@ -386,6 +459,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     rechazarFoto,
     actualizarPago,
     marcarAvisosLeidos,
+    recargar: cargar,
   };
 
   return <PortalContext.Provider value={valor}>{children}</PortalContext.Provider>;
