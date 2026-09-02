@@ -80,7 +80,7 @@ function GestionColaboradores() {
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
-  if (!esRRHH) {
+  if (!esRRHH && !esContable) {
     return (
       <AppShell>
         <AppHeader titulo="Colaboradores" subtitulo="Acceso restringido" volver />
@@ -91,7 +91,7 @@ function GestionColaboradores() {
           <h2 className="mt-4 font-display text-lg font-bold text-foreground">Área de RR.HH.</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Tu rol ({sesion.rol}) no permite crear o editar expedientes. Inicia sesión como
-            Recursos Humanos o Administrador.
+            Administración, Recursos Humanos o Contabilidad.
           </p>
           <Link to="/inicio" className="mt-6 inline-block">
             <Button variant="outline">Volver al inicio</Button>
