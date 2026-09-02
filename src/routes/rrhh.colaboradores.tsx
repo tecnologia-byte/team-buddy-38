@@ -247,13 +247,19 @@ function GestionColaboradores() {
                   </SelectContent>
                 </Select>
               </div>
-              <Campo
-                id="email"
-                label="Correo corporativo"
-                valor={borrador.email}
-                error={errores["email"]}
-                onChange={(v) => setBorrador({ ...borrador, email: v })}
-              />
+              <div className="space-y-1">
+                <Campo
+                  id="email"
+                  label="Correo corporativo (acceso)"
+                  valor={borrador.email}
+                  error={errores["email"]}
+                  onChange={(v) => setBorrador({ ...borrador, email: v })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Al cambiarlo, el colaborador inicia sesión con el correo nuevo y recibe un aviso
+                  en esa dirección. El colaborador no puede cambiarlo por su cuenta.
+                </p>
+              </div>
               <Campo
                 id="telefono"
                 label="Teléfono"
