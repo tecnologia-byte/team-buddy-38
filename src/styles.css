@@ -158,3 +158,19 @@
     oklch(0.19 0.05 258) 100%
   );
 }
+
+/* Impresión del volante oficial de pago: solo se imprime el documento. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #volante-imprimible,
+  #volante-imprimible * {
+    visibility: visible;
+  }
+  #volante-imprimible {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+}
