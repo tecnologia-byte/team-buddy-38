@@ -48,9 +48,9 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
-  const { esAdmin, sesion } = usePortal();
+  const { esAdmin, esContable, sesion } = usePortal();
 
-  if (!esAdmin) {
+  if (!esAdmin && !esContable) {
     return (
       <AppShell>
         <AppHeader titulo="Administradores" subtitulo="Acceso restringido" volver />
@@ -61,7 +61,8 @@ function Admin() {
           <h2 className="mt-4 font-display text-lg font-bold text-foreground">Área restringida</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Tu rol actual es <strong>{sesion.rol}</strong>. Solo los usuarios con rol
-            Administrador pueden ver contabilidad y procesos financieros del personal.
+            Administrador o Contabilidad pueden ver la nómina y los procesos financieros del
+            personal.
           </p>
           <Link to="/inicio" className="mt-6 inline-block">
             <Button variant="outline">Volver al inicio</Button>
@@ -81,12 +82,14 @@ function Admin() {
             <TabsTrigger value="volante">Volante</TabsTrigger>
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
           </TabsList>
-          <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
-            <TabsTrigger value="fotos">Fotos</TabsTrigger>
-            <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-            <TabsTrigger value="soporte">Soporte</TabsTrigger>
-            <TabsTrigger value="accesos">Accesos</TabsTrigger>
-          </TabsList>
+          {esAdmin ? (
+            <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
+              <TabsTrigger value="fotos">Fotos</TabsTrigger>
+              <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+              <TabsTrigger value="soporte">Soporte</TabsTrigger>
+              <TabsTrigger value="accesos">Accesos</TabsTrigger>
+            </TabsList>
+          ) : null}
 
           <TabsContent value="contabilidad" className="mt-4">
             <Contabilidad />
