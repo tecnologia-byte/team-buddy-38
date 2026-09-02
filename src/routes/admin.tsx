@@ -119,6 +119,10 @@ function Admin() {
           <TabsContent value="accesos" className="mt-4">
             <Accesos />
           </TabsContent>
+          <TabsContent value="verificados" className="mt-4">
+            <Verificados />
+          </TabsContent>
+
         </Tabs>
       </div>
     </AppShell>
