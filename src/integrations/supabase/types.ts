@@ -44,13 +44,6 @@ export type Database = {
             foreignKeyName: "avisos_para_id_fkey"
             columns: ["para_id"]
             isOneToOne: false
-            referencedRelation: "directorio"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "avisos_para_id_fkey"
-            columns: ["para_id"]
-            isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
@@ -85,13 +78,6 @@ export type Database = {
           recibo?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "pagos_colaborador_id_fkey"
-            columns: ["colaborador_id"]
-            isOneToOne: false
-            referencedRelation: "directorio"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "pagos_colaborador_id_fkey"
             columns: ["colaborador_id"]
@@ -209,13 +195,6 @@ export type Database = {
             foreignKeyName: "soporte_tickets_creador_id_fkey"
             columns: ["creador_id"]
             isOneToOne: false
-            referencedRelation: "directorio"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "soporte_tickets_creador_id_fkey"
-            columns: ["creador_id"]
-            isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
@@ -241,41 +220,23 @@ export type Database = {
       }
     }
     Views: {
-      directorio: {
-        Row: {
-          area: string | null
-          cargo: string | null
-          cumple: string | null
-          estado: string | null
-          foto: string | null
-          id: string | null
-          iniciales: string | null
-          nombre: string | null
-        }
-        Insert: {
-          area?: string | null
-          cargo?: string | null
-          cumple?: string | null
-          estado?: string | null
-          foto?: string | null
-          id?: string | null
-          iniciales?: string | null
-          nombre?: string | null
-        }
-        Update: {
-          area?: string | null
-          cargo?: string | null
-          cumple?: string | null
-          estado?: string | null
-          foto?: string | null
-          id?: string | null
-          iniciales?: string | null
-          nombre?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      directorio: {
+        Args: never
+        Returns: {
+          area: string
+          cargo: string
+          cumple: string
+          estado: string
+          foto: string
+          id: string
+          iniciales: string
+          nombre: string
+        }[]
+      }
+      es_contable: { Args: { _user_id: string }; Returns: boolean }
       es_gestor: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -291,6 +252,7 @@ export type Database = {
         | "Recursos Humanos"
         | "Supervisor"
         | "Colaborador"
+        | "Contabilidad"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -423,6 +385,7 @@ export const Constants = {
         "Recursos Humanos",
         "Supervisor",
         "Colaborador",
+        "Contabilidad",
       ],
     },
   },
