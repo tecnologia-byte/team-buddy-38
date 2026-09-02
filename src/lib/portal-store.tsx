@@ -465,6 +465,17 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
       const { error } = await supabase.from("perfiles").update(fila as never).eq("id", datos.id);
       if (error) return { ok: false, error: error.message };
+
+      // El correo de acceso se cambia en el servidor (auth + perfil) y avisa al nuevo buzón.
+      const actual = colaboradores.find((c) => c.id === datos.id);
+      const nuevoEmail = datos.email?.trim().toLowerCase();
+      if (nuevoEmail && nuevoEmail !== actual?.email.toLowerCase()) {
+        const r = await cambiarCorreoFn({ data: { id: datos.id, email: nuevoEmail } });
+        if (!r.ok) {
+          await cargar();
+          return { ok: false, error: r.error };
+        }
+      }
       await cargar();
       return { ok: true };
     },
