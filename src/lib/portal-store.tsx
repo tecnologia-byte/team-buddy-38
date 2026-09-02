@@ -73,6 +73,36 @@ export type Aviso = {
   nuevo: boolean;
 };
 
+export type EstadoSolicitud = "Pendiente" | "Aprobada" | "Rechazada" | "Cancelada";
+
+export type Solicitud = {
+  id: string;
+  colaboradorId: string;
+  tipo: string;
+  motivo: string;
+  fechaInicio: string;
+  fechaFin: string;
+  dias: number;
+  conSalario: boolean;
+  baseLegal: string;
+  soporte?: string | undefined;
+  estado: EstadoSolicitud;
+  respuesta?: string | undefined;
+  respondidoPor?: string | undefined;
+  fecha: string;
+};
+
+export type NuevaSolicitud = {
+  tipo: string;
+  motivo: string;
+  fechaInicio: string;
+  fechaFin: string;
+  dias: number;
+  conSalario: boolean;
+  baseLegal: string;
+  soporte?: string | undefined;
+};
+
 export type DatosColaborador = {
   [K in keyof Colaborador]?: Colaborador[K] | undefined;
 };
