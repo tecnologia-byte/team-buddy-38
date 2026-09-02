@@ -849,7 +849,7 @@ function Verificados() {
             key={c.id}
             className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
           >
-            <Avatar nombre={c.nombre} iniciales={c.iniciales} foto={c.foto} className="h-11 w-11" />
+            <Avatar iniciales={c.iniciales} foto={c.foto} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <p className="truncate text-sm font-semibold text-foreground">{c.nombre}</p>
