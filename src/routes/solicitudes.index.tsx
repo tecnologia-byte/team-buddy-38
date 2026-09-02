@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronRight, FileCheck } from "lucide-react";
 import { AppShell, AppHeader, SectionTitle } from "@/components/app-shell";
 import { solicitudes, tiposSolicitud } from "@/lib/data";
 
-export const Route = createFileRoute("/solicitudes")({
+export const Route = createFileRoute("/solicitudes/")({
   head: () => ({
     meta: [
       { title: "Solicitudes y Aprobaciones — Portal IVAD" },
