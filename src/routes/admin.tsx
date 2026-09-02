@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { SelloVerificado, VerificacionPerfil } from "@/components/verificado";
+import { enviarReciboFn } from "@/lib/correo.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -130,6 +131,31 @@ function Admin() {
   );
 }
 
+/** Envía el recibo de un pago al colaborador con el documento adjunto. */
+async function enviarReciboPago(
+  pago: { periodo: string; monto: number; id: string },
+  c: { nombre: string; email: string; cargo: string; area: string; ingreso: string; firma?: string | undefined; firmaActualizada?: string | undefined },
+) {
+  if (!c.email) return { ok: false as const, error: "El colaborador no tiene correo registrado" };
+  return enviarReciboFn({
+    data: {
+      para: c.email,
+      comprobante: `IVAD-${pago.id.slice(0, 8).toUpperCase()}`,
+      fechaEmision: new Date().toLocaleDateString("es-DO"),
+      periodoDesde: pago.periodo,
+      periodoHasta: pago.periodo,
+      nombre: c.nombre,
+      cargo: c.cargo,
+      departamento: c.area,
+      ingreso: c.ingreso,
+      ingresos: [{ concepto: "Salario neto del período", monto: pago.monto }],
+      deducciones: [],
+      ...(c.firma ? { firma: c.firma } : {}),
+      ...(c.firmaActualizada ? { firmaFecha: c.firmaActualizada } : {}),
+    },
+  });
+}
+
 function Contabilidad() {
   const { pagos, colaboradores, actualizarPago } = usePortal();
   const totalPeriodo = pagos.reduce((s, p) => s + p.monto, 0);
@@ -150,11 +176,13 @@ function Contabilidad() {
             <button
               type="button"
               className="text-xs font-medium text-primary underline"
-              onClick={() => {
-                pagos
-                  .filter((p) => p.recibo === "No enviado")
-                  .forEach((p) => actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" }));
-                toast.success("Recibos enviados a todos los colaboradores");
+              onClick={async () => {
+                for (const p of pagos.filter((x) => x.recibo === "No enviado")) {
+                  await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
+                  const col = colaboradores.find((x) => x.id === p.colaboradorId);
+                  if (col) await enviarReciboPago(p, col).catch(() => undefined);
+                }
+                toast.success("Recibos enviados por correo a los colaboradores");
               }}
             >
               Enviar todos
@@ -204,9 +232,14 @@ function Contabilidad() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
-                          toast.success(`Recibo enviado a ${c.email}`);
+                        onClick={async () => {
+                          await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
+                          const res = await enviarReciboPago(p, c).catch((e) => ({
+                            ok: false as const,
+                            error: e instanceof Error ? e.message : "Error de envío",
+                          }));
+                          if (res.ok) toast.success(`Recibo enviado por correo a ${c.email}`);
+                          else toast.error(res.error ?? "No se pudo enviar el recibo");
                         }}
                       >
                         Enviar recibo

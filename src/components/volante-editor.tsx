@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { Printer, RotateCcw } from "lucide-react";
+import { Mail, Printer, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   VolantePago,
   volanteVacio,
+  numero,
   type DatosVolante,
   type LineaVolante,
 } from "@/components/volante-pago";
+import { enviarReciboFn } from "@/lib/correo.functions";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
 
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
@@ -46,6 +49,7 @@ export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const elegido = colaboradores.find((c) => c.id === seleccion);
 
   // Numeración y fechas automáticas al abrir la plantilla.
@@ -89,6 +93,47 @@ export function VolanteEditor() {
         i === 0 && !l.monto && c.salario ? { ...l, monto: String(c.salario) } : l,
       ),
     }));
+  };
+
+  const enviarPorCorreo = async () => {
+    if (!elegido?.email) {
+      toast.error("Selecciona un colaborador con correo registrado.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const limpiar = (lineas: LineaVolante[]) =>
+        lineas
+          .filter((l) => l.concepto.trim() || l.monto.trim())
+          .map((l) => ({ concepto: l.concepto, monto: numero(l.monto) }));
+      const res = await enviarReciboFn({
+        data: {
+          para: elegido.email,
+          comprobante: datos.comprobante,
+          fechaEmision: datos.fechaEmision,
+          periodoDesde: datos.periodoDesde,
+          periodoHasta: datos.periodoHasta,
+          nombre: datos.nombre || elegido.nombre,
+          cedula: datos.cedula,
+          codigo: datos.codigo,
+          cargo: datos.cargo,
+          departamento: datos.departamento,
+          ingreso: datos.ingreso,
+          banco: datos.banco,
+          seguridadSocial: datos.seguridadSocial,
+          ingresos: limpiar(datos.ingresos),
+          deducciones: limpiar(datos.deducciones),
+          ...(datos.firma ? { firma: datos.firma } : {}),
+          ...(datos.firmaFecha ? { firmaFecha: datos.firmaFecha } : {}),
+        },
+      });
+      if (res.ok) toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
+      else toast.error(res.error ?? "No se pudo enviar el recibo");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo enviar el recibo");
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -206,6 +251,10 @@ export function VolanteEditor() {
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Imprimir / Guardar PDF
+          </Button>
+          <Button type="button" variant="outline" disabled={enviando} onClick={enviarPorCorreo}>
+            <Mail className="mr-2 h-4 w-4" />
+            {enviando ? "Enviando…" : "Enviar recibo por correo"}
           </Button>
           <Button
             type="button"
