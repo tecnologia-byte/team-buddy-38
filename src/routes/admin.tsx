@@ -19,13 +19,14 @@ import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shel
 import { FirmaPad } from "@/components/firma-pad";
 import { ReciboPago } from "@/components/recibo-pago";
 import { VolanteEditor } from "@/components/volante-editor";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, LIMITE_PAGOS_FIRMA } from "@/lib/portal-store";
 import { pesos, roles, type Cuenta } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
