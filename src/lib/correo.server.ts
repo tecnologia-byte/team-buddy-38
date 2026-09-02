@@ -85,13 +85,21 @@ export function plantilla(d: CorreoDatos) {
 </body></html>`;
 }
 
+export type Adjunto = { filename: string; content: string };
+
+/** Remitente de nómina: los recibos de pago salen desde esta dirección. */
+export const REMITENTE_NOMINA = "IVAD Nómina <nomina@ivadsrl.com>";
+
 /** Envía el correo por el gateway de Resend. */
-export async function enviarCorreoInstitucional(d: CorreoDatos) {
+export async function enviarCorreoInstitucional(
+  d: CorreoDatos,
+  opciones?: { from?: string | undefined; adjuntos?: Adjunto[] | undefined; asunto?: string | undefined },
+) {
   const lovableKey = process.env["LOVABLE_API_KEY"];
   const resendKey = process.env["RESEND_API_KEY"];
   if (!lovableKey || !resendKey) return { ok: false as const, error: "Correo no configurado" };
 
-  const from = process.env["RESEND_FROM"] ?? "IVAD Portal <portal@ivadsrl.com>";
+  const from = opciones?.from ?? process.env["RESEND_FROM"] ?? "IVAD Portal <portal@ivadsrl.com>";
 
   const res = await fetch(`${GATEWAY}/emails`, {
     method: "POST",
@@ -103,8 +111,9 @@ export async function enviarCorreoInstitucional(d: CorreoDatos) {
     body: JSON.stringify({
       from,
       to: [d.para],
-      subject: `${d.titulo} · IVAD`,
+      subject: opciones?.asunto ?? `${d.titulo} · IVAD`,
       html: plantilla(d),
+      ...(opciones?.adjuntos?.length ? { attachments: opciones.adjuntos } : {}),
     }),
   });
 
