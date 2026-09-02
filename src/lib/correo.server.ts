@@ -8,10 +8,10 @@ export type CorreoDatos = {
   para: string;
   nombre?: string;
   titulo: string;
-  detalle?: string;
-  etiqueta?: string;
-  enlace?: string;
-  enlaceTexto?: string;
+  detalle?: string | undefined;
+  etiqueta?: string | undefined;
+  enlace?: string | undefined;
+  enlaceTexto?: string | undefined;
   /** Muestra la leyenda con las dos insignias de verificación. */
   insignias?: boolean;
 };
