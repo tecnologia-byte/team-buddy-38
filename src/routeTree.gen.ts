@@ -22,10 +22,12 @@ import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as TareasRouteImport } from './routes/tareas'
 import { Route as RrhhColaboradoresRouteImport } from './routes/rrhh.colaboradores'
 import { Route as SolicitudesIndexRouteImport } from './routes/solicitudes.index'
+import { Route as SolicitudesDerechosRouteImport } from './routes/solicitudes.derechos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -92,6 +94,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SolicitudesRoute = SolicitudesRouteImport.update({
+  id: '/solicitudes',
+  path: '/solicitudes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SoporteRoute = SoporteRouteImport.update({
   id: '/soporte',
   path: '/soporte',
@@ -108,9 +115,14 @@ const RrhhColaboradoresRoute = RrhhColaboradoresRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SolicitudesIndexRoute = SolicitudesIndexRouteImport.update({
-  id: '/solicitudes/',
-  path: '/solicitudes/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => SolicitudesRoute,
+} as any)
+const SolicitudesDerechosRoute = SolicitudesDerechosRouteImport.update({
+  id: '/derechos',
+  path: '/derechos',
+  getParentRoute: () => SolicitudesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -127,9 +139,11 @@ export interface FileRoutesByFullPath {
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes/': typeof SolicitudesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -149,6 +163,7 @@ export interface FileRoutesByTo {
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes': typeof SolicitudesIndexRoute
 }
 export interface FileRoutesById {
@@ -166,9 +181,11 @@ export interface FileRoutesById {
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes/': typeof SolicitudesIndexRoute
 }
 export interface FileRouteTypes {
@@ -187,9 +204,11 @@ export interface FileRouteTypes {
     | '/notificaciones'
     | '/perfil'
     | '/sitemap.xml'
+    | '/solicitudes'
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/derechos'
     | '/solicitudes/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -209,6 +228,7 @@ export interface FileRouteTypes {
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/derechos'
     | '/solicitudes'
   id:
     | '__root__'
@@ -225,9 +245,11 @@ export interface FileRouteTypes {
     | '/notificaciones'
     | '/perfil'
     | '/sitemap.xml'
+    | '/solicitudes'
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/derechos'
     | '/solicitudes/'
   fileRoutesById: FileRoutesById
 }
@@ -245,10 +267,10 @@ export interface RootRouteChildren {
   NotificacionesRoute: typeof NotificacionesRoute
   PerfilRoute: typeof PerfilRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SolicitudesRoute: typeof SolicitudesRouteWithChildren
   SoporteRoute: typeof SoporteRoute
   TareasRoute: typeof TareasRoute
   RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
-  SolicitudesIndexRoute: typeof SolicitudesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -344,6 +366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/solicitudes': {
+      id: '/solicitudes'
+      path: '/solicitudes'
+      fullPath: '/solicitudes'
+      preLoaderRoute: typeof SolicitudesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/soporte': {
       id: '/soporte'
       path: '/soporte'
@@ -367,13 +396,34 @@ declare module '@tanstack/react-router' {
     }
     '/solicitudes/': {
       id: '/solicitudes/'
-      path: '/solicitudes'
+      path: '/'
       fullPath: '/solicitudes/'
       preLoaderRoute: typeof SolicitudesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SolicitudesRoute
+    }
+    '/solicitudes/derechos': {
+      id: '/solicitudes/derechos'
+      path: '/derechos'
+      fullPath: '/solicitudes/derechos'
+      preLoaderRoute: typeof SolicitudesDerechosRouteImport
+      parentRoute: typeof SolicitudesRoute
     }
   }
 }
+
+interface SolicitudesRouteChildren {
+  SolicitudesDerechosRoute: typeof SolicitudesDerechosRoute
+  SolicitudesIndexRoute: typeof SolicitudesIndexRoute
+}
+
+const SolicitudesRouteChildren: SolicitudesRouteChildren = {
+  SolicitudesDerechosRoute: SolicitudesDerechosRoute,
+  SolicitudesIndexRoute: SolicitudesIndexRoute,
+}
+
+const SolicitudesRouteWithChildren = SolicitudesRoute._addFileChildren(
+  SolicitudesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -389,10 +439,10 @@ const rootRouteChildren: RootRouteChildren = {
   NotificacionesRoute: NotificacionesRoute,
   PerfilRoute: PerfilRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SolicitudesRoute: SolicitudesRouteWithChildren,
   SoporteRoute: SoporteRoute,
   TareasRoute: TareasRoute,
   RrhhColaboradoresRoute: RrhhColaboradoresRoute,
-  SolicitudesIndexRoute: SolicitudesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
