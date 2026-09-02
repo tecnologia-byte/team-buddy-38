@@ -212,10 +212,22 @@ function Contabilidad() {
 }
 
 function Firmas() {
-  const { colaboradores, pagos, guardarFirma, borrarFirma } = usePortal();
+  const { colaboradores, pagos, guardarFirma, borrarFirma, firmaPermanente } = usePortal();
   const [activo, setActivo] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [acepta, setAcepta] = useState(false);
+  const [siempre, setSiempre] = useState(false);
   const conFirma = colaboradores.filter((c) => c.firma).length;
+  const vencidas = colaboradores.filter(
+    (c) => c.firma && !c.firmaPermanente && c.firmaPagosRestantes <= 0,
+  ).length;
+
+  const abrir = (id: string) => {
+    const c = colaboradores.find((x) => x.id === id);
+    setActivo(id);
+    setAcepta(false);
+    setSiempre(Boolean(c?.firmaPermanente));
+  };
 
   return (
     <div className="space-y-5">
@@ -225,17 +237,21 @@ function Firmas() {
           <h3 className="font-display font-bold text-foreground">Firmas digitales</h3>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Recoge la firma de cada colaborador una sola vez. El sistema la coloca automáticamente en
-          el espacio de <strong>“Recibido por”</strong> de su recibo de pago.
+          Cada firma recogida es válida para <strong>{LIMITE_PAGOS_FIRMA} pagos</strong>. Al agotarse
+          hay que recogerla nuevamente, salvo que el colaborador autorice dejar siempre la misma
+          firma. El sistema la coloca automáticamente en el espacio de{" "}
+          <strong>“Recibí conforme”</strong> del volante de pago.
         </p>
         <p className="mt-2 text-xs font-semibold text-foreground">
           {conFirma} de {colaboradores.length} colaboradores con firma registrada
+          {vencidas > 0 ? ` · ${vencidas} por renovar` : ""}
         </p>
       </div>
 
       {colaboradores.map((c) => {
         const pago = pagos.find((p) => p.colaboradorId === c.id);
         const abierto = activo === c.id;
+        const vencida = Boolean(c.firma) && !c.firmaPermanente && c.firmaPagosRestantes <= 0;
         return (
           <article key={c.id} className="surface-card p-4">
             <div className="flex items-center gap-3">
@@ -245,8 +261,16 @@ function Firmas() {
                 <p className="truncate text-xs text-muted-foreground">{c.cargo || "Sin cargo"}</p>
               </div>
               <Etiqueta
-                texto={c.firma ? "Firmado" : "Sin firma"}
-                tono={c.firma ? "success" : "muted"}
+                texto={
+                  !c.firma
+                    ? "Sin firma"
+                    : c.firmaPermanente
+                      ? "Firma permanente"
+                      : vencida
+                        ? "Vencida"
+                        : `Vale ${c.firmaPagosRestantes} pago${c.firmaPagosRestantes === 1 ? "" : "s"}`
+                }
+                tono={!c.firma || vencida ? (vencida ? "warning" : "muted") : "success"}
               />
             </div>
 
@@ -258,15 +282,52 @@ function Firmas() {
                   className="mx-auto max-h-16 object-contain"
                 />
                 <p className="mt-1 text-center text-[11px] text-muted-foreground">
-                  Registrada el {c.firmaActualizada ?? "—"}
+                  Registrada el {c.firmaActualizada ?? "—"} ·{" "}
+                  {c.firmaPermanente
+                    ? "vigencia permanente autorizada"
+                    : `${c.firmaPagosRestantes} de ${c.firmaLimitePagos} pagos restantes`}
                 </p>
+                {c.firmaConsentimiento ? (
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Compromiso aceptado el {c.firmaConsentimiento}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
+            {vencida ? (
+              <p className="mt-2 rounded-md bg-secondary px-2 py-1.5 text-[11px] font-medium text-foreground">
+                La firma cubrió sus {c.firmaLimitePagos} pagos: hay que recogerla de nuevo antes del
+                próximo volante.
+              </p>
+            ) : null}
+
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setActivo(abierto ? null : c.id)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => (abierto ? setActivo(null) : abrir(c.id))}
+              >
                 {abierto ? "Cerrar" : c.firma ? "Volver a firmar" : "Recoger firma"}
               </Button>
+              {c.firma ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const r = await firmaPermanente(c.id, !c.firmaPermanente);
+                    if (r.ok)
+                      toast.success(
+                        c.firmaPermanente
+                          ? `La firma de ${c.nombre} vuelve a vencer cada ${LIMITE_PAGOS_FIRMA} pagos`
+                          : `${c.nombre} dejará siempre la misma firma`,
+                      );
+                    else toast.error(r.error ?? "No se pudo actualizar");
+                  }}
+                >
+                  {c.firmaPermanente ? "Quitar firma permanente" : "Dejar siempre la misma"}
+                </Button>
+              ) : null}
               {c.firma ? (
                 <Button
                   size="sm"
@@ -283,16 +344,53 @@ function Firmas() {
             </div>
 
             {abierto ? (
-              <div className="mt-3">
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border border-border bg-secondary/50 p-3 text-[11px] leading-relaxed text-foreground">
+                  <p className="font-semibold uppercase">Compromiso de firma digital</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {c.nombre || "El colaborador"} autoriza a IVAD SRL a usar esta firma digital en
+                    el espacio de “Recibí conforme” de sus volantes de pago, y acepta que la firma
+                    tiene vigencia de <strong>{LIMITE_PAGOS_FIRMA} pagos</strong>; al agotarse se le
+                    solicitará registrarla nuevamente. Si autoriza dejar siempre la misma firma, esta
+                    se mantendrá vigente hasta que él mismo o Administración la revoque.
+                  </p>
+                  <label className="mt-2 flex items-start gap-2">
+                    <Checkbox
+                      checked={acepta}
+                      onCheckedChange={(v) => setAcepta(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span>Leí y acepto el compromiso de firma digital.</span>
+                  </label>
+                  <label className="mt-2 flex items-start gap-2">
+                    <Checkbox
+                      checked={siempre}
+                      onCheckedChange={(v) => setSiempre(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Autorizo dejar siempre la misma firma (sin renovarla cada{" "}
+                      {LIMITE_PAGOS_FIRMA} pagos).
+                    </span>
+                  </label>
+                </div>
                 <FirmaPad
                   guardando={guardando}
-                  etiqueta="Guardar firma"
+                  etiqueta={acepta ? "Guardar firma" : "Acepta el compromiso"}
                   onGuardar={async (dataUrl) => {
+                    if (!acepta) {
+                      toast.error("El colaborador debe aceptar el compromiso antes de firmar");
+                      return;
+                    }
                     setGuardando(true);
-                    const r = await guardarFirma(c.id, dataUrl);
+                    const r = await guardarFirma(c.id, dataUrl, { permanente: siempre });
                     setGuardando(false);
                     if (r.ok) {
-                      toast.success(`Firma de ${c.nombre} guardada`);
+                      toast.success(
+                        siempre
+                          ? `Firma de ${c.nombre} guardada como permanente`
+                          : `Firma de ${c.nombre} guardada, válida por ${LIMITE_PAGOS_FIRMA} pagos`,
+                      );
                       setActivo(null);
                     } else {
                       toast.error(r.error ?? "No se pudo guardar la firma");
@@ -318,6 +416,7 @@ function Firmas() {
     </div>
   );
 }
+
 
 function CasosSoporte() {
   const { tickets, responderTicket } = usePortal();
