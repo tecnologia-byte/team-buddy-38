@@ -30,6 +30,10 @@ export type Colaborador = Empleado & {
   rol?: Rol | undefined;
   firma?: string | undefined;
   firmaActualizada?: string | undefined;
+  firmaPagosRestantes: number;
+  firmaLimitePagos: number;
+  firmaPermanente: boolean;
+  firmaConsentimiento?: string | undefined;
 };
 
 export type Ticket = {
@@ -112,8 +116,14 @@ type Contexto = {
   aprobarFoto: (id: string) => Promise<Resultado>;
   rechazarFoto: (id: string, motivo: string) => Promise<Resultado>;
   actualizarPago: (id: string, cambios: Partial<Pago>) => Promise<Resultado>;
-  guardarFirma: (id: string, dataUrl: string) => Promise<Resultado>;
+  guardarFirma: (
+    id: string,
+    dataUrl: string,
+    opciones?: { permanente?: boolean },
+  ) => Promise<Resultado>;
   borrarFirma: (id: string) => Promise<Resultado>;
+  firmaPermanente: (id: string, permanente: boolean) => Promise<Resultado>;
+  consumirFirma: (id: string) => Promise<Resultado>;
   crearTicket: (datos: {
     categoria: string;
     asunto: string;
@@ -136,6 +146,14 @@ const g = globalThis as unknown as { __ivadPortalContext?: Context<Contexto | nu
 const PortalContext =
   g.__ivadPortalContext ?? (g.__ivadPortalContext = createContext<Contexto | null>(null));
 
+/** Una firma digital solo es válida para esta cantidad de pagos, salvo que el
+ *  colaborador autorice dejar la misma firma de forma permanente. */
+export const LIMITE_PAGOS_FIRMA = 3;
+
+/** Indica si la firma del colaborador sigue vigente para firmar un pago. */
+export const firmaVigente = (c?: Colaborador | undefined) =>
+  Boolean(c?.firma) && (c!.firmaPermanente || c!.firmaPagosRestantes > 0);
+
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
 
@@ -157,6 +175,10 @@ type FilaPerfil = {
   motivo_rechazo: string | null;
   firma: string | null;
   firma_actualizada: string | null;
+  firma_pagos_restantes: number | null;
+  firma_limite_pagos: number | null;
+  firma_permanente: boolean | null;
+  firma_consentimiento_at: string | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -177,6 +199,10 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   motivoRechazo: p.motivo_rechazo ?? undefined,
   firma: p.firma ?? undefined,
   firmaActualizada: p.firma_actualizada ? fecha(p.firma_actualizada) : undefined,
+  firmaPagosRestantes: Number(p.firma_pagos_restantes ?? 0),
+  firmaLimitePagos: Number(p.firma_limite_pagos ?? LIMITE_PAGOS_FIRMA),
+  firmaPermanente: Boolean(p.firma_permanente),
+  firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
   rol,
 });
 
@@ -253,6 +279,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         motivo_rechazo: null,
         firma: null,
         firma_actualizada: null,
+        firma_pagos_restantes: 0,
+        firma_limite_pagos: LIMITE_PAGOS_FIRMA,
+        firma_permanente: false,
+        firma_consentimiento_at: null,
       });
     }
     for (const p of completos.values()) {
@@ -519,10 +549,22 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   );
 
   const guardarFirma = useCallback(
-    async (id: string, dataUrl: string): Promise<Resultado> => {
+    async (
+      id: string,
+      dataUrl: string,
+      opciones?: { permanente?: boolean },
+    ): Promise<Resultado> => {
+      const permanente = Boolean(opciones?.permanente);
       const { error } = await supabase
         .from("perfiles")
-        .update({ firma: dataUrl, firma_actualizada: new Date().toISOString() } as never)
+        .update({
+          firma: dataUrl,
+          firma_actualizada: new Date().toISOString(),
+          firma_limite_pagos: LIMITE_PAGOS_FIRMA,
+          firma_pagos_restantes: permanente ? LIMITE_PAGOS_FIRMA : LIMITE_PAGOS_FIRMA,
+          firma_permanente: permanente,
+          firma_consentimiento_at: new Date().toISOString(),
+        } as never)
         .eq("id", id);
       if (error) return { ok: false, error: error.message };
       if (id !== userId) {
@@ -542,7 +584,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     async (id: string): Promise<Resultado> => {
       const { error } = await supabase
         .from("perfiles")
-        .update({ firma: null, firma_actualizada: null } as never)
+        .update({
+          firma: null,
+          firma_actualizada: null,
+          firma_pagos_restantes: 0,
+          firma_permanente: false,
+          firma_consentimiento_at: null,
+        } as never)
         .eq("id", id);
       if (error) return { ok: false, error: error.message };
       await cargar();
