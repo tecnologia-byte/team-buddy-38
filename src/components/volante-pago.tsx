@@ -71,7 +71,7 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
     >
       <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-primary pb-3">
         <div className="flex items-start gap-3">
-          <img src={logo.url} alt="Logo de IVAD Home & Goods" className="h-14 w-14 object-contain" />
+          <img src={logo.url} alt="Logo de IVAD Home & Goods" className="h-20 w-20 shrink-0 object-contain print:h-24 print:w-24" />
           <div>
             <p className="font-display text-sm font-bold text-primary">
               IVAD SRL (IVAD Home &amp; Goods)
@@ -130,14 +130,14 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
         <p className="font-display text-base font-bold">RD$ {pesos(neto)}</p>
       </div>
 
-      <p className="mt-3 text-justify text-[10px] text-muted-foreground">
+      <p className="mt-5 text-justify text-[10px] text-muted-foreground">
         Certifico haber recibido de IVAD SRL (RNC 102334112) la suma neta arriba indicada por
         concepto de pago de salarios correspondiente al período especificado, encontrándome conforme
         con los ingresos devengados y las deducciones reglamentarias de Ley aplicadas (Seguridad
         Social Ley 87-01 e Impuesto Sobre la Renta DGII).
       </p>
 
-      <div className="mt-8 grid grid-cols-2 gap-8">
+      <div className="mt-16 grid grid-cols-2 gap-8 print:mt-24">
         <div className="text-center">
           <div className="flex h-16 items-end justify-center">
             {datos.firma ? (

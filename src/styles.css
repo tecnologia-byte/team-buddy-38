@@ -159,8 +159,20 @@
   );
 }
 
-/* Impresión del volante oficial de pago: solo se imprime el documento. */
+/* Impresión del volante oficial de pago: solo se imprime el documento, sin
+   encabezados ni pies del navegador (URL, fecha, numeración). */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
 @media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
   body * {
     visibility: hidden;
   }
@@ -172,5 +184,9 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
+    padding: 14mm 12mm !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
+
