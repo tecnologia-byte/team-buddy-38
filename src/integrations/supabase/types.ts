@@ -111,6 +111,8 @@ export type Database = {
           nombre: string
           salario: number
           telefono: string
+          verificado: boolean
+          verificado_at: string | null
         }
         Insert: {
           area?: string
@@ -135,6 +137,8 @@ export type Database = {
           nombre?: string
           salario?: number
           telefono?: string
+          verificado?: boolean
+          verificado_at?: string | null
         }
         Update: {
           area?: string
@@ -159,6 +163,8 @@ export type Database = {
           nombre?: string
           salario?: number
           telefono?: string
+          verificado?: boolean
+          verificado_at?: string | null
         }
         Relationships: []
       }
@@ -246,6 +252,7 @@ export type Database = {
           id: string
           iniciales: string
           nombre: string
+          verificado: boolean
         }[]
       }
       es_contable: { Args: { _user_id: string }; Returns: boolean }
