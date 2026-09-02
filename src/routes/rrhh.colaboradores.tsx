@@ -80,7 +80,7 @@ function GestionColaboradores() {
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
-  if (!esRRHH) {
+  if (!esRRHH && !esContable) {
     return (
       <AppShell>
         <AppHeader titulo="Colaboradores" subtitulo="Acceso restringido" volver />
@@ -91,7 +91,7 @@ function GestionColaboradores() {
           <h2 className="mt-4 font-display text-lg font-bold text-foreground">Área de RR.HH.</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Tu rol ({sesion.rol}) no permite crear o editar expedientes. Inicia sesión como
-            Recursos Humanos o Administrador.
+            Administración, Recursos Humanos o Contabilidad.
           </p>
           <Link to="/inicio" className="mt-6 inline-block">
             <Button variant="outline">Volver al inicio</Button>
@@ -247,13 +247,19 @@ function GestionColaboradores() {
                   </SelectContent>
                 </Select>
               </div>
-              <Campo
-                id="email"
-                label="Correo corporativo"
-                valor={borrador.email}
-                error={errores["email"]}
-                onChange={(v) => setBorrador({ ...borrador, email: v })}
-              />
+              <div className="space-y-1">
+                <Campo
+                  id="email"
+                  label="Correo corporativo (acceso)"
+                  valor={borrador.email}
+                  error={errores["email"]}
+                  onChange={(v) => setBorrador({ ...borrador, email: v })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Al cambiarlo, el colaborador inicia sesión con el correo nuevo y recibe un aviso
+                  en esa dirección. El colaborador no puede cambiarlo por su cuenta.
+                </p>
+              </div>
               <Campo
                 id="telefono"
                 label="Teléfono"

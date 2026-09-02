@@ -103,6 +103,72 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Cambia el correo de acceso de un colaborador. Solo Administración, RR.HH. o Contabilidad.
+ * Avisa por correo a la dirección nueva (y a la anterior si existe).
+ */
+export const cambiarCorreoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), email: z.string().email().max(120) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const autorizado = (roles ?? []).some(
+      (r) =>
+        r.role === "Administrador" ||
+        r.role === "Recursos Humanos" ||
+        r.role === "Contabilidad",
+    );
+    if (!autorizado)
+      return {
+        ok: false as const,
+        error: "Solo Administración, Recursos Humanos o Contabilidad puede cambiar el correo",
+      };
+
+    const sb = await admin();
+    const email = data.email.trim().toLowerCase();
+
+    const { data: perfil } = await sb
+      .from("perfiles")
+      .select("email, nombre")
+      .eq("id", data.id)
+      .maybeSingle();
+    const anterior = perfil?.email?.toLowerCase() ?? "";
+    if (anterior === email) return { ok: true as const };
+
+    const act = await sb.auth.admin.updateUserById(data.id, { email, email_confirm: true });
+    if (act.error) return { ok: false as const, error: act.error.message };
+
+    const { error } = await sb.from("perfiles").update({ email }).eq("id", data.id);
+    if (error) return { ok: false as const, error: error.message };
+
+    const { enviarCorreoInstitucional } = await import("./correo.server");
+    const detalle = `Tu correo de acceso al Portal del Colaborador ahora es ${email}. Úsalo para iniciar sesión.\n\nPor seguridad, el correo de acceso solo puede cambiarlo Administración, Recursos Humanos o Contabilidad. Si no solicitaste este cambio, avísanos desde Soporte.`;
+    await enviarCorreoInstitucional({
+      para: email,
+      nombre: perfil?.nombre ?? "",
+      titulo: "Actualizamos tu correo de acceso",
+      detalle,
+      etiqueta: "Cuenta",
+      enlace: "/perfil",
+      enlaceTexto: "Ver mi perfil",
+    });
+    if (anterior)
+      await enviarCorreoInstitucional({
+        para: anterior,
+        nombre: perfil?.nombre ?? "",
+        titulo: "Tu correo de acceso fue actualizado",
+        detalle: `A partir de ahora iniciarás sesión con ${email}. Este buzón ya no recibirá las notificaciones del portal.`,
+        etiqueta: "Cuenta",
+      });
+
+    return { ok: true as const };
+  });
+
 /** Elimina el acceso de un usuario. Solo Administración / Recursos Humanos. */
 export const eliminarCuentaFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

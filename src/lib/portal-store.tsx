@@ -17,6 +17,7 @@ import {
   eliminarCuentaFn,
   crearPrimerAdminFn,
   portalVacioFn,
+  cambiarCorreoFn,
 } from "@/lib/cuentas.functions";
 
 export type { Cuenta, Rol };
@@ -464,10 +465,21 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
       const { error } = await supabase.from("perfiles").update(fila as never).eq("id", datos.id);
       if (error) return { ok: false, error: error.message };
+
+      // El correo de acceso se cambia en el servidor (auth + perfil) y avisa al nuevo buzón.
+      const actual = colaboradores.find((c) => c.id === datos.id);
+      const nuevoEmail = datos.email?.trim().toLowerCase();
+      if (nuevoEmail && nuevoEmail !== actual?.email.toLowerCase()) {
+        const r = await cambiarCorreoFn({ data: { id: datos.id, email: nuevoEmail } });
+        if (!r.ok) {
+          await cargar();
+          return { ok: false, error: r.error };
+        }
+      }
       await cargar();
       return { ok: true };
     },
-    [cargar],
+    [cargar, colaboradores],
   );
 
   const eliminarColaborador = useCallback(
@@ -484,7 +496,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       paraId: string,
       titulo: string,
       detalle: string,
-      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+      opciones?: {
+        etiqueta?: string;
+        enlace?: string;
+        enlaceTexto?: string;
+        insignias?: boolean;
+      },
     ) => {
       const c = colaboradores.find((x) => x.id === paraId);
       if (!c?.email) return;
@@ -498,6 +515,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
             etiqueta: opciones?.etiqueta ?? "Notificación",
             ...(opciones?.enlace ? { enlace: opciones.enlace } : {}),
             ...(opciones?.enlaceTexto ? { enlaceTexto: opciones.enlaceTexto } : {}),
+            ...(opciones?.insignias ? { insignias: true } : {}),
           },
         });
       } catch (e) {
@@ -512,7 +530,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       paraId: string,
       titulo: string,
       detalle: string,
-      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+      opciones?: {
+        etiqueta?: string;
+        enlace?: string;
+        enlaceTexto?: string;
+        insignias?: boolean;
+      },
     ) => {
       await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
       await enviarCorreo(paraId, titulo, detalle, opciones);
@@ -693,7 +716,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         verificado
           ? "Tu insignia de verificación ya aparece junto a tu nombre en el directorio del portal, visible para todo el equipo."
           : "Administración retiró temporalmente la insignia de verificación de tu perfil. Si tienes dudas escríbenos desde Soporte.",
-        { etiqueta: "Verificación", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
+        {
+          etiqueta: "Verificación",
+          enlace: "/perfil",
+          enlaceTexto: "Ver mi perfil",
+          insignias: true,
+        },
       );
       await cargar();
       return { ok: true };
