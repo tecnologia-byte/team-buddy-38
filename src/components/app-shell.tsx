@@ -172,8 +172,6 @@ export function Avatar({
   foto?: string | undefined;
 }) {
   const dims = size === "lg" ? "h-24 w-24" : size === "sm" ? "h-11 w-11" : "h-16 w-16";
-  const color =
-    estado === "activo" ? "bg-success" : estado === "vacaciones" ? "bg-accent" : "bg-muted-foreground";
   return (
     <div className="relative shrink-0">
       <div
@@ -189,14 +187,6 @@ export function Avatar({
           />
         )}
       </div>
-
-
-
-      {estado ? (
-        <span
-          className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-card ${color}`}
-        />
-      ) : null}
     </div>
   );
 }
