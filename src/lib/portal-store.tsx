@@ -136,6 +136,16 @@ type Contexto = {
   misAvisos: Aviso[];
   tickets: Ticket[];
   misTickets: Ticket[];
+  solicitudes: Solicitud[];
+  misSolicitudes: Solicitud[];
+  solicitudesPendientes: Solicitud[];
+  crearSolicitud: (datos: NuevaSolicitud) => Promise<Resultado>;
+  cancelarSolicitud: (id: string) => Promise<Resultado>;
+  responderSolicitud: (
+    id: string,
+    estado: Extract<EstadoSolicitud, "Aprobada" | "Rechazada">,
+    respuesta: string,
+  ) => Promise<Resultado>;
   autenticar: (email: string, clave: string) => Promise<Resultado>;
   claveProvisional: boolean;
   establecerClave: (clave: string, confirmacion: string) => Promise<Resultado>;
