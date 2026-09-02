@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
+import { VerificacionPerfil } from "@/components/verificado";
 import { usePortal } from "@/lib/portal-store";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -96,7 +97,13 @@ function Perfil() {
             />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate font-display text-xl font-bold">{c?.nombre ?? sesion.nombre}</h2>
+            <h2 className="flex min-w-0 items-center gap-2 font-display text-xl font-bold">
+              <span className="truncate">{c?.nombre ?? sesion.nombre}</span>
+              <VerificacionPerfil
+                colaborador={{ ...(c ?? {}), rol: c?.rol ?? sesion.rol }}
+                className="h-5 w-5"
+              />
+            </h2>
             <p className="text-sm text-accent">{c?.cargo ?? sesion.cargo}</p>
             <p className="text-xs opacity-70">
               {c?.area ?? "—"} · Rol {sesion.rol}

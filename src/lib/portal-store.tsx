@@ -278,7 +278,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         salario: 0,
         foto: (d["foto"] as string | null) ?? null,
         foto_pendiente: null,
-        estado_foto: "sin_foto",
+        estado_foto: d["foto"] ? "aprobada" : "sin_foto",
         motivo_rechazo: null,
         firma: null,
         firma_actualizada: null,
