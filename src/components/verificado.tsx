@@ -9,8 +9,8 @@ export function SelloVerificado({
   titulo,
 }: {
   tipo: TipoVerificacion;
-  className?: string;
-  titulo?: string;
+  className?: string | undefined;
+  titulo?: string | undefined;
 }) {
   const admin = tipo === "admin";
   const etiqueta =
@@ -72,7 +72,7 @@ export function SelloVerificado({
 
 /** Reglas de verificación: administración = dorado; colaborador activo y completo = azul. */
 export function tipoVerificacion(
-  c: Partial<Colaborador> & { estado?: string },
+  c: Partial<Colaborador> & { estado?: string | undefined },
 ): TipoVerificacion | null {
   const rol = c.rol;
   if (rol === "Administrador" || rol === "Recursos Humanos" || rol === "Contabilidad") {
@@ -92,8 +92,8 @@ export function VerificacionPerfil({
   colaborador,
   className,
 }: {
-  colaborador: Partial<Colaborador> & { estado?: string };
-  className?: string;
+  colaborador: Partial<Colaborador> & { estado?: string | undefined };
+  className?: string | undefined;
 }) {
   const tipo = tipoVerificacion(colaborador);
   if (!tipo) return null;
