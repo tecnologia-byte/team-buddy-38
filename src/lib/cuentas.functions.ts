@@ -242,3 +242,55 @@ export const portalVacioFn = createServerFn({ method: "GET" }).handler(async () 
   const { count } = await sb.from("perfiles").select("id", { count: "exact", head: true });
   return { vacio: (count ?? 0) === 0 };
 });
+
+/**
+ * El propio colaborador define su contraseña definitiva cuando la que tiene
+ * fue asignada por Administración (provisional).
+ */
+export const establecerClaveFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        clave: z.string().min(6).max(72),
+        confirmacion: z.string().min(6).max(72),
+      })
+      .refine((d) => d.clave === d.confirmacion, {
+        message: "Las contraseñas no coinciden",
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = await admin();
+
+    const act = await sb.auth.admin.updateUserById(context.userId, { password: data.clave });
+    if (act.error) return { ok: false as const, error: act.error.message };
+
+    const { error } = await sb
+      .from("perfiles")
+      .update({ clave_provisional: false })
+      .eq("id", context.userId);
+    if (error) return { ok: false as const, error: error.message };
+
+    const { data: perfil } = await sb
+      .from("perfiles")
+      .select("email, nombre")
+      .eq("id", context.userId)
+      .maybeSingle();
+
+    if (perfil?.email) {
+      const { enviarCorreoInstitucional } = await import("./correo.server");
+      await enviarCorreoInstitucional({
+        para: perfil.email,
+        nombre: perfil.nombre ?? "",
+        titulo: "Creaste tu contraseña de acceso",
+        detalle:
+          "Ya reemplazaste la contraseña provisional que te asignó Administración. Desde ahora entra al Portal del Colaborador con la contraseña que acabas de crear.\n\nSi no fuiste tú, escríbenos de inmediato desde Soporte.",
+        etiqueta: "Seguridad",
+        enlace: "/perfil",
+        enlaceTexto: "Ver mi perfil",
+      });
+    }
+
+    return { ok: true as const };
+  });
