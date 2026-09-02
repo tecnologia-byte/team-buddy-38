@@ -208,20 +208,58 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [perfilesRes, rolesRes, pagosRes, avisosRes, ticketsRes] = await Promise.all([
-      supabase.from("perfiles").select("*").order("nombre"),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("pagos").select("*").order("created_at", { ascending: false }),
-      supabase.from("avisos").select("*").order("created_at", { ascending: false }),
-      supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
-    ]);
+    const [perfilesRes, directorioRes, rolesRes, pagosRes, avisosRes, ticketsRes] =
+      await Promise.all([
+        supabase.from("perfiles").select("*").order("nombre"),
+        supabase.from("directorio").select("*").order("nombre"),
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("pagos").select("*").order("created_at", { ascending: false }),
+        supabase.from("avisos").select("*").order("created_at", { ascending: false }),
+        supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
+      ]);
 
     const mapaRoles = new Map<string, Rol>();
     for (const r of rolesRes.data ?? []) mapaRoles.set(r.user_id, r.role as Rol);
 
-    const lista = ((perfilesRes.data ?? []) as unknown as FilaPerfil[]).map((p) =>
-      aColaborador(p, mapaRoles.get(p.id)),
-    );
+    // Los perfiles completos solo llegan para uno mismo o para gestores (RRHH / Admin).
+    // El resto del personal se completa con el directorio interno (datos no sensibles).
+    const completos = new Map<string, FilaPerfil>();
+    for (const p of (perfilesRes.data ?? []) as unknown as FilaPerfil[]) completos.set(p.id, p);
+
+    const filas: FilaPerfil[] = [];
+    for (const d of (directorioRes.data ?? []) as Array<Record<string, unknown>>) {
+      const id = String(d["id"] ?? "");
+      const completo = completos.get(id);
+      if (completo) {
+        filas.push(completo);
+        continue;
+      }
+      filas.push({
+        id,
+        nombre: String(d["nombre"] ?? ""),
+        cargo: String(d["cargo"] ?? ""),
+        area: String(d["area"] ?? ""),
+        email: "",
+        telefono: "",
+        ingreso: "",
+        cumple: String(d["cumple"] ?? ""),
+        estado: String(d["estado"] ?? "activo"),
+        iniciales: String(d["iniciales"] ?? ""),
+        salario: 0,
+        foto: (d["foto"] as string | null) ?? null,
+        foto_pendiente: null,
+        estado_foto: "sin_foto",
+        motivo_rechazo: null,
+        firma: null,
+        firma_actualizada: null,
+      });
+    }
+    for (const p of completos.values()) {
+      if (!filas.some((f) => f.id === p.id)) filas.push(p);
+    }
+    filas.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    const lista = filas.map((p) => aColaborador(p, mapaRoles.get(p.id)));
     setColaboradores(lista);
     setPortalVacio(lista.length === 0);
 

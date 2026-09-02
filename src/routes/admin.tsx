@@ -18,6 +18,7 @@ import {
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { FirmaPad } from "@/components/firma-pad";
 import { ReciboPago } from "@/components/recibo-pago";
+import { VolanteEditor } from "@/components/volante-editor";
 import { usePortal } from "@/lib/portal-store";
 import { pesos, roles, type Cuenta } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -75,12 +76,13 @@ function Admin() {
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
         <Tabs defaultValue="contabilidad">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 print:hidden">
             <TabsTrigger value="contabilidad">Nómina</TabsTrigger>
+            <TabsTrigger value="volante">Volante</TabsTrigger>
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
-            <TabsTrigger value="fotos">Fotos</TabsTrigger>
           </TabsList>
-          <TabsList className="mt-2 grid w-full grid-cols-3">
+          <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
+            <TabsTrigger value="fotos">Fotos</TabsTrigger>
             <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
             <TabsTrigger value="soporte">Soporte</TabsTrigger>
             <TabsTrigger value="accesos">Accesos</TabsTrigger>
@@ -88,6 +90,9 @@ function Admin() {
 
           <TabsContent value="contabilidad" className="mt-4">
             <Contabilidad />
+          </TabsContent>
+          <TabsContent value="volante" className="mt-4">
+            <VolanteEditor />
           </TabsContent>
           <TabsContent value="firmas" className="mt-4">
             <Firmas />
