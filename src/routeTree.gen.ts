@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AsistenciaRouteImport } from './routes/asistencia'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as ClaveRouteImport } from './routes/clave'
 import { Route as EquipoRouteImport } from './routes/equipo'
 import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as MasRouteImport } from './routes/mas'
@@ -49,6 +50,11 @@ const CalendarioRoute = CalendarioRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClaveRoute = ClaveRouteImport.update({
+  id: '/clave',
+  path: '/clave',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipoRoute = EquipoRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
+  '/clave': typeof ClaveRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/mas': typeof MasRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
+  '/clave': typeof ClaveRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/mas': typeof MasRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/asistencia': typeof AsistenciaRoute
   '/calendario': typeof CalendarioRoute
   '/chat': typeof ChatRoute
+  '/clave': typeof ClaveRoute
   '/equipo': typeof EquipoRoute
   '/inicio': typeof InicioRoute
   '/mas': typeof MasRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/asistencia'
     | '/calendario'
     | '/chat'
+    | '/clave'
     | '/equipo'
     | '/inicio'
     | '/mas'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/asistencia'
     | '/calendario'
     | '/chat'
+    | '/clave'
     | '/equipo'
     | '/inicio'
     | '/mas'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/asistencia'
     | '/calendario'
     | '/chat'
+    | '/clave'
     | '/equipo'
     | '/inicio'
     | '/mas'
@@ -225,6 +237,7 @@ export interface RootRouteChildren {
   AsistenciaRoute: typeof AsistenciaRoute
   CalendarioRoute: typeof CalendarioRoute
   ChatRoute: typeof ChatRoute
+  ClaveRoute: typeof ClaveRoute
   EquipoRoute: typeof EquipoRoute
   InicioRoute: typeof InicioRoute
   MasRoute: typeof MasRoute
@@ -273,6 +286,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clave': {
+      id: '/clave'
+      path: '/clave'
+      fullPath: '/clave'
+      preLoaderRoute: typeof ClaveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipo': {
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   AsistenciaRoute: AsistenciaRoute,
   CalendarioRoute: CalendarioRoute,
   ChatRoute: ChatRoute,
+  ClaveRoute: ClaveRoute,
   EquipoRoute: EquipoRoute,
   InicioRoute: InicioRoute,
   MasRoute: MasRoute,

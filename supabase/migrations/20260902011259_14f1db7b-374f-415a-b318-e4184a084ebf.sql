@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.perfiles_guardia_columnas() FROM anon, public, authenticated;

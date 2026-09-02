@@ -123,14 +123,16 @@ function NavLink({
 }
 
 export function AppShell({ children, wide }: { children: ReactNode; wide?: boolean }) {
-  const { cargando, sesionActiva } = usePortal();
+  const { cargando, sesionActiva, claveProvisional } = usePortal();
   const router = useRouter();
 
   useEffect(() => {
-    if (!cargando && !sesionActiva) void router.navigate({ to: "/" });
-  }, [cargando, sesionActiva, router]);
+    if (cargando) return;
+    if (!sesionActiva) void router.navigate({ to: "/" });
+    else if (claveProvisional) void router.navigate({ to: "/clave" });
+  }, [cargando, sesionActiva, claveProvisional, router]);
 
-  if (cargando || !sesionActiva) {
+  if (cargando || !sesionActiva || claveProvisional) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <p className="text-sm text-muted-foreground">Cargando…</p>
