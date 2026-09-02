@@ -399,6 +399,25 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         fecha: fecha(t.created_at),
       })),
     );
+
+    setSolicitudes(
+      (solicitudesRes.data ?? []).map((s) => ({
+        id: s.id,
+        colaboradorId: s.colaborador_id,
+        tipo: s.tipo,
+        motivo: s.motivo,
+        fechaInicio: s.fecha_inicio,
+        fechaFin: s.fecha_fin,
+        dias: Number(s.dias ?? 1),
+        conSalario: Boolean(s.con_salario),
+        baseLegal: s.base_legal,
+        soporte: s.soporte ?? undefined,
+        estado: s.estado as EstadoSolicitud,
+        respuesta: s.respuesta ?? undefined,
+        respondidoPor: s.respondido_por ?? undefined,
+        fecha: fecha(s.created_at),
+      })),
+    );
     setCargando(false);
   }, []);
 
