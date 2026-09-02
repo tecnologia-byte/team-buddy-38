@@ -18,6 +18,7 @@ import {
   crearPrimerAdminFn,
   portalVacioFn,
   cambiarCorreoFn,
+  establecerClaveFn,
 } from "@/lib/cuentas.functions";
 
 export type { Cuenta, Rol };
@@ -38,6 +39,7 @@ export type Colaborador = Empleado & {
   firmaPermanente: boolean;
   firmaConsentimiento?: string | undefined;
   verificado: boolean;
+  claveProvisional: boolean;
 };
 
 export type Ticket = {
@@ -105,6 +107,8 @@ type Contexto = {
   tickets: Ticket[];
   misTickets: Ticket[];
   autenticar: (email: string, clave: string) => Promise<Resultado>;
+  claveProvisional: boolean;
+  establecerClave: (clave: string, confirmacion: string) => Promise<Resultado>;
   crearPrimerAdmin: (datos: {
     email: string;
     clave: string;
@@ -185,6 +189,7 @@ type FilaPerfil = {
   firma_permanente: boolean | null;
   firma_consentimiento_at: string | null;
   verificado?: boolean | null;
+  clave_provisional?: boolean | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -210,6 +215,7 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   firmaPermanente: Boolean(p.firma_permanente),
   firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
   verificado: Boolean(p.verificado),
+  claveProvisional: Boolean(p.clave_provisional),
   rol,
 });
 
@@ -293,6 +299,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         firma_permanente: false,
         firma_consentimiento_at: null,
         verificado: Boolean(d["verificado"]),
+        clave_provisional: false,
       });
     }
     for (const p of completos.values()) {
@@ -392,6 +399,22 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     await cargar();
     return { ok: true };
   }, [cargar]);
+
+  const establecerClave = useCallback(
+    async (clave: string, confirmacion: string): Promise<Resultado> => {
+      if (clave !== confirmacion) return { ok: false, error: "Las contraseñas no coinciden." };
+      if (clave.length < 6)
+        return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+      try {
+        const r = await establecerClaveFn({ data: { clave, confirmacion } });
+        if (r.ok) await cargar();
+        return r;
+      } catch {
+        return { ok: false, error: "No se pudo guardar la contraseña." };
+      }
+    },
+    [cargar],
+  );
 
   const crearPrimerAdmin = useCallback(
     async (datos: { email: string; clave: string; nombre: string; cargo: string }) => {
@@ -826,6 +849,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     tickets,
     misTickets: tickets.filter((t) => t.creadorId === userId),
     autenticar,
+    claveProvisional: Boolean(colaboradorActual?.claveProvisional),
+    establecerClave,
     crearPrimerAdmin,
     cerrarSesion,
     guardarCuenta,
