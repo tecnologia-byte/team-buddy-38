@@ -84,6 +84,10 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       }
     }
 
+    // Toda contraseña puesta por Administración es provisional: el colaborador
+    // deberá crear la suya al iniciar sesión.
+    const provisional = Boolean(data.clave && data.clave.length >= 6);
+
     const { error: errorPerfil } = await sb.from("perfiles").upsert({
       id: userId,
       email,
@@ -91,6 +95,7 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       cargo: data.cargo.trim(),
       area: data.area.trim(),
       iniciales: inicialesDe(data.nombre),
+      ...(provisional ? { clave_provisional: true } : {}),
     });
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
 
