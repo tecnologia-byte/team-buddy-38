@@ -776,13 +776,21 @@ function Metrica({
   );
 }
 
-function Etiqueta({ texto, tono }: { texto: string; tono: "success" | "accent" | "muted" }) {
+function Etiqueta({
+  texto,
+  tono,
+}: {
+  texto: string;
+  tono: "success" | "accent" | "muted" | "warning";
+}) {
   const clase =
     tono === "success"
       ? "bg-success/15 text-foreground"
       : tono === "accent"
         ? "bg-accent text-accent-foreground"
-        : "bg-secondary text-secondary-foreground";
+        : tono === "warning"
+          ? "bg-destructive/15 text-destructive"
+          : "bg-secondary text-secondary-foreground";
   return (
     <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${clase}`}>{texto}</span>
   );
