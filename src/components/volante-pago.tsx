@@ -76,20 +76,20 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
             <p className="font-display text-sm font-bold text-primary">
               IVAD SRL (IVAD Home &amp; Goods)
             </p>
-            <p className="text-muted-foreground">RNC: 102334112 • Est. 1996</p>
-            <p className="max-w-[320px] text-muted-foreground">
+            <p className="text-foreground">RNC: 102334112 • Est. 1996</p>
+            <p className="max-w-[320px] text-foreground">
               Ave. 27 de Febrero #142, frente a Ave. Erick Ekman, Santiago de los Caballeros, R.D.
             </p>
-            <p className="text-muted-foreground">Tel: (829) 938-7732 • Email: info@ivadsrl.com</p>
+            <p className="text-foreground">Tel: (829) 938-7732 • Email: info@ivadsrl.com</p>
           </div>
         </div>
         <div className="text-right">
           <p className="font-display text-sm font-bold uppercase text-primary">
             Volante oficial de pago
           </p>
-          <p className="text-muted-foreground">Comprobante No: {datos.comprobante || "—"}</p>
-          <p className="text-muted-foreground">Fecha de Emisión: {datos.fechaEmision || "—"}</p>
-          <p className="text-muted-foreground">
+          <p className="text-foreground">Comprobante No: {datos.comprobante || "—"}</p>
+          <p className="text-foreground">Fecha de Emisión: {datos.fechaEmision || "—"}</p>
+          <p className="text-foreground">
             Período: {datos.periodoDesde || "—"} al {datos.periodoHasta || "—"}
           </p>
         </div>
@@ -130,7 +130,7 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
         <p className="font-display text-base font-bold">RD$ {pesos(neto)}</p>
       </div>
 
-      <p className="mt-5 text-justify text-[10px] text-muted-foreground">
+      <p className="mt-5 text-justify text-[10px] text-foreground">
         Certifico haber recibido de IVAD SRL (RNC 102334112) la suma neta arriba indicada por
         concepto de pago de salarios correspondiente al período especificado, encontrándome conforme
         con los ingresos devengados y las deducciones reglamentarias de Ley aplicadas (Seguridad
@@ -150,11 +150,11 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
           </div>
           <div className="border-t border-foreground/60 pt-1">
             <p className="font-semibold uppercase">Firma del colaborador</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-foreground">
               Recibí Conforme{datos.cedula ? ` • Céd. ${datos.cedula}` : ""}
             </p>
             {datos.firma && datos.firmaFecha ? (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[10px] text-foreground">
                 Firma digital registrada el {datos.firmaFecha}
               </p>
             ) : null}
@@ -164,7 +164,7 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
           <div className="h-16" />
           <div className="border-t border-foreground/60 pt-1">
             <p className="font-semibold uppercase">Por IVAD SRL</p>
-            <p className="text-[10px] text-muted-foreground">Administración &amp; Gestión Humana</p>
+            <p className="text-[10px] text-foreground">Administración &amp; Gestión Humana</p>
           </div>
         </div>
       </div>
@@ -175,7 +175,7 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
 function Dato({ termino, valor }: { termino: string; valor: string }) {
   return (
     <div className="flex gap-2 border-b border-dashed border-border py-1">
-      <span className="font-semibold text-muted-foreground">{termino}:</span>
+      <span className="font-semibold text-foreground/80">{termino}:</span>
       <span className="min-w-0 flex-1 truncate font-medium">{valor || "—"}</span>
     </div>
   );

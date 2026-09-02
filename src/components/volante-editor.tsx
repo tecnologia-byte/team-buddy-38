@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Printer, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,52 @@ import {
 } from "@/components/volante-pago";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
 
+const dosDigitos = (n: number) => String(n).padStart(2, "0");
+const fechaCorta = (d: Date) => `${dosDigitos(d.getDate())}/${dosDigitos(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+/** Correlativo automático del comprobante: IVAD-AAAA-0001, continúa donde quedó. */
+const siguienteComprobante = () => {
+  const anio = new Date().getFullYear();
+  const clave = `ivad-comprobante-${anio}`;
+  let n = 1;
+  try {
+    n = Number(localStorage.getItem(clave) ?? "0") + 1;
+    localStorage.setItem(clave, String(n));
+  } catch {
+    n = Math.floor(Math.random() * 9999) + 1;
+  }
+  return `IVAD-${anio}-${String(n).padStart(4, "0")}`;
+};
+
+/** Datos que el sistema llena solo: comprobante, fecha de emisión y período del mes en curso. */
+const datosAutomaticos = () => {
+  const hoy = new Date();
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+  return {
+    comprobante: siguienteComprobante(),
+    fechaEmision: fechaCorta(hoy),
+    periodoDesde: fechaCorta(inicio),
+    periodoHasta: fechaCorta(fin),
+  };
+};
+
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
 export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
   const elegido = colaboradores.find((c) => c.id === seleccion);
+
+  // Numeración y fechas automáticas al abrir la plantilla.
+  useEffect(() => {
+    setDatos((d) => (d.comprobante ? d : { ...d, ...datosAutomaticos() }));
+  }, []);
+
+  const nuevoVolante = () => {
+    setDatos({ ...volanteVacio, ...datosAutomaticos() });
+    setSeleccion("");
+  };
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
     setDatos((d) => ({ ...d, [campo]: valor }));
@@ -42,6 +82,7 @@ export function VolanteEditor() {
       cargo: c.cargo,
       departamento: c.area,
       ingreso: c.ingreso,
+      codigo: d.codigo || `EMP-${String(colaboradores.indexOf(c) + 1).padStart(3, "0")}`,
       firma: firmaVigente(c) ? c.firma : undefined,
       firmaFecha: firmaVigente(c) ? c.firmaActualizada : undefined,
       ingresos: d.ingresos.map((l, i) =>
@@ -57,7 +98,8 @@ export function VolanteEditor() {
           <h3 className="font-display font-bold text-foreground">Volante de pago editable</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Selecciona al colaborador (trae su firma digital automáticamente) y completa a mano los
-            montos, porcentajes y demás datos. Los totales y el neto se calculan solos.
+            montos, porcentajes y demás datos. El comprobante se enumera solo, la fecha de emisión y
+            el período se llenan con el mes en curso, y los totales y el neto se calculan solos.
           </p>
         </div>
 
@@ -93,7 +135,11 @@ export function VolanteEditor() {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Campo label="Comprobante No." valor={datos.comprobante} al={(v) => set("comprobante", v)} />
+          <Campo
+            label="Comprobante No. (automático)"
+            valor={datos.comprobante}
+            al={(v) => set("comprobante", v)}
+          />
           <Campo
             label="Fecha de emisión"
             valor={datos.fechaEmision}
@@ -164,12 +210,9 @@ export function VolanteEditor() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              setDatos(volanteVacio);
-              setSeleccion("");
-            }}
+            onClick={nuevoVolante}
           >
-            <RotateCcw className="mr-2 h-4 w-4" /> Limpiar plantilla
+            <RotateCcw className="mr-2 h-4 w-4" /> Nuevo volante (nuevo número)
           </Button>
         </div>
       </div>
