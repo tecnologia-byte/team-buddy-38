@@ -11,6 +11,7 @@ import {
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { iniciales as inicialesDe, type Cuenta, type Empleado, type Rol } from "@/lib/data";
+import { enviarCorreoFn } from "@/lib/correo.functions";
 import {
   guardarCuentaFn,
   eliminarCuentaFn,
@@ -35,6 +36,7 @@ export type Colaborador = Empleado & {
   firmaLimitePagos: number;
   firmaPermanente: boolean;
   firmaConsentimiento?: string | undefined;
+  verificado: boolean;
 };
 
 export type Ticket = {
@@ -124,6 +126,7 @@ type Contexto = {
   ) => Promise<Resultado>;
   borrarFirma: (id: string) => Promise<Resultado>;
   firmaPermanente: (id: string, permanente: boolean) => Promise<Resultado>;
+  verificar: (id: string, verificado: boolean) => Promise<Resultado>;
   consumirFirma: (id: string) => Promise<Resultado>;
   crearTicket: (datos: {
     categoria: string;
@@ -180,6 +183,7 @@ type FilaPerfil = {
   firma_limite_pagos: number | null;
   firma_permanente: boolean | null;
   firma_consentimiento_at: string | null;
+  verificado?: boolean | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -204,6 +208,7 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   firmaLimitePagos: Number(p.firma_limite_pagos ?? LIMITE_PAGOS_FIRMA),
   firmaPermanente: Boolean(p.firma_permanente),
   firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
+  verificado: Boolean(p.verificado),
   rol,
 });
 
@@ -286,6 +291,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         firma_limite_pagos: LIMITE_PAGOS_FIRMA,
         firma_permanente: false,
         firma_consentimiento_at: null,
+        verificado: Boolean(d["verificado"]),
       });
     }
     for (const p of completos.values()) {
@@ -473,9 +479,46 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [cargar],
   );
 
-  const crearAviso = useCallback(async (paraId: string, titulo: string, detalle: string) => {
-    await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
-  }, []);
+  const enviarCorreo = useCallback(
+    async (
+      paraId: string,
+      titulo: string,
+      detalle: string,
+      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+    ) => {
+      const c = colaboradores.find((x) => x.id === paraId);
+      if (!c?.email) return;
+      try {
+        await enviarCorreoFn({
+          data: {
+            para: c.email,
+            nombre: c.nombre,
+            titulo,
+            detalle,
+            etiqueta: opciones?.etiqueta ?? "Notificación",
+            ...(opciones?.enlace ? { enlace: opciones.enlace } : {}),
+            ...(opciones?.enlaceTexto ? { enlaceTexto: opciones.enlaceTexto } : {}),
+          },
+        });
+      } catch (e) {
+        console.error("No se pudo enviar el correo", e);
+      }
+    },
+    [colaboradores],
+  );
+
+  const crearAviso = useCallback(
+    async (
+      paraId: string,
+      titulo: string,
+      detalle: string,
+      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+    ) => {
+      await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
+      await enviarCorreo(paraId, titulo, detalle, opciones);
+    },
+    [enviarCorreo],
+  );
 
   const subirFoto = useCallback(
     async (id: string, dataUrl: string): Promise<Resultado> => {
@@ -571,13 +614,16 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         } as never)
         .eq("id", id);
       if (error) return { ok: false, error: error.message };
-      if (id !== userId) {
-        await crearAviso(
-          id,
-          "Tu firma digital fue registrada",
-          "Se usará automáticamente en el espacio de 'Recibido por' de tus recibos de pago.",
-        );
-      }
+      await crearAviso(
+        id,
+        permanente
+          ? "Autorizaste tu firma de forma permanente"
+          : `Tu firma digital fue registrada por ${LIMITE_PAGOS_FIRMA} pagos`,
+        permanente
+          ? "Registramos tu firma digital y autorizaste dejar siempre la misma: se usará en el espacio de “Recibí conforme” de todos tus volantes de pago hasta que tú o Administración la revoquen."
+          : `Registramos tu firma digital y aceptaste el compromiso: es válida para ${LIMITE_PAGOS_FIRMA} pagos. Al agotarse te pediremos firmar nuevamente, salvo que autorices dejar siempre la misma firma.`,
+        { etiqueta: "Firma digital", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
+      );
       await cargar();
       return { ok: true };
     },
@@ -614,10 +660,45 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         } as never)
         .eq("id", id);
       if (error) return { ok: false, error: error.message };
+      await crearAviso(
+        id,
+        permanente
+          ? "Autorizaste tu firma permanentemente"
+          : `Tu firma vuelve a vencer cada ${LIMITE_PAGOS_FIRMA} pagos`,
+        permanente
+          ? "Tu firma digital queda vigente de forma permanente: la usaremos en todos tus volantes de pago hasta que se revoque."
+          : `Se retiró la autorización permanente: tu firma actual cubre ${LIMITE_PAGOS_FIRMA} pagos y luego deberás registrarla de nuevo.`,
+        { etiqueta: "Firma digital", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
+      );
       await cargar();
       return { ok: true };
     },
-    [cargar],
+    [crearAviso, cargar],
+  );
+
+  /** Otorga o retira la insignia de verificación (solo Administración / RR.HH.). */
+  const verificar = useCallback(
+    async (id: string, verificado: boolean): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({
+          verificado,
+          verificado_at: verificado ? new Date().toISOString() : null,
+        } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await crearAviso(
+        id,
+        verificado ? "Tu perfil fue verificado" : "Se retiró la verificación de tu perfil",
+        verificado
+          ? "Tu insignia de verificación ya aparece junto a tu nombre en el directorio del portal, visible para todo el equipo."
+          : "Administración retiró temporalmente la insignia de verificación de tu perfil. Si tienes dudas escríbenos desde Soporte.",
+        { etiqueta: "Verificación", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
+      );
+      await cargar();
+      return { ok: true };
+    },
+    [crearAviso, cargar],
   );
 
   /** Descuenta un pago de la vigencia de la firma y avisa cuando toca volver a firmar. */
@@ -730,6 +811,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     guardarFirma,
     borrarFirma,
     firmaPermanente,
+    verificar,
     consumirFirma,
     crearTicket,
     responderTicket,

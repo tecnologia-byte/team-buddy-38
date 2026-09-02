@@ -70,21 +70,17 @@ export function SelloVerificado({
   );
 }
 
-/** Reglas de verificación: administración = dorado; colaborador activo y completo = azul. */
+/** Regla de verificación: la insignia la otorga Administración; dorada para
+ *  cuentas de administración y azul para colaboradores. */
 export function tipoVerificacion(
   c: Partial<Colaborador> & { estado?: string | undefined },
 ): TipoVerificacion | null {
+  if (!c.verificado) return null;
   const rol = c.rol;
   if (rol === "Administrador" || rol === "Recursos Humanos" || rol === "Contabilidad") {
     return "admin";
   }
-  const completo =
-    (c.estado ?? "").toLowerCase() === "activo" &&
-    !!c.nombre &&
-    !!c.cargo &&
-    !!c.area &&
-    c.estadoFoto === "aprobada";
-  return completo ? "empleado" : null;
+  return "empleado";
 }
 
 /** Sello opcional según las reglas; no renderiza nada si el perfil no califica. */
