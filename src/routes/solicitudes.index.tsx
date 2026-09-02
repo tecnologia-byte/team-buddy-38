@@ -61,7 +61,7 @@ function Solicitudes() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Button asChild size="lg">
-            <Link to="/solicitudes/nueva">
+            <Link to="/solicitudes/nueva" search={{ tipo: undefined }}>
               <Plus className="mr-2 h-5 w-5" /> Nueva solicitud
             </Link>
           </Button>
