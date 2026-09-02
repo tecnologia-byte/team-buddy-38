@@ -6,14 +6,14 @@ const PORTAL = "https://personalivad.ivadsrl.com";
 
 export type CorreoDatos = {
   para: string;
-  nombre?: string;
+  nombre?: string | undefined;
   titulo: string;
   detalle?: string | undefined;
   etiqueta?: string | undefined;
   enlace?: string | undefined;
   enlaceTexto?: string | undefined;
   /** Muestra la leyenda con las dos insignias de verificación. */
-  insignias?: boolean;
+  insignias?: boolean | undefined;
 };
 
 const escapar = (t: string) =>
