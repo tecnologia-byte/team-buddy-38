@@ -26,6 +26,10 @@ import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as TareasRouteImport } from './routes/tareas'
 import { Route as RrhhColaboradoresRouteImport } from './routes/rrhh.colaboradores'
+import { Route as SolicitudesIndexRouteImport } from './routes/solicitudes.index'
+import { Route as SolicitudesAprobacionesRouteImport } from './routes/solicitudes.aprobaciones'
+import { Route as SolicitudesDerechosRouteImport } from './routes/solicitudes.derechos'
+import { Route as SolicitudesNuevaRouteImport } from './routes/solicitudes.nueva'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +116,26 @@ const RrhhColaboradoresRoute = RrhhColaboradoresRouteImport.update({
   path: '/rrhh/colaboradores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SolicitudesIndexRoute = SolicitudesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SolicitudesRoute,
+} as any)
+const SolicitudesAprobacionesRoute = SolicitudesAprobacionesRouteImport.update({
+  id: '/aprobaciones',
+  path: '/aprobaciones',
+  getParentRoute: () => SolicitudesRoute,
+} as any)
+const SolicitudesDerechosRoute = SolicitudesDerechosRouteImport.update({
+  id: '/derechos',
+  path: '/derechos',
+  getParentRoute: () => SolicitudesRoute,
+} as any)
+const SolicitudesNuevaRoute = SolicitudesNuevaRouteImport.update({
+  id: '/nueva',
+  path: '/nueva',
+  getParentRoute: () => SolicitudesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -127,10 +151,14 @@ export interface FileRoutesByFullPath {
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/solicitudes': typeof SolicitudesRoute
+  '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/aprobaciones': typeof SolicitudesAprobacionesRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
+  '/solicitudes/nueva': typeof SolicitudesNuevaRoute
+  '/solicitudes/': typeof SolicitudesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -146,10 +174,13 @@ export interface FileRoutesByTo {
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/solicitudes': typeof SolicitudesRoute
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/aprobaciones': typeof SolicitudesAprobacionesRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
+  '/solicitudes/nueva': typeof SolicitudesNuevaRoute
+  '/solicitudes': typeof SolicitudesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,10 +197,14 @@ export interface FileRoutesById {
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/solicitudes': typeof SolicitudesRoute
+  '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
   '/rrhh/colaboradores': typeof RrhhColaboradoresRoute
+  '/solicitudes/aprobaciones': typeof SolicitudesAprobacionesRoute
+  '/solicitudes/derechos': typeof SolicitudesDerechosRoute
+  '/solicitudes/nueva': typeof SolicitudesNuevaRoute
+  '/solicitudes/': typeof SolicitudesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +226,10 @@ export interface FileRouteTypes {
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/aprobaciones'
+    | '/solicitudes/derechos'
+    | '/solicitudes/nueva'
+    | '/solicitudes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -206,10 +245,13 @@ export interface FileRouteTypes {
     | '/notificaciones'
     | '/perfil'
     | '/sitemap.xml'
-    | '/solicitudes'
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/aprobaciones'
+    | '/solicitudes/derechos'
+    | '/solicitudes/nueva'
+    | '/solicitudes'
   id:
     | '__root__'
     | '/'
@@ -229,6 +271,10 @@ export interface FileRouteTypes {
     | '/soporte'
     | '/tareas'
     | '/rrhh/colaboradores'
+    | '/solicitudes/aprobaciones'
+    | '/solicitudes/derechos'
+    | '/solicitudes/nueva'
+    | '/solicitudes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -245,7 +291,7 @@ export interface RootRouteChildren {
   NotificacionesRoute: typeof NotificacionesRoute
   PerfilRoute: typeof PerfilRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  SolicitudesRoute: typeof SolicitudesRoute
+  SolicitudesRoute: typeof SolicitudesRouteWithChildren
   SoporteRoute: typeof SoporteRoute
   TareasRoute: typeof TareasRoute
   RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
@@ -372,8 +418,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RrhhColaboradoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/solicitudes/': {
+      id: '/solicitudes/'
+      path: '/'
+      fullPath: '/solicitudes/'
+      preLoaderRoute: typeof SolicitudesIndexRouteImport
+      parentRoute: typeof SolicitudesRoute
+    }
+    '/solicitudes/aprobaciones': {
+      id: '/solicitudes/aprobaciones'
+      path: '/aprobaciones'
+      fullPath: '/solicitudes/aprobaciones'
+      preLoaderRoute: typeof SolicitudesAprobacionesRouteImport
+      parentRoute: typeof SolicitudesRoute
+    }
+    '/solicitudes/derechos': {
+      id: '/solicitudes/derechos'
+      path: '/derechos'
+      fullPath: '/solicitudes/derechos'
+      preLoaderRoute: typeof SolicitudesDerechosRouteImport
+      parentRoute: typeof SolicitudesRoute
+    }
+    '/solicitudes/nueva': {
+      id: '/solicitudes/nueva'
+      path: '/nueva'
+      fullPath: '/solicitudes/nueva'
+      preLoaderRoute: typeof SolicitudesNuevaRouteImport
+      parentRoute: typeof SolicitudesRoute
+    }
   }
 }
+
+interface SolicitudesRouteChildren {
+  SolicitudesAprobacionesRoute: typeof SolicitudesAprobacionesRoute
+  SolicitudesDerechosRoute: typeof SolicitudesDerechosRoute
+  SolicitudesNuevaRoute: typeof SolicitudesNuevaRoute
+  SolicitudesIndexRoute: typeof SolicitudesIndexRoute
+}
+
+const SolicitudesRouteChildren: SolicitudesRouteChildren = {
+  SolicitudesAprobacionesRoute: SolicitudesAprobacionesRoute,
+  SolicitudesDerechosRoute: SolicitudesDerechosRoute,
+  SolicitudesNuevaRoute: SolicitudesNuevaRoute,
+  SolicitudesIndexRoute: SolicitudesIndexRoute,
+}
+
+const SolicitudesRouteWithChildren = SolicitudesRoute._addFileChildren(
+  SolicitudesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -389,7 +481,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificacionesRoute: NotificacionesRoute,
   PerfilRoute: PerfilRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  SolicitudesRoute: SolicitudesRoute,
+  SolicitudesRoute: SolicitudesRouteWithChildren,
   SoporteRoute: SoporteRoute,
   TareasRoute: TareasRoute,
   RrhhColaboradoresRoute: RrhhColaboradoresRoute,

@@ -73,6 +73,36 @@ export type Aviso = {
   nuevo: boolean;
 };
 
+export type EstadoSolicitud = "Pendiente" | "Aprobada" | "Rechazada" | "Cancelada";
+
+export type Solicitud = {
+  id: string;
+  colaboradorId: string;
+  tipo: string;
+  motivo: string;
+  fechaInicio: string;
+  fechaFin: string;
+  dias: number;
+  conSalario: boolean;
+  baseLegal: string;
+  soporte?: string | undefined;
+  estado: EstadoSolicitud;
+  respuesta?: string | undefined;
+  respondidoPor?: string | undefined;
+  fecha: string;
+};
+
+export type NuevaSolicitud = {
+  tipo: string;
+  motivo: string;
+  fechaInicio: string;
+  fechaFin: string;
+  dias: number;
+  conSalario: boolean;
+  baseLegal: string;
+  soporte?: string | undefined;
+};
+
 export type DatosColaborador = {
   [K in keyof Colaborador]?: Colaborador[K] | undefined;
 };
@@ -106,6 +136,16 @@ type Contexto = {
   misAvisos: Aviso[];
   tickets: Ticket[];
   misTickets: Ticket[];
+  solicitudes: Solicitud[];
+  misSolicitudes: Solicitud[];
+  solicitudesPendientes: Solicitud[];
+  crearSolicitud: (datos: NuevaSolicitud) => Promise<Resultado>;
+  cancelarSolicitud: (id: string) => Promise<Resultado>;
+  responderSolicitud: (
+    id: string,
+    estado: Extract<EstadoSolicitud, "Aprobada" | "Rechazada">,
+    respuesta: string,
+  ) => Promise<Resultado>;
   autenticar: (email: string, clave: string) => Promise<Resultado>;
   claveProvisional: boolean;
   establecerClave: (clave: string, confirmacion: string) => Promise<Resultado>;
@@ -227,6 +267,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
@@ -240,6 +281,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       setPagos([]);
       setAvisos([]);
       setTickets([]);
+      setSolicitudes([]);
       try {
         const r = await portalVacioFn();
         setPortalVacio(r.vacio);
@@ -250,7 +292,15 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [perfilesRes, directorioRes, rolesRes, pagosRes, avisosRes, ticketsRes] =
+    const [
+      perfilesRes,
+      directorioRes,
+      rolesRes,
+      pagosRes,
+      avisosRes,
+      ticketsRes,
+      solicitudesRes,
+    ] =
       await Promise.all([
         supabase.from("perfiles").select("*").order("nombre"),
         supabase.rpc("directorio"),
@@ -258,6 +308,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         supabase.from("pagos").select("*").order("created_at", { ascending: false }),
         supabase.from("avisos").select("*").order("created_at", { ascending: false }),
         supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
+        supabase.from("solicitudes").select("*").order("created_at", { ascending: false }),
       ]);
 
     const mapaRoles = new Map<string, Rol>();
@@ -346,6 +397,25 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         estado: t.estado as Ticket["estado"],
         respuesta: t.respuesta ?? undefined,
         fecha: fecha(t.created_at),
+      })),
+    );
+
+    setSolicitudes(
+      (solicitudesRes.data ?? []).map((s) => ({
+        id: s.id,
+        colaboradorId: s.colaborador_id,
+        tipo: s.tipo,
+        motivo: s.motivo,
+        fechaInicio: s.fecha_inicio,
+        fechaFin: s.fecha_fin,
+        dias: Number(s.dias ?? 1),
+        conSalario: Boolean(s.con_salario),
+        baseLegal: s.base_legal,
+        soporte: s.soporte ?? undefined,
+        estado: s.estado as EstadoSolicitud,
+        respuesta: s.respuesta ?? undefined,
+        respondidoPor: s.respondido_por ?? undefined,
+        fecha: fecha(s.created_at),
       })),
     );
     setCargando(false);
@@ -824,6 +894,85 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [tickets, crearAviso, cargar],
   );
 
+  const crearSolicitud = useCallback(
+    async (datos: NuevaSolicitud): Promise<Resultado> => {
+      if (!userId) return { ok: false, error: "Inicia sesión para enviar tu solicitud." };
+      if (!datos.fechaInicio || !datos.fechaFin)
+        return { ok: false, error: "Indica la fecha de inicio y de fin." };
+      if (datos.fechaFin < datos.fechaInicio)
+        return { ok: false, error: "La fecha de fin no puede ser anterior a la de inicio." };
+      const { error } = await supabase.from("solicitudes").insert({
+        colaborador_id: userId,
+        tipo: datos.tipo,
+        motivo: datos.motivo.slice(0, 1500),
+        fecha_inicio: datos.fechaInicio,
+        fecha_fin: datos.fechaFin,
+        dias: datos.dias,
+        con_salario: datos.conSalario,
+        base_legal: datos.baseLegal,
+        soporte: datos.soporte ?? null,
+      } as never);
+      if (error) return { ok: false, error: error.message };
+      // Avisa a Recursos Humanos y Administración.
+      const gestores = colaboradores.filter(
+        (c) => c.rol === "Administrador" || c.rol === "Recursos Humanos",
+      );
+      for (const g of gestores) {
+        await crearAviso(
+          g.id,
+          `Nueva solicitud: ${datos.tipo}`,
+          `${sesion.nombre} solicitó ${datos.tipo} del ${datos.fechaInicio} al ${datos.fechaFin} (${datos.dias} día(s)). Motivo: ${datos.motivo || "sin detalle"}.`,
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [userId, colaboradores, sesion.nombre, crearAviso, cargar],
+  );
+
+  const cancelarSolicitud = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("solicitudes")
+        .update({ estado: "Cancelada" } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const responderSolicitud = useCallback(
+    async (
+      id: string,
+      estado: "Aprobada" | "Rechazada",
+      respuesta: string,
+    ): Promise<Resultado> => {
+      const s = solicitudes.find((x) => x.id === id);
+      const { error } = await supabase
+        .from("solicitudes")
+        .update({
+          estado,
+          respuesta,
+          respondido_por: userId,
+          respondido_at: new Date().toISOString(),
+        } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (s) {
+        await crearAviso(
+          s.colaboradorId,
+          `Tu solicitud de ${s.tipo} fue ${estado.toLowerCase()}`,
+          `Fechas: ${s.fechaInicio} al ${s.fechaFin} (${s.dias} día(s)).${respuesta ? ` Comentario: ${respuesta}` : ""}`,
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [solicitudes, userId, crearAviso, cargar],
+  );
+
   const marcarAvisosLeidos = useCallback(async () => {
     if (!userId) return;
     await supabase.from("avisos").update({ nuevo: false }).eq("para_id", userId);
@@ -848,6 +997,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     misAvisos: avisos.filter((a) => a.para === sesion.email),
     tickets,
     misTickets: tickets.filter((t) => t.creadorId === userId),
+    solicitudes,
+    misSolicitudes: solicitudes.filter((s) => s.colaboradorId === userId),
+    solicitudesPendientes: solicitudes.filter((s) => s.estado === "Pendiente"),
+    crearSolicitud,
+    cancelarSolicitud,
+    responderSolicitud,
     autenticar,
     claveProvisional: Boolean(colaboradorActual?.claveProvisional),
     establecerClave,
