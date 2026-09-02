@@ -9,13 +9,14 @@ import {
   type DatosVolante,
   type LineaVolante,
 } from "@/components/volante-pago";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, firmaVigente } from "@/lib/portal-store";
 
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
 export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
+  const elegido = colaboradores.find((c) => c.id === seleccion);
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
     setDatos((d) => ({ ...d, [campo]: valor }));
