@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
   type Context,
@@ -214,6 +215,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Evita dependencias circulares entre pagos y firmas.
+  const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
   const cargar = useCallback(async () => {
     const { data: sesionData } = await supabase.auth.getSession();
@@ -646,6 +649,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     },
     [colaboradores, crearAviso, cargar],
   );
+  consumirFirmaRef.current = consumirFirma;
 
   const crearTicket = useCallback(
     async (datos: {
