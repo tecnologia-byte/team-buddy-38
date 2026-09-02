@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const rolSchema = z.enum(["Administrador", "Recursos Humanos", "Supervisor", "Colaborador"]);
+const rolSchema = z.enum([
+  "Administrador",
+  "Recursos Humanos",
+  "Contabilidad",
+  "Supervisor",
+  "Colaborador",
+]);
 
 const cuentaSchema = z.object({
   email: z.string().email(),
