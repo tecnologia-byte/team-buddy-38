@@ -479,7 +479,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       await cargar();
       return { ok: true };
     },
-    [cargar],
+    [cargar, colaboradores],
   );
 
   const eliminarColaborador = useCallback(
