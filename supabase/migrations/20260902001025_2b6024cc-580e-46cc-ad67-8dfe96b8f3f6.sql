@@ -1,0 +1,11 @@
+REVOKE EXECUTE ON FUNCTION public.es_gestor(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.es_contable(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.directorio() FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.perfiles_guardia_columnas() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.avisos_guardia_columnas() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.update_updated_at_column() FROM anon, public, authenticated;
+GRANT EXECUTE ON FUNCTION public.es_gestor(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.es_contable(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.directorio() TO authenticated;
