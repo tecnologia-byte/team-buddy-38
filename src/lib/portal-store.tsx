@@ -267,6 +267,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
@@ -280,6 +281,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       setPagos([]);
       setAvisos([]);
       setTickets([]);
+      setSolicitudes([]);
       try {
         const r = await portalVacioFn();
         setPortalVacio(r.vacio);
@@ -290,7 +292,15 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const [perfilesRes, directorioRes, rolesRes, pagosRes, avisosRes, ticketsRes] =
+    const [
+      perfilesRes,
+      directorioRes,
+      rolesRes,
+      pagosRes,
+      avisosRes,
+      ticketsRes,
+      solicitudesRes,
+    ] =
       await Promise.all([
         supabase.from("perfiles").select("*").order("nombre"),
         supabase.rpc("directorio"),
@@ -298,6 +308,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         supabase.from("pagos").select("*").order("created_at", { ascending: false }),
         supabase.from("avisos").select("*").order("created_at", { ascending: false }),
         supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
+        supabase.from("solicitudes").select("*").order("created_at", { ascending: false }),
       ]);
 
     const mapaRoles = new Map<string, Rol>();
