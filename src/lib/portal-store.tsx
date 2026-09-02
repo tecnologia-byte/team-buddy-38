@@ -496,7 +496,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       paraId: string,
       titulo: string,
       detalle: string,
-      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+      opciones?: {
+        etiqueta?: string;
+        enlace?: string;
+        enlaceTexto?: string;
+        insignias?: boolean;
+      },
     ) => {
       const c = colaboradores.find((x) => x.id === paraId);
       if (!c?.email) return;
@@ -510,6 +515,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
             etiqueta: opciones?.etiqueta ?? "Notificación",
             ...(opciones?.enlace ? { enlace: opciones.enlace } : {}),
             ...(opciones?.enlaceTexto ? { enlaceTexto: opciones.enlaceTexto } : {}),
+            ...(opciones?.insignias ? { insignias: true } : {}),
           },
         });
       } catch (e) {
@@ -524,7 +530,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       paraId: string,
       titulo: string,
       detalle: string,
-      opciones?: { etiqueta?: string; enlace?: string; enlaceTexto?: string },
+      opciones?: {
+        etiqueta?: string;
+        enlace?: string;
+        enlaceTexto?: string;
+        insignias?: boolean;
+      },
     ) => {
       await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
       await enviarCorreo(paraId, titulo, detalle, opciones);
