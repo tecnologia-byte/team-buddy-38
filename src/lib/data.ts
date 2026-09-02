@@ -71,7 +71,12 @@ export const chatRRHH: MensajeChat[] = [];
 export const pesos = (valor: number) =>
   valor.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export type Rol = "Administrador" | "Recursos Humanos" | "Supervisor" | "Colaborador";
+export type Rol =
+  | "Administrador"
+  | "Recursos Humanos"
+  | "Contabilidad"
+  | "Supervisor"
+  | "Colaborador";
 
 export type Cuenta = {
   email: string;
@@ -85,6 +90,7 @@ export type Cuenta = {
 export const roles: Rol[] = [
   "Administrador",
   "Recursos Humanos",
+  "Contabilidad",
   "Supervisor",
   "Colaborador",
 ];

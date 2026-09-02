@@ -91,6 +91,7 @@ type Contexto = {
   colaboradorActual?: Colaborador | undefined;
   esAdmin: boolean;
   esRRHH: boolean;
+  esContable: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
   tickets: Ticket[];
@@ -211,7 +212,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     const [perfilesRes, directorioRes, rolesRes, pagosRes, avisosRes, ticketsRes] =
       await Promise.all([
         supabase.from("perfiles").select("*").order("nombre"),
-        supabase.from("directorio").select("*").order("nombre"),
+        supabase.rpc("directorio"),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("pagos").select("*").order("created_at", { ascending: false }),
         supabase.from("avisos").select("*").order("created_at", { ascending: false }),
@@ -610,6 +611,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     colaboradorActual,
     esAdmin: sesion.rol === "Administrador",
     esRRHH: sesion.rol === "Administrador" || sesion.rol === "Recursos Humanos",
+    esContable: sesion.rol === "Administrador" || sesion.rol === "Contabilidad",
     fotosPendientes: colaboradores.filter((c) => c.estadoFoto === "pendiente"),
     misAvisos: avisos.filter((a) => a.para === sesion.email),
     tickets,
