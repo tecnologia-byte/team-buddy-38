@@ -894,6 +894,85 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [tickets, crearAviso, cargar],
   );
 
+  const crearSolicitud = useCallback(
+    async (datos: NuevaSolicitud): Promise<Resultado> => {
+      if (!userId) return { ok: false, error: "Inicia sesión para enviar tu solicitud." };
+      if (!datos.fechaInicio || !datos.fechaFin)
+        return { ok: false, error: "Indica la fecha de inicio y de fin." };
+      if (datos.fechaFin < datos.fechaInicio)
+        return { ok: false, error: "La fecha de fin no puede ser anterior a la de inicio." };
+      const { error } = await supabase.from("solicitudes").insert({
+        colaborador_id: userId,
+        tipo: datos.tipo,
+        motivo: datos.motivo.slice(0, 1500),
+        fecha_inicio: datos.fechaInicio,
+        fecha_fin: datos.fechaFin,
+        dias: datos.dias,
+        con_salario: datos.conSalario,
+        base_legal: datos.baseLegal,
+        soporte: datos.soporte ?? null,
+      } as never);
+      if (error) return { ok: false, error: error.message };
+      // Avisa a Recursos Humanos y Administración.
+      const gestores = colaboradores.filter(
+        (c) => c.rol === "Administrador" || c.rol === "Recursos Humanos",
+      );
+      for (const g of gestores) {
+        await crearAviso(
+          g.id,
+          `Nueva solicitud: ${datos.tipo}`,
+          `${sesion.nombre} solicitó ${datos.tipo} del ${datos.fechaInicio} al ${datos.fechaFin} (${datos.dias} día(s)). Motivo: ${datos.motivo || "sin detalle"}.`,
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [userId, colaboradores, sesion.nombre, crearAviso, cargar],
+  );
+
+  const cancelarSolicitud = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("solicitudes")
+        .update({ estado: "Cancelada" } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const responderSolicitud = useCallback(
+    async (
+      id: string,
+      estado: "Aprobada" | "Rechazada",
+      respuesta: string,
+    ): Promise<Resultado> => {
+      const s = solicitudes.find((x) => x.id === id);
+      const { error } = await supabase
+        .from("solicitudes")
+        .update({
+          estado,
+          respuesta,
+          respondido_por: userId,
+          respondido_at: new Date().toISOString(),
+        } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (s) {
+        await crearAviso(
+          s.colaboradorId,
+          `Tu solicitud de ${s.tipo} fue ${estado.toLowerCase()}`,
+          `Fechas: ${s.fechaInicio} al ${s.fechaFin} (${s.dias} día(s)).${respuesta ? ` Comentario: ${respuesta}` : ""}`,
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [solicitudes, userId, crearAviso, cargar],
+  );
+
   const marcarAvisosLeidos = useCallback(async () => {
     if (!userId) return;
     await supabase.from("avisos").update({ nuevo: false }).eq("para_id", userId);
