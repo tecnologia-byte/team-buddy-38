@@ -186,8 +186,9 @@ function Perfil() {
 
         {!esRRHH ? (
           <p className="px-1 text-xs text-muted-foreground">
-            Los datos laborales (nombre, cargo y área) solo pueden ser modificados por Recursos
-            Humanos.
+            Los datos laborales (nombre, cargo y área) y el correo de acceso solo pueden ser
+            modificados por Administración, Recursos Humanos o Contabilidad. Si necesitas cambiar tu
+            correo, escríbenos desde Soporte.
           </p>
         ) : null}
 
