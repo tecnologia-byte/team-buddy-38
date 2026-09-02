@@ -84,13 +84,19 @@ function Admin() {
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
           </TabsList>
           {esAdmin ? (
-            <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
-              <TabsTrigger value="fotos">Fotos</TabsTrigger>
-              <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-              <TabsTrigger value="soporte">Soporte</TabsTrigger>
-              <TabsTrigger value="accesos">Accesos</TabsTrigger>
-            </TabsList>
+            <>
+              <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
+                <TabsTrigger value="fotos">Fotos</TabsTrigger>
+                <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+                <TabsTrigger value="soporte">Soporte</TabsTrigger>
+                <TabsTrigger value="accesos">Accesos</TabsTrigger>
+              </TabsList>
+              <TabsList className="mt-2 grid w-full grid-cols-1 print:hidden">
+                <TabsTrigger value="verificados">Verificados</TabsTrigger>
+              </TabsList>
+            </>
           ) : null}
+
 
           <TabsContent value="contabilidad" className="mt-4">
             <Contabilidad />
