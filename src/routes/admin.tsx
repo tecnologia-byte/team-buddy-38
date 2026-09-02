@@ -644,7 +644,7 @@ function CuentasUsuarios() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="c-clave">Contraseña asignada</Label>
+          <Label htmlFor="c-clave">Contraseña provisional</Label>
           <Input
             id="c-clave"
             value={form.clave}
@@ -652,6 +652,10 @@ function CuentasUsuarios() {
             placeholder="Mínimo 6 caracteres"
             required
           />
+          <p className="text-xs text-muted-foreground">
+            Es solo para el primer acceso: al entrar, el colaborador deberá crear su propia
+            contraseña e ingresarla dos veces.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="c-rol">Rol de acceso</Label>
