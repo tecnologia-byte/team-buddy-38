@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { SelloVerificado, VerificacionPerfil } from "@/components/verificado";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -803,5 +804,80 @@ function Etiqueta({
           : "bg-secondary text-secondary-foreground";
   return (
     <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${clase}`}>{texto}</span>
+  );
+}
+
+/** Otorga o retira la insignia de verificación de cada colaborador. */
+function Verificados() {
+  const { colaboradores, verificar } = usePortal();
+  const [enCurso, setEnCurso] = useState<string | null>(null);
+
+  const cambiar = async (id: string, valor: boolean) => {
+    setEnCurso(id);
+    const r = await verificar(id, valor);
+    setEnCurso(null);
+    if (!r.ok) toast.error(r.error ?? "No se pudo actualizar la verificación");
+    else
+      toast.success(
+        valor ? "Insignia otorgada y notificada por correo" : "Insignia retirada del perfil",
+      );
+  };
+
+  const verificados = colaboradores.filter((c) => c.verificado).length;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3">
+          <SelloVerificado tipo="admin" className="h-7 w-7" />
+          <SelloVerificado tipo="empleado" className="h-7 w-7" />
+          <p className="text-sm text-foreground">
+            La insignia <strong>dorada</strong> corresponde a cuentas de administración
+            (Administrador, RR.HH. y Contabilidad) y la <strong>azul</strong> a colaboradores. Se
+            otorga o se retira aquí y todo el equipo la ve en el directorio.
+          </p>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {verificados} de {colaboradores.length} perfiles verificados. Cada cambio envía un correo
+          automático al colaborador.
+        </p>
+      </div>
+
+      <ul className="space-y-2">
+        {colaboradores.map((c) => (
+          <li
+            key={c.id}
+            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
+          >
+            <Avatar nombre={c.nombre} iniciales={c.iniciales} foto={c.foto} className="h-11 w-11" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-sm font-semibold text-foreground">{c.nombre}</p>
+                <VerificacionPerfil colaborador={c} className="h-4 w-4" />
+              </div>
+              <p className="truncate text-xs text-muted-foreground">
+                {c.cargo || "Sin cargo"} · {c.rol ?? "Colaborador"}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={c.verificado ? "outline" : "default"}
+              disabled={enCurso === c.id}
+              onClick={() => void cambiar(c.id, !c.verificado)}
+            >
+              {c.verificado ? (
+                <>
+                  <X className="mr-1 h-4 w-4" /> Quitar
+                </>
+              ) : (
+                <>
+                  <Check className="mr-1 h-4 w-4" /> Verificar
+                </>
+              )}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
