@@ -536,6 +536,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from("pagos").update(fila as never).eq("id", id);
       if (error) return { ok: false, error: error.message };
       if (cambios.recibo === "Enviado" && pago) {
+        await consumirFirmaRef.current(pago.colaboradorId);
         await crearAviso(
           pago.colaboradorId,
           "Recibo de nómina disponible",
@@ -597,6 +598,53 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return { ok: true };
     },
     [cargar],
+  );
+
+  const firmaPermanente = useCallback(
+    async (id: string, permanente: boolean): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("perfiles")
+        .update({
+          firma_permanente: permanente,
+          firma_consentimiento_at: new Date().toISOString(),
+          ...(permanente ? {} : { firma_pagos_restantes: LIMITE_PAGOS_FIRMA }),
+        } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  /** Descuenta un pago de la vigencia de la firma y avisa cuando toca volver a firmar. */
+  const consumirFirma = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const c = colaboradores.find((x) => x.id === id);
+      if (!c || !c.firma || c.firmaPermanente) return { ok: true };
+      const restantes = Math.max(0, c.firmaPagosRestantes - 1);
+      const { error } = await supabase
+        .from("perfiles")
+        .update({ firma_pagos_restantes: restantes } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      if (restantes === 0) {
+        await crearAviso(
+          id,
+          "Debes registrar tu firma nuevamente",
+          `Tu firma digital cubrió ${c.firmaLimitePagos} pagos y venció. Registra una firma nueva para seguir recibiendo tus volantes de pago firmados.`,
+        );
+      } else if (restantes === 1) {
+        await crearAviso(
+          id,
+          "Tu firma digital vence en el próximo pago",
+          "Después del siguiente pago deberás registrar tu firma de nuevo, salvo que autorices dejar la misma siempre.",
+        );
+      }
+      await cargar();
+      return { ok: true };
+    },
+    [colaboradores, crearAviso, cargar],
   );
 
   const crearTicket = useCallback(
@@ -677,6 +725,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     actualizarPago,
     guardarFirma,
     borrarFirma,
+    firmaPermanente,
+    consumirFirma,
     crearTicket,
     responderTicket,
     marcarAvisosLeidos,
