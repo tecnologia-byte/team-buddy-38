@@ -4,6 +4,7 @@ import { Cake, Mail, Phone, Search } from "lucide-react";
 import { AppShell, Avatar, BrandLogo } from "@/components/app-shell";
 import { areas } from "@/lib/data";
 import { usePortal } from "@/lib/portal-store";
+import { VerificacionPerfil } from "@/components/verificado";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -74,7 +75,10 @@ function Equipo() {
                 <Avatar iniciales={e.iniciales} estado={e.estado} foto={e.foto} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-display font-bold text-foreground">{e.nombre}</h3>
+                    <h3 className="flex min-w-0 items-center gap-1.5 font-display font-bold text-foreground">
+                      <span className="truncate">{e.nombre}</span>
+                      <VerificacionPerfil colaborador={e} className="h-4.5 w-4.5" />
+                    </h3>
                     <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground">
                       {e.area}
                     </span>
@@ -116,7 +120,10 @@ function Equipo() {
                       <li key={e.id} className="flex items-center gap-3">
                         <Avatar iniciales={e.iniciales} size="sm" />
                         <div>
-                          <p className="text-sm font-semibold text-foreground">{e.nombre}</p>
+                          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                            {e.nombre}
+                            <VerificacionPerfil colaborador={e} className="h-4 w-4" />
+                          </p>
                           <p className="text-xs text-muted-foreground">{e.cargo}</p>
                         </div>
                       </li>
@@ -134,7 +141,10 @@ function Equipo() {
                   <Cake className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="font-semibold text-foreground">{e.nombre}</p>
+                  <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                    {e.nombre}
+                    <VerificacionPerfil colaborador={e} className="h-4 w-4" />
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Cumpleaños: {e.cumple} · En IVAD desde {e.ingreso}
                   </p>

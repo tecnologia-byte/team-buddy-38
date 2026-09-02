@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppShell, Avatar, BrandLogo, SectionTitle } from "@/components/app-shell";
 import { anuncios } from "@/lib/data";
+import { VerificacionPerfil } from "@/components/verificado";
 import { usePortal } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/inicio")({
@@ -99,7 +100,13 @@ function Inicio() {
         </div>
         <div className="mt-5 flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold">¡Hola, {primerNombre}!</h1>
+            <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+              ¡Hola, {primerNombre}!
+              <VerificacionPerfil
+                colaborador={{ ...(colaboradorActual ?? {}), rol: colaboradorActual?.rol ?? sesion.rol }}
+                className="h-5 w-5"
+              />
+            </h1>
             <p className="mt-1 text-sm font-semibold opacity-90">Bienvenida a IVAD</p>
             <p className="mt-1 text-sm opacity-70">
               Aquí tienes un resumen de lo que sucede hoy.
