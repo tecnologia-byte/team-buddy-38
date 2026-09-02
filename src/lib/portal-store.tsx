@@ -17,6 +17,7 @@ import {
   eliminarCuentaFn,
   crearPrimerAdminFn,
   portalVacioFn,
+  cambiarCorreoFn,
 } from "@/lib/cuentas.functions";
 
 export type { Cuenta, Rol };
