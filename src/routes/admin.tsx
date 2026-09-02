@@ -732,8 +732,9 @@ function CuentasUsuarios() {
 function Accesos() {
   const { sesion, colaboradores, cuentas } = usePortal();
   const permisos: Record<string, string> = {
-    Administrador: "Contabilidad, nómina, recibos, fotos y colaboradores",
+    Administrador: "Acceso total: nómina, salarios, recibos, firmas, fotos, usuarios y verificados",
     "Recursos Humanos": "Colaboradores, perfiles y revisión de fotos",
+    Contabilidad: "Nómina, salarios, volantes de pago y recibos",
     Supervisor: "Aprobación de solicitudes de su equipo",
     Colaborador: "Su perfil, asistencia y solicitudes",
   };
