@@ -716,7 +716,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         verificado
           ? "Tu insignia de verificación ya aparece junto a tu nombre en el directorio del portal, visible para todo el equipo."
           : "Administración retiró temporalmente la insignia de verificación de tu perfil. Si tienes dudas escríbenos desde Soporte.",
-        { etiqueta: "Verificación", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
+        {
+          etiqueta: "Verificación",
+          enlace: "/perfil",
+          enlaceTexto: "Ver mi perfil",
+          insignias: true,
+        },
       );
       await cargar();
       return { ok: true };
