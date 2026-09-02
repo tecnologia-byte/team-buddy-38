@@ -74,7 +74,8 @@ const vacio: Borrador = {
 };
 
 function GestionColaboradores() {
-  const { esRRHH, sesion, colaboradores, guardarColaborador, eliminarColaborador } = usePortal();
+  const { esRRHH, esContable, sesion, colaboradores, guardarColaborador, eliminarColaborador } =
+    usePortal();
   const [busqueda, setBusqueda] = useState("");
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -116,7 +117,13 @@ function GestionColaboradores() {
       return;
     }
     setErrores({});
-    const res = await guardarColaborador({ ...r.data, estado: borrador.estado, id: borrador.id });
+    const { salario, ...resto } = r.data;
+    const res = await guardarColaborador({
+      ...resto,
+      ...(esContable ? { salario } : {}),
+      estado: borrador.estado,
+      id: borrador.id,
+    });
     if (!res.ok) {
       toast.error(res.error ?? "No se pudo guardar");
       return;
@@ -254,13 +261,19 @@ function GestionColaboradores() {
                 error={errores["telefono"]}
                 onChange={(v) => setBorrador({ ...borrador, telefono: v })}
               />
-              <Campo
-                id="salario"
-                label="Salario mensual (RD$)"
-                valor={borrador.salario}
-                error={errores["salario"]}
-                onChange={(v) => setBorrador({ ...borrador, salario: v })}
-              />
+              {esContable ? (
+                <Campo
+                  id="salario"
+                  label="Salario mensual (RD$)"
+                  valor={borrador.salario}
+                  error={errores["salario"]}
+                  onChange={(v) => setBorrador({ ...borrador, salario: v })}
+                />
+              ) : (
+                <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
+                  El salario solo lo administra Contabilidad.
+                </p>
+              )}
               <div className="space-y-2">
                 <Label>Estado</Label>
                 <Select
