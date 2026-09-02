@@ -9,13 +9,14 @@ import {
   type DatosVolante,
   type LineaVolante,
 } from "@/components/volante-pago";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, firmaVigente } from "@/lib/portal-store";
 
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
 export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
+  const elegido = colaboradores.find((c) => c.id === seleccion);
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
     setDatos((d) => ({ ...d, [campo]: valor }));
@@ -41,8 +42,8 @@ export function VolanteEditor() {
       cargo: c.cargo,
       departamento: c.area,
       ingreso: c.ingreso,
-      firma: c.firma,
-      firmaFecha: c.firmaActualizada,
+      firma: firmaVigente(c) ? c.firma : undefined,
+      firmaFecha: firmaVigente(c) ? c.firmaActualizada : undefined,
       ingresos: d.ingresos.map((l, i) =>
         i === 0 && !l.monto && c.salario ? { ...l, monto: String(c.salario) } : l,
       ),
@@ -72,11 +73,24 @@ export function VolanteEditor() {
             {colaboradores.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nombre}
-                {c.firma ? " · con firma" : " · sin firma"}
+                {!c.firma
+                  ? " · sin firma"
+                  : c.firmaPermanente
+                    ? " · firma permanente"
+                    : c.firmaPagosRestantes > 0
+                      ? ` · firma válida para ${c.firmaPagosRestantes} pago(s)`
+                      : " · firma vencida, hay que recogerla otra vez"}
               </option>
             ))}
           </select>
         </div>
+
+        {elegido && elegido.firma && !firmaVigente(elegido) ? (
+          <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+            La firma de {elegido.nombre} cubrió sus {elegido.firmaLimitePagos} pagos y venció: recógela
+            de nuevo en la pestaña Firmas para que aparezca en el volante.
+          </p>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo label="Comprobante No." valor={datos.comprobante} al={(v) => set("comprobante", v)} />

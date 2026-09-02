@@ -98,6 +98,10 @@ export type Database = {
           estado_foto: string
           firma: string | null
           firma_actualizada: string | null
+          firma_consentimiento_at: string | null
+          firma_limite_pagos: number
+          firma_pagos_restantes: number
+          firma_permanente: boolean
           foto: string | null
           foto_pendiente: string | null
           id: string
@@ -118,6 +122,10 @@ export type Database = {
           estado_foto?: string
           firma?: string | null
           firma_actualizada?: string | null
+          firma_consentimiento_at?: string | null
+          firma_limite_pagos?: number
+          firma_pagos_restantes?: number
+          firma_permanente?: boolean
           foto?: string | null
           foto_pendiente?: string | null
           id: string
@@ -138,6 +146,10 @@ export type Database = {
           estado_foto?: string
           firma?: string | null
           firma_actualizada?: string | null
+          firma_consentimiento_at?: string | null
+          firma_limite_pagos?: number
+          firma_pagos_restantes?: number
+          firma_permanente?: boolean
           foto?: string | null
           foto_pendiente?: string | null
           id?: string
