@@ -171,6 +171,78 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitudes: {
+        Row: {
+          base_legal: string
+          colaborador_id: string
+          con_salario: boolean
+          created_at: string
+          dias: number
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          motivo: string
+          respondido_at: string | null
+          respondido_por: string | null
+          respuesta: string | null
+          soporte: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          base_legal?: string
+          colaborador_id: string
+          con_salario?: boolean
+          created_at?: string
+          dias?: number
+          estado?: string
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          motivo?: string
+          respondido_at?: string | null
+          respondido_por?: string | null
+          respuesta?: string | null
+          soporte?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          base_legal?: string
+          colaborador_id?: string
+          con_salario?: boolean
+          created_at?: string
+          dias?: number
+          estado?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          motivo?: string
+          respondido_at?: string | null
+          respondido_por?: string | null
+          respuesta?: string | null
+          soporte?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_respondido_por_fkey"
+            columns: ["respondido_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       soporte_tickets: {
         Row: {
           asunto: string
