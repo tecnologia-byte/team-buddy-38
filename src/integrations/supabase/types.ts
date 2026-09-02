@@ -91,6 +91,7 @@ export type Database = {
         Row: {
           area: string
           cargo: string
+          clave_provisional: boolean
           created_at: string
           cumple: string
           email: string
@@ -117,6 +118,7 @@ export type Database = {
         Insert: {
           area?: string
           cargo?: string
+          clave_provisional?: boolean
           created_at?: string
           cumple?: string
           email?: string
@@ -143,6 +145,7 @@ export type Database = {
         Update: {
           area?: string
           cargo?: string
+          clave_provisional?: boolean
           created_at?: string
           cumple?: string
           email?: string
