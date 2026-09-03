@@ -978,6 +978,35 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [solicitudes, userId, crearAviso, cargar],
   );
 
+  /** Envía un aviso (con correo) a un colaborador o a todo el personal activo. */
+  const enviarAvisoManual = useCallback(
+    async ({
+      destino,
+      titulo,
+      detalle,
+    }: {
+      destino: string;
+      titulo: string;
+      detalle: string;
+    }): Promise<Resultado & { enviados?: number }> => {
+      if (titulo.trim().length < 3) return { ok: false, error: "Escribe un título" };
+      if (detalle.trim().length < 3) return { ok: false, error: "Escribe el mensaje" };
+
+      const destinatarios =
+        destino === "todos"
+          ? colaboradores.filter((c) => c.estado !== "inactivo").map((c) => c.id)
+          : [destino];
+      if (!destinatarios.length) return { ok: false, error: "No hay destinatarios" };
+
+      for (const id of destinatarios) {
+        await crearAviso(id, titulo.trim(), detalle.trim(), { etiqueta: "Comunicado" });
+      }
+      await cargar();
+      return { ok: true, enviados: destinatarios.length };
+    },
+    [colaboradores, crearAviso, cargar],
+  );
+
   const marcarAvisosLeidos = useCallback(async () => {
     if (!userId) return;
     await supabase.from("avisos").update({ nuevo: false }).eq("para_id", userId);
