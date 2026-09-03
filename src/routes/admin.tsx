@@ -125,6 +125,9 @@ function Admin() {
           <TabsContent value="verificados" className="mt-4">
             <Verificados />
           </TabsContent>
+          <TabsContent value="avisos" className="mt-4">
+            <EnviarAvisos />
+          </TabsContent>
 
         </Tabs>
       </div>
