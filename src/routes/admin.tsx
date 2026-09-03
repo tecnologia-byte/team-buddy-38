@@ -93,8 +93,9 @@ function Admin() {
                 <TabsTrigger value="soporte">Soporte</TabsTrigger>
                 <TabsTrigger value="accesos">Accesos</TabsTrigger>
               </TabsList>
-              <TabsList className="mt-2 grid w-full grid-cols-1 print:hidden">
+              <TabsList className="mt-2 grid w-full grid-cols-2 print:hidden">
                 <TabsTrigger value="verificados">Verificados</TabsTrigger>
+                <TabsTrigger value="avisos">Avisos</TabsTrigger>
               </TabsList>
             </>
           ) : null}
