@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   BadgeCheck,
+  Bell,
   Banknote,
   Camera,
   Check,
@@ -920,6 +921,88 @@ function Verificados() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Envío de comunicados internos: a todo el personal o a un colaborador específico. */
+function EnviarAvisos() {
+  const { colaboradores, enviarAvisoManual } = usePortal();
+  const [destino, setDestino] = useState("todos");
+  const [titulo, setTitulo] = useState("");
+  const [detalle, setDetalle] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const activos = colaboradores.filter((c) => c.estado !== "inactivo");
+
+  const enviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnviando(true);
+    const r = await enviarAvisoManual({ destino, titulo, detalle });
+    setEnviando(false);
+    if (!r.ok) {
+      toast.error(r.error ?? "No se pudo enviar el aviso");
+      return;
+    }
+    toast.success(
+      r.enviados && r.enviados > 1
+        ? `Aviso enviado a ${r.enviados} colaboradores`
+        : "Aviso enviado",
+    );
+    setTitulo("");
+    setDetalle("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <SectionTitle titulo="Enviar notificaciones" accion={`${activos.length} activos`} />
+      <p className="text-sm text-muted-foreground">
+        El aviso aparece en las notificaciones del portal y también se envía por correo con el
+        formato institucional de IVAD.
+      </p>
+      <form onSubmit={enviar} className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-2">
+          <Label htmlFor="a-destino">Destinatario</Label>
+          <select
+            id="a-destino"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={destino}
+            onChange={(e) => setDestino(e.target.value)}
+          >
+            <option value="todos">Todo el personal activo</option>
+            {activos.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre} — {c.cargo || c.area}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="a-titulo">Título</Label>
+          <Input
+            id="a-titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Reunión general del viernes"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="a-detalle">Mensaje</Label>
+          <Textarea
+            id="a-detalle"
+            value={detalle}
+            onChange={(e) => setDetalle(e.target.value)}
+            placeholder="Escribe el comunicado para el equipo…"
+            rows={5}
+            required
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={enviando}>
+          <Bell className="mr-2 h-4 w-4" />
+          {enviando ? "Enviando…" : "Enviar notificación"}
+        </Button>
+      </form>
     </div>
   );
 }
