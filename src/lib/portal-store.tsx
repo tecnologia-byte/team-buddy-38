@@ -173,6 +173,11 @@ type Contexto = {
   firmaPermanente: (id: string, permanente: boolean) => Promise<Resultado>;
   verificar: (id: string, verificado: boolean) => Promise<Resultado>;
   consumirFirma: (id: string) => Promise<Resultado>;
+  enviarAvisoManual: (datos: {
+    destino: string;
+    titulo: string;
+    detalle: string;
+  }) => Promise<Resultado & { enviados?: number }>;
   crearTicket: (datos: {
     categoria: string;
     asunto: string;
