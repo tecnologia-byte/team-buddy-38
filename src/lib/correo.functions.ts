@@ -68,7 +68,7 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
         detalle:
           `Contabilidad registró tu pago correspondiente al período ${volante.periodoDesde} al ${volante.periodoHasta}.\n` +
           `Comprobante No. ${volante.comprobante}\nNeto recibido: RD$ ${pesosCorreo(neto)}\n\n` +
-          `Adjuntamos tu recibo de pago; puedes abrirlo, imprimirlo o guardarlo como PDF.`,
+          `Adjuntamos tu recibo de pago en PDF; puedes abrirlo, imprimirlo o guardarlo.`,
         enlace: "/nomina",
         enlaceTexto: "Ver mi nómina",
       },
