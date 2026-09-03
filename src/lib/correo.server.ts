@@ -85,7 +85,7 @@ export function plantilla(d: CorreoDatos) {
 </body></html>`;
 }
 
-export type Adjunto = { filename: string; content: string };
+export type Adjunto = { filename: string; content: string; contentType?: string | undefined };
 
 /** Remitente de nómina: los recibos de pago salen desde esta dirección. */
 export const REMITENTE_NOMINA = "IVAD Nómina <nomina@ivadsrl.com>";
