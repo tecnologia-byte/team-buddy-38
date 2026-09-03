@@ -50,13 +50,14 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => volanteSchema.parse(data))
   .handler(async ({ data }) => {
     const { enviarCorreoInstitucional, REMITENTE_NOMINA } = await import("./correo.server");
-    const { volanteHtml, pesosCorreo } = await import("./volante-correo.server");
+    const { pesosCorreo } = await import("./volante-correo.server");
+    const { volantePdfBase64 } = await import("./volante-pdf.server");
     const { para, ...volante } = data;
 
     const bruto = volante.ingresos.reduce((s, l) => s + l.monto, 0);
     const deducido = volante.deducciones.reduce((s, l) => s + l.monto, 0);
     const neto = bruto - deducido;
-    const html = volanteHtml(volante);
+    const pdf = await volantePdfBase64(volante);
 
     return enviarCorreoInstitucional(
       {
@@ -67,7 +68,7 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
         detalle:
           `Contabilidad registró tu pago correspondiente al período ${volante.periodoDesde} al ${volante.periodoHasta}.\n` +
           `Comprobante No. ${volante.comprobante}\nNeto recibido: RD$ ${pesosCorreo(neto)}\n\n` +
-          `Adjuntamos tu recibo de pago; puedes abrirlo, imprimirlo o guardarlo como PDF.`,
+          `Adjuntamos tu recibo de pago en PDF; puedes abrirlo, imprimirlo o guardarlo.`,
         enlace: "/nomina",
         enlaceTexto: "Ver mi nómina",
       },
@@ -76,8 +77,9 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
         asunto: `Recibo de pago ${volante.comprobante || volante.periodoHasta} · IVAD`,
         adjuntos: [
           {
-            filename: `recibo-${(volante.comprobante || "ivad").replace(/[^\w-]/g, "")}.html`,
-            content: Buffer.from(html, "utf-8").toString("base64"),
+            filename: `recibo-${(volante.comprobante || "ivad").replace(/[^\w-]/g, "")}.pdf`,
+            content: pdf,
+            contentType: "application/pdf",
           },
         ],
       },
