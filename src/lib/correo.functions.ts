@@ -77,8 +77,9 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
         asunto: `Recibo de pago ${volante.comprobante || volante.periodoHasta} · IVAD`,
         adjuntos: [
           {
-            filename: `recibo-${(volante.comprobante || "ivad").replace(/[^\w-]/g, "")}.html`,
-            content: Buffer.from(html, "utf-8").toString("base64"),
+            filename: `recibo-${(volante.comprobante || "ivad").replace(/[^\w-]/g, "")}.pdf`,
+            content: pdf,
+            contentType: "application/pdf",
           },
         ],
       },
