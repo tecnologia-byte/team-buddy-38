@@ -933,7 +933,7 @@ function EnviarAvisos() {
   const [detalle, setDetalle] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  const activos = colaboradores.filter((c) => c.estado !== "inactivo");
+  const activos = colaboradores;
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -955,7 +955,7 @@ function EnviarAvisos() {
 
   return (
     <div className="space-y-4">
-      <SectionTitle titulo="Enviar notificaciones" accion={`${activos.length} activos`} />
+      <SectionTitle action={`${activos.length} activos`}>Enviar notificaciones</SectionTitle>
       <p className="text-sm text-muted-foreground">
         El aviso aparece en las notificaciones del portal y también se envía por correo con el
         formato institucional de IVAD.

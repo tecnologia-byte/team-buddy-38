@@ -994,7 +994,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
       const destinatarios =
         destino === "todos"
-          ? colaboradores.filter((c) => c.estado !== "inactivo").map((c) => c.id)
+          ? colaboradores.map((c) => c.id)
           : [destino];
       if (!destinatarios.length) return { ok: false, error: "No hay destinatarios" };
 
