@@ -50,7 +50,8 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => volanteSchema.parse(data))
   .handler(async ({ data }) => {
     const { enviarCorreoInstitucional, REMITENTE_NOMINA } = await import("./correo.server");
-    const { volanteHtml, pesosCorreo } = await import("./volante-correo.server");
+    const { pesosCorreo } = await import("./volante-correo.server");
+    const { volantePdfBase64 } = await import("./volante-pdf.server");
     const { para, ...volante } = data;
 
     const bruto = volante.ingresos.reduce((s, l) => s + l.monto, 0);
