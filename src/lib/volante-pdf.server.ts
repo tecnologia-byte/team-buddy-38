@@ -150,6 +150,7 @@ export async function volantePdfBase64(d: VolanteCorreo): Promise<string> {
   );
 
   // Neto
+  y -= 10;
   pagina.drawRectangle({ x: M, y: y - 8, width: width - M * 2, height: 30, color: NAVY });
   pagina.drawText("NETO A PAGAR AL COLABORADOR:", {
     x: M + 10,
@@ -182,7 +183,8 @@ export async function volantePdfBase64(d: VolanteCorreo): Promise<string> {
     lineHeight: 12,
     maxWidth: width - M * 2,
   });
-  y -= 70;
+  // Bloque de firmas anclado a la parte inferior de la página
+  y = 150;
 
   // Firma del colaborador
   if (d.firma?.startsWith("data:image/png;base64,")) {
