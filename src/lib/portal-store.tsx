@@ -1055,6 +1055,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     firmaPermanente,
     verificar,
     consumirFirma,
+    enviarAvisoManual,
     crearTicket,
     responderTicket,
     marcarAvisosLeidos,
