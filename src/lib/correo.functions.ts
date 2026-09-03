@@ -57,7 +57,7 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
     const bruto = volante.ingresos.reduce((s, l) => s + l.monto, 0);
     const deducido = volante.deducciones.reduce((s, l) => s + l.monto, 0);
     const neto = bruto - deducido;
-    const html = volanteHtml(volante);
+    const pdf = await volantePdfBase64(volante);
 
     return enviarCorreoInstitucional(
       {
