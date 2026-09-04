@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.tareas_guardia_columnas() FROM anon, authenticated, public;

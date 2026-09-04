@@ -293,6 +293,63 @@ export type Database = {
           },
         ]
       }
+      tareas: {
+        Row: {
+          asignada_por: string | null
+          colaborador_id: string
+          completada: boolean
+          completada_at: string | null
+          created_at: string
+          detalle: string
+          id: string
+          prioridad: string
+          titulo: string
+          updated_at: string
+          vence: string | null
+        }
+        Insert: {
+          asignada_por?: string | null
+          colaborador_id: string
+          completada?: boolean
+          completada_at?: string | null
+          created_at?: string
+          detalle?: string
+          id?: string
+          prioridad?: string
+          titulo: string
+          updated_at?: string
+          vence?: string | null
+        }
+        Update: {
+          asignada_por?: string | null
+          colaborador_id?: string
+          completada?: boolean
+          completada_at?: string | null
+          created_at?: string
+          detalle?: string
+          id?: string
+          prioridad?: string
+          titulo?: string
+          updated_at?: string
+          vence?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tareas_asignada_por_fkey"
+            columns: ["asignada_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
