@@ -94,9 +94,11 @@ function Admin() {
                 <TabsTrigger value="soporte">Soporte</TabsTrigger>
                 <TabsTrigger value="accesos">Accesos</TabsTrigger>
               </TabsList>
-              <TabsList className="mt-2 grid w-full grid-cols-2 print:hidden">
+              <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
                 <TabsTrigger value="verificados">Verificados</TabsTrigger>
                 <TabsTrigger value="avisos">Avisos</TabsTrigger>
+                <TabsTrigger value="tareas">Tareas</TabsTrigger>
+                <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
               </TabsList>
             </>
           ) : null}
@@ -128,6 +130,12 @@ function Admin() {
           </TabsContent>
           <TabsContent value="avisos" className="mt-4">
             <EnviarAvisos />
+          </TabsContent>
+          <TabsContent value="tareas" className="mt-4">
+            <TareasPanel />
+          </TabsContent>
+          <TabsContent value="solicitudes" className="mt-4">
+            <SolicitudesPanel />
           </TabsContent>
 
         </Tabs>
@@ -1003,6 +1011,341 @@ function EnviarAvisos() {
           {enviando ? "Enviando…" : "Enviar notificación"}
         </Button>
       </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tareas: Administración asigna trabajo y ve el avance del colaborador.
+// ---------------------------------------------------------------------------
+function TareasPanel() {
+  const { colaboradores, tareas, crearTarea, marcarTarea, eliminarTarea } = usePortal();
+  const [colaboradorId, setColaboradorId] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [detalle, setDetalle] = useState("");
+  const [vence, setVence] = useState("");
+  const [prioridad, setPrioridad] = useState<"Alta" | "Media" | "Baja">("Media");
+  const [filtro, setFiltro] = useState("todos");
+  const [guardando, setGuardando] = useState(false);
+
+  const nombre = (id: string) => colaboradores.find((c) => c.id === id)?.nombre ?? "Colaborador";
+
+  const asignar = async () => {
+    setGuardando(true);
+    const r = await crearTarea({
+      colaboradorId,
+      titulo,
+      detalle,
+      ...(vence ? { vence } : {}),
+      prioridad,
+    });
+    setGuardando(false);
+    if (!r.ok) {
+      toast.error(r.error ?? "No se pudo asignar la tarea.");
+      return;
+    }
+    toast.success("Tarea asignada y notificada al colaborador.");
+    setTitulo("");
+    setDetalle("");
+    setVence("");
+  };
+
+  const lista = tareas.filter((t) => filtro === "todos" || t.colaboradorId === filtro);
+  const pendientes = lista.filter((t) => !t.completada);
+  const listas = lista.filter((t) => t.completada);
+
+  const tonoPrioridad: Record<string, string> = {
+    Alta: "bg-destructive text-destructive-foreground",
+    Media: "bg-accent text-accent-foreground",
+    Baja: "bg-secondary text-secondary-foreground",
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="surface-card space-y-4 p-4">
+        <SectionTitle>Asignar tarea</SectionTitle>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="tarea-colab">Colaborador</Label>
+            <select
+              id="tarea-colab"
+              value={colaboradorId}
+              onChange={(e) => setColaboradorId(e.target.value)}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            >
+              <option value="">Selecciona…</option>
+              {colaboradores.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} — {c.cargo}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tarea-prioridad">Prioridad</Label>
+            <select
+              id="tarea-prioridad"
+              value={prioridad}
+              onChange={(e) => setPrioridad(e.target.value as "Alta" | "Media" | "Baja")}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            >
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
+              <option value="Baja">Baja</option>
+            </select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="tarea-titulo">Tarea</Label>
+            <Input
+              id="tarea-titulo"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ej. Entregar informe de inventario"
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="tarea-detalle">Instrucciones (opcional)</Label>
+            <Textarea
+              id="tarea-detalle"
+              rows={3}
+              value={detalle}
+              onChange={(e) => setDetalle(e.target.value)}
+              placeholder="Detalla lo que debe hacer el colaborador"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tarea-vence">Vence (opcional)</Label>
+            <Input
+              id="tarea-vence"
+              type="date"
+              value={vence}
+              onChange={(e) => setVence(e.target.value)}
+            />
+          </div>
+        </div>
+        <Button onClick={() => void asignar()} disabled={guardando}>
+          {guardando ? "Asignando…" : "Asignar tarea"}
+        </Button>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <SectionTitle>Seguimiento</SectionTitle>
+        </div>
+        <select
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+        >
+          <option value="todos">Todo el personal</option>
+          {colaboradores.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+
+        <p className="text-xs font-semibold uppercase text-muted-foreground">
+          Pendientes ({pendientes.length})
+        </p>
+        {pendientes.length === 0 ? (
+          <p className="surface-card p-4 text-sm text-muted-foreground">Sin tareas pendientes.</p>
+        ) : (
+          <div className="surface-card divide-y divide-border">
+            {pendientes.map((t) => (
+              <div key={t.id} className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{t.titulo}</p>
+                  <p className="text-sm text-foreground">{nombre(t.colaboradorId)}</p>
+                  {t.detalle ? (
+                    <p className="text-sm text-muted-foreground">{t.detalle}</p>
+                  ) : null}
+                  {t.vence ? (
+                    <p className="text-xs text-muted-foreground">Vence: {t.vence}</p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tonoPrioridad[t.prioridad]}`}
+                  >
+                    {t.prioridad}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void marcarTarea(t.id, true)}
+                  >
+                    Marcar realizada
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void eliminarTarea(t.id)}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs font-semibold uppercase text-muted-foreground">
+          Realizadas ({listas.length})
+        </p>
+        {listas.length === 0 ? (
+          <p className="surface-card p-4 text-sm text-muted-foreground">Aún nada completado.</p>
+        ) : (
+          <div className="surface-card divide-y divide-border">
+            {listas.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground line-through">{t.titulo}</p>
+                  <p className="text-xs text-muted-foreground">{nombre(t.colaboradorId)}</p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => void eliminarTarea(t.id)}>
+                  Eliminar
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Solicitudes: aprobar o rechazar con un comentario para el colaborador.
+// ---------------------------------------------------------------------------
+const plantillasAprobado = [
+  "¡Aprobado! Que te vaya muy bien y aproveches el tiempo.",
+  "Aprobado. Coordina el pendiente con tu supervisor antes de salir.",
+  "Aprobado. Tu certificado estará listo en Recursos Humanos.",
+];
+const plantillasRechazado = [
+  "No podemos aprobarlo en esas fechas por la carga de trabajo. Propón otras.",
+  "Falta el documento de soporte. Entrégalo y vuelve a solicitarlo.",
+];
+
+function SolicitudesPanel() {
+  const { solicitudes, colaboradores, responderSolicitud } = usePortal();
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
+
+  const nombre = (id: string) => colaboradores.find((c) => c.id === id)?.nombre ?? "Colaborador";
+  const pendientes = solicitudes.filter((s) => s.estado === "Pendiente");
+  const historial = solicitudes.filter((s) => s.estado !== "Pendiente");
+
+  const tonoSolicitud: Record<string, string> = {
+    Pendiente: "bg-accent text-accent-foreground",
+    Aprobada: "bg-success text-success-foreground",
+    Rechazada: "bg-destructive text-destructive-foreground",
+    Cancelada: "bg-muted text-muted-foreground",
+  };
+
+  const responder = async (id: string, estado: "Aprobada" | "Rechazada") => {
+    const r = await responderSolicitud(id, estado, comentarios[id] ?? "");
+    if (!r.ok) {
+      toast.error(r.error ?? "No se pudo actualizar la solicitud.");
+      return;
+    }
+    toast.success(`Solicitud ${estado.toLowerCase()}. El colaborador fue notificado.`);
+    setComentarios((p) => ({ ...p, [id]: "" }));
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <SectionTitle>Pendientes ({pendientes.length})</SectionTitle>
+        {pendientes.length === 0 ? (
+          <p className="surface-card p-4 text-sm text-muted-foreground">
+            No hay solicitudes pendientes.
+          </p>
+        ) : (
+          pendientes.map((s) => (
+            <article key={s.id} className="surface-card space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-foreground">{nombre(s.colaboradorId)}</p>
+                  <p className="text-sm font-semibold text-foreground">{s.tipo}</p>
+                  <p className="text-sm text-foreground">
+                    {s.fechaInicio} al {s.fechaFin} · {s.dias} día(s) ·{" "}
+                    {s.conSalario ? "con salario" : "sin salario"}
+                  </p>
+                  {s.motivo ? <p className="mt-1 text-sm text-foreground">{s.motivo}</p> : null}
+                  {s.soporte ? (
+                    <p className="text-xs text-muted-foreground">Soporte: {s.soporte}</p>
+                  ) : null}
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${tonoSolicitud[s.estado]}`}
+                >
+                  {s.estado}
+                </span>
+              </div>
+
+              <Textarea
+                rows={2}
+                value={comentarios[s.id] ?? ""}
+                onChange={(e) => setComentarios((p) => ({ ...p, [s.id]: e.target.value }))}
+                placeholder="Comentario para el colaborador"
+              />
+              <div className="flex flex-wrap gap-2">
+                {[...plantillasAprobado, ...plantillasRechazado].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setComentarios((p) => ({ ...p, [s.id]: t }))}
+                    className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground"
+                  >
+                    {t.length > 42 ? `${t.slice(0, 42)}…` : t}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => void responder(s.id, "Aprobada")}>
+                  Aprobar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void responder(s.id, "Rechazada")}
+                >
+                  Rechazar
+                </Button>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle>Historial</SectionTitle>
+        {historial.length === 0 ? (
+          <p className="surface-card p-4 text-sm text-muted-foreground">Sin historial todavía.</p>
+        ) : (
+          <div className="surface-card divide-y divide-border">
+            {historial.map((s) => (
+              <div key={s.id} className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{nombre(s.colaboradorId)}</p>
+                  <p className="text-sm text-foreground">
+                    {s.tipo} · {s.fechaInicio} al {s.fechaFin}
+                  </p>
+                  {s.respuesta ? (
+                    <p className="text-xs text-muted-foreground">{s.respuesta}</p>
+                  ) : null}
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${tonoSolicitud[s.estado]}`}
+                >
+                  {s.estado}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
