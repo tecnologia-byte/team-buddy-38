@@ -92,6 +92,18 @@ export type Solicitud = {
   fecha: string;
 };
 
+export type TareaAsignada = {
+  id: string;
+  colaboradorId: string;
+  titulo: string;
+  detalle: string;
+  vence?: string | undefined;
+  prioridad: "Alta" | "Media" | "Baja";
+  completada: boolean;
+  completadaAt?: string | undefined;
+  fecha: string;
+};
+
 export type NuevaSolicitud = {
   tipo: string;
   motivo: string;
@@ -139,6 +151,17 @@ type Contexto = {
   solicitudes: Solicitud[];
   misSolicitudes: Solicitud[];
   solicitudesPendientes: Solicitud[];
+  tareas: TareaAsignada[];
+  misTareas: TareaAsignada[];
+  crearTarea: (datos: {
+    colaboradorId: string;
+    titulo: string;
+    detalle?: string;
+    vence?: string;
+    prioridad?: TareaAsignada["prioridad"];
+  }) => Promise<Resultado>;
+  marcarTarea: (id: string, completada: boolean) => Promise<Resultado>;
+  eliminarTarea: (id: string) => Promise<Resultado>;
   crearSolicitud: (datos: NuevaSolicitud) => Promise<Resultado>;
   cancelarSolicitud: (id: string) => Promise<Resultado>;
   responderSolicitud: (
@@ -273,6 +296,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [tareas, setTareas] = useState<TareaAsignada[]>([]);
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
@@ -287,6 +311,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       setAvisos([]);
       setTickets([]);
       setSolicitudes([]);
+      setTareas([]);
       try {
         const r = await portalVacioFn();
         setPortalVacio(r.vacio);
@@ -305,6 +330,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       avisosRes,
       ticketsRes,
       solicitudesRes,
+      tareasRes,
     ] =
       await Promise.all([
         supabase.from("perfiles").select("*").order("nombre"),
@@ -314,6 +340,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         supabase.from("avisos").select("*").order("created_at", { ascending: false }),
         supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
         supabase.from("solicitudes").select("*").order("created_at", { ascending: false }),
+        supabase.from("tareas").select("*").order("created_at", { ascending: false }),
       ]);
 
     const mapaRoles = new Map<string, Rol>();
@@ -421,6 +448,19 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         respuesta: s.respuesta ?? undefined,
         respondidoPor: s.respondido_por ?? undefined,
         fecha: fecha(s.created_at),
+      })),
+    );
+    setTareas(
+      (tareasRes.data ?? []).map((t) => ({
+        id: t.id,
+        colaboradorId: t.colaborador_id,
+        titulo: t.titulo,
+        detalle: t.detalle ?? "",
+        vence: t.vence ?? undefined,
+        prioridad: (t.prioridad ?? "Media") as TareaAsignada["prioridad"],
+        completada: Boolean(t.completada),
+        completadaAt: t.completada_at ?? undefined,
+        fecha: fecha(t.created_at),
       })),
     );
     setCargando(false);
@@ -978,6 +1018,64 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [solicitudes, userId, crearAviso, cargar],
   );
 
+  /** Administración / RR.HH. asigna una tarea a un colaborador. */
+  const crearTarea = useCallback(
+    async (datos: {
+      colaboradorId: string;
+      titulo: string;
+      detalle?: string;
+      vence?: string;
+      prioridad?: TareaAsignada["prioridad"];
+    }): Promise<Resultado> => {
+      if (!datos.colaboradorId) return { ok: false, error: "Selecciona un colaborador." };
+      if (datos.titulo.trim().length < 3) return { ok: false, error: "Escribe el título de la tarea." };
+      const { error } = await supabase.from("tareas").insert({
+        colaborador_id: datos.colaboradorId,
+        titulo: datos.titulo.trim(),
+        detalle: (datos.detalle ?? "").trim(),
+        vence: datos.vence || null,
+        prioridad: datos.prioridad ?? "Media",
+        asignada_por: userId,
+      } as never);
+      if (error) return { ok: false, error: error.message };
+      await crearAviso(
+        datos.colaboradorId,
+        `Nueva tarea asignada: ${datos.titulo.trim()}`,
+        `${(datos.detalle ?? "").trim() || "Revisa la sección Tareas del portal."}${datos.vence ? ` Vence: ${datos.vence}.` : ""}`,
+        { etiqueta: "Tarea" },
+      );
+      await cargar();
+      return { ok: true };
+    },
+    [userId, crearAviso, cargar],
+  );
+
+  const marcarTarea = useCallback(
+    async (id: string, completada: boolean): Promise<Resultado> => {
+      const { error } = await supabase
+        .from("tareas")
+        .update({
+          completada,
+          completada_at: completada ? new Date().toISOString() : null,
+        } as never)
+        .eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
+  const eliminarTarea = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const { error } = await supabase.from("tareas").delete().eq("id", id);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [cargar],
+  );
+
   /** Envía un aviso (con correo) a un colaborador o a todo el personal activo. */
   const enviarAvisoManual = useCallback(
     async ({
@@ -1034,6 +1132,11 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     solicitudes,
     misSolicitudes: solicitudes.filter((s) => s.colaboradorId === userId),
     solicitudesPendientes: solicitudes.filter((s) => s.estado === "Pendiente"),
+    tareas,
+    misTareas: tareas.filter((t) => t.colaboradorId === userId),
+    crearTarea,
+    marcarTarea,
+    eliminarTarea,
     crearSolicitud,
     cancelarSolicitud,
     responderSolicitud,
