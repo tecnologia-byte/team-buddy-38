@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ajustes: {
+        Row: {
+          clave: string
+          created_at: string
+          updated_at: string
+          valor: string
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          updated_at?: string
+          valor?: string
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          updated_at?: string
+          valor?: string
+        }
+        Relationships: []
+      }
       avisos: {
         Row: {
           created_at: string
@@ -90,8 +111,10 @@ export type Database = {
       perfiles: {
         Row: {
           area: string
+          canal_avisos: string
           cargo: string
           clave_provisional: boolean
+          correo_alterno: string | null
           created_at: string
           cumple: string
           email: string
@@ -114,11 +137,14 @@ export type Database = {
           telefono: string
           verificado: boolean
           verificado_at: string | null
+          whatsapp: string
         }
         Insert: {
           area?: string
+          canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
+          correo_alterno?: string | null
           created_at?: string
           cumple?: string
           email?: string
@@ -141,11 +167,14 @@ export type Database = {
           telefono?: string
           verificado?: boolean
           verificado_at?: string | null
+          whatsapp?: string
         }
         Update: {
           area?: string
+          canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
+          correo_alterno?: string | null
           created_at?: string
           cumple?: string
           email?: string
@@ -168,6 +197,7 @@ export type Database = {
           telefono?: string
           verificado?: boolean
           verificado_at?: string | null
+          whatsapp?: string
         }
         Relationships: []
       }
