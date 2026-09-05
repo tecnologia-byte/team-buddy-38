@@ -1,0 +1,15 @@
+{
+  "name": "puente-whatsapp-ivad",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Puente de WhatsApp del Portal IVAD: se conecta escaneando un codigo QR (sin API de Meta).",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "qrcode": "^1.5.4",
+    "pino": "^9.5.0"
+  }
+}
