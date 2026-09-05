@@ -266,6 +266,9 @@ type FilaPerfil = {
   firma_consentimiento_at: string | null;
   verificado?: boolean | null;
   clave_provisional?: boolean | null;
+  correo_alterno?: string | null;
+  whatsapp?: string | null;
+  canal_avisos?: string | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
