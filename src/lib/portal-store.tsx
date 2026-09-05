@@ -40,7 +40,15 @@ export type Colaborador = Empleado & {
   firmaConsentimiento?: string | undefined;
   verificado: boolean;
   claveProvisional: boolean;
+  /** Correo personal opcional, además del correo de acceso. */
+  correoAlterno?: string | undefined;
+  /** Número de WhatsApp con código de país, por ejemplo 18095551234. */
+  whatsapp: string;
+  /** Canal por el que quiere recibir los avisos del portal. */
+  canalAvisos: CanalAvisos;
 };
+
+export type CanalAvisos = "correo" | "whatsapp" | "ambos" | "ninguno";
 
 export type Ticket = {
   id: string;
@@ -258,6 +266,9 @@ type FilaPerfil = {
   firma_consentimiento_at: string | null;
   verificado?: boolean | null;
   clave_provisional?: boolean | null;
+  correo_alterno?: string | null;
+  whatsapp?: string | null;
+  canal_avisos?: string | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -284,6 +295,9 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
   verificado: Boolean(p.verificado),
   claveProvisional: Boolean(p.clave_provisional),
+  correoAlterno: p.correo_alterno ?? undefined,
+  whatsapp: p.whatsapp ?? "",
+  canalAvisos: ((p.canal_avisos as CanalAvisos) ?? "correo") satisfies CanalAvisos,
   rol,
 });
 

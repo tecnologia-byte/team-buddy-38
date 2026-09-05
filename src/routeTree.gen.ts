@@ -30,6 +30,7 @@ import { Route as SolicitudesIndexRouteImport } from './routes/solicitudes.index
 import { Route as SolicitudesAprobacionesRouteImport } from './routes/solicitudes.aprobaciones'
 import { Route as SolicitudesDerechosRouteImport } from './routes/solicitudes.derechos'
 import { Route as SolicitudesNuevaRouteImport } from './routes/solicitudes.nueva'
+import { Route as ApiPublicWhatsappEntranteRouteImport } from './routes/api.public.whatsapp.entrante'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -136,6 +137,12 @@ const SolicitudesNuevaRoute = SolicitudesNuevaRouteImport.update({
   path: '/nueva',
   getParentRoute: () => SolicitudesRoute,
 } as any)
+const ApiPublicWhatsappEntranteRoute =
+  ApiPublicWhatsappEntranteRouteImport.update({
+    id: '/api/public/whatsapp/entrante',
+    path: '/api/public/whatsapp/entrante',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes/nueva': typeof SolicitudesNuevaRoute
   '/solicitudes/': typeof SolicitudesIndexRoute
+  '/api/public/whatsapp/entrante': typeof ApiPublicWhatsappEntranteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -181,6 +189,7 @@ export interface FileRoutesByTo {
   '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes/nueva': typeof SolicitudesNuevaRoute
   '/solicitudes': typeof SolicitudesIndexRoute
+  '/api/public/whatsapp/entrante': typeof ApiPublicWhatsappEntranteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -205,6 +214,7 @@ export interface FileRoutesById {
   '/solicitudes/derechos': typeof SolicitudesDerechosRoute
   '/solicitudes/nueva': typeof SolicitudesNuevaRoute
   '/solicitudes/': typeof SolicitudesIndexRoute
+  '/api/public/whatsapp/entrante': typeof ApiPublicWhatsappEntranteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/solicitudes/derechos'
     | '/solicitudes/nueva'
     | '/solicitudes/'
+    | '/api/public/whatsapp/entrante'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/solicitudes/derechos'
     | '/solicitudes/nueva'
     | '/solicitudes'
+    | '/api/public/whatsapp/entrante'
   id:
     | '__root__'
     | '/'
@@ -275,6 +287,7 @@ export interface FileRouteTypes {
     | '/solicitudes/derechos'
     | '/solicitudes/nueva'
     | '/solicitudes/'
+    | '/api/public/whatsapp/entrante'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -295,6 +308,7 @@ export interface RootRouteChildren {
   SoporteRoute: typeof SoporteRoute
   TareasRoute: typeof TareasRoute
   RrhhColaboradoresRoute: typeof RrhhColaboradoresRoute
+  ApiPublicWhatsappEntranteRoute: typeof ApiPublicWhatsappEntranteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -446,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SolicitudesNuevaRouteImport
       parentRoute: typeof SolicitudesRoute
     }
+    '/api/public/whatsapp/entrante': {
+      id: '/api/public/whatsapp/entrante'
+      path: '/api/public/whatsapp/entrante'
+      fullPath: '/api/public/whatsapp/entrante'
+      preLoaderRoute: typeof ApiPublicWhatsappEntranteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -485,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   SoporteRoute: SoporteRoute,
   TareasRoute: TareasRoute,
   RrhhColaboradoresRoute: RrhhColaboradoresRoute,
+  ApiPublicWhatsappEntranteRoute: ApiPublicWhatsappEntranteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
