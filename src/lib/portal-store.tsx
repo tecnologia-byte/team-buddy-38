@@ -295,6 +295,9 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
   verificado: Boolean(p.verificado),
   claveProvisional: Boolean(p.clave_provisional),
+  correoAlterno: p.correo_alterno ?? undefined,
+  whatsapp: p.whatsapp ?? "",
+  canalAvisos: ((p.canal_avisos as CanalAvisos) ?? "correo") satisfies CanalAvisos,
   rol,
 });
 
