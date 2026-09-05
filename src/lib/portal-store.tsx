@@ -40,7 +40,15 @@ export type Colaborador = Empleado & {
   firmaConsentimiento?: string | undefined;
   verificado: boolean;
   claveProvisional: boolean;
+  /** Correo personal opcional, además del correo de acceso. */
+  correoAlterno?: string | undefined;
+  /** Número de WhatsApp con código de país, por ejemplo 18095551234. */
+  whatsapp: string;
+  /** Canal por el que quiere recibir los avisos del portal. */
+  canalAvisos: CanalAvisos;
 };
+
+export type CanalAvisos = "correo" | "whatsapp" | "ambos" | "ninguno";
 
 export type Ticket = {
   id: string;
