@@ -95,7 +95,7 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       cargo: data.cargo.trim(),
       area: data.area.trim(),
       iniciales: inicialesDe(data.nombre),
-      ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave } : {}),
+      ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave ?? null } : {}),
     });
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
 
