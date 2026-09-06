@@ -95,7 +95,7 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       cargo: data.cargo.trim(),
       area: data.area.trim(),
       iniciales: inicialesDe(data.nombre),
-      ...(provisional ? { clave_provisional: true } : {}),
+      ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave } : {}),
     });
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
 
@@ -268,7 +268,7 @@ export const establecerClaveFn = createServerFn({ method: "POST" })
 
     const { error } = await sb
       .from("perfiles")
-      .update({ clave_provisional: false })
+      .update({ clave_provisional: false, clave_provisional_texto: null })
       .eq("id", context.userId);
     if (error) return { ok: false as const, error: error.message };
 

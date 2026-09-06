@@ -268,6 +268,7 @@ type FilaPerfil = {
   firma_consentimiento_at: string | null;
   verificado?: boolean | null;
   clave_provisional?: boolean | null;
+  clave_provisional_texto?: string | null;
   correo_alterno?: string | null;
   whatsapp?: string | null;
   canal_avisos?: string | null;
@@ -297,6 +298,7 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   firmaConsentimiento: p.firma_consentimiento_at ? fecha(p.firma_consentimiento_at) : undefined,
   verificado: Boolean(p.verificado),
   claveProvisional: Boolean(p.clave_provisional),
+  claveProvisionalTexto: p.clave_provisional_texto ?? undefined,
   correoAlterno: p.correo_alterno ?? undefined,
   whatsapp: p.whatsapp ?? "",
   canalAvisos: ((p.canal_avisos as CanalAvisos) ?? "correo") satisfies CanalAvisos,
@@ -1138,8 +1140,11 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     pagos,
     avisos,
     colaboradorActual,
-    esAdmin: sesion.rol === "Administrador",
-    esRRHH: sesion.rol === "Administrador" || sesion.rol === "Recursos Humanos",
+    esAdmin: sesion.rol === "Administrador" || sesion.rol === "Contabilidad",
+    esRRHH:
+      sesion.rol === "Administrador" ||
+      sesion.rol === "Recursos Humanos" ||
+      sesion.rol === "Contabilidad",
     esContable: sesion.rol === "Administrador" || sesion.rol === "Contabilidad",
     fotosPendientes: colaboradores.filter((c) => c.estadoFoto === "pendiente"),
     misAvisos: avisos.filter((a) => a.para === sesion.email),

@@ -40,6 +40,12 @@ const modulos = [
   { to: "/solicitudes", label: "Solicitudes", desc: "Permisos y aprobaciones", icon: FileCheck },
   { to: "/chat", label: "Chat con RR.HH.", desc: "Consultas al departamento", icon: MessageSquare },
   {
+    to: "/politica-firmas",
+    label: "Política de firmas",
+    desc: "Uso y cuidado de tu firma digital",
+    icon: ShieldCheck,
+  },
+  {
     to: "/soporte",
     label: "Soporte",
     desc: "Preguntas frecuentes, casos y asistente IA",
@@ -50,7 +56,6 @@ const modulos = [
 const extras = [
   { label: "Directorio de áreas", icon: Building2 },
   { label: "Capacitaciones", icon: GraduationCap },
-  { label: "Políticas y reglamento", icon: ShieldCheck },
   { label: "Configuración", icon: Settings },
 ];
 
