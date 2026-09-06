@@ -114,6 +114,7 @@ export type Database = {
           canal_avisos: string
           cargo: string
           clave_provisional: boolean
+          clave_provisional_texto: string | null
           correo_alterno: string | null
           created_at: string
           cumple: string
@@ -144,6 +145,7 @@ export type Database = {
           canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
+          clave_provisional_texto?: string | null
           correo_alterno?: string | null
           created_at?: string
           cumple?: string
@@ -174,6 +176,7 @@ export type Database = {
           canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
+          clave_provisional_texto?: string | null
           correo_alterno?: string | null
           created_at?: string
           cumple?: string

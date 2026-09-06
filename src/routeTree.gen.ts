@@ -21,6 +21,7 @@ import { Route as MasRouteImport } from './routes/mas'
 import { Route as NominaRouteImport } from './routes/nomina'
 import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PoliticaFirmasRouteImport } from './routes/politica-firmas'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SolicitudesRouteImport } from './routes/solicitudes'
 import { Route as SoporteRouteImport } from './routes/soporte'
@@ -92,6 +93,11 @@ const PerfilRoute = PerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PoliticaFirmasRoute = PoliticaFirmasRouteImport.update({
+  id: '/politica-firmas',
+  path: '/politica-firmas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/politica-firmas': typeof PoliticaFirmasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/politica-firmas': typeof PoliticaFirmasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/soporte': typeof SoporteRoute
   '/tareas': typeof TareasRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/nomina': typeof NominaRoute
   '/notificaciones': typeof NotificacionesRoute
   '/perfil': typeof PerfilRoute
+  '/politica-firmas': typeof PoliticaFirmasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/solicitudes': typeof SolicitudesRouteWithChildren
   '/soporte': typeof SoporteRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/politica-firmas'
     | '/sitemap.xml'
     | '/solicitudes'
     | '/soporte'
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/politica-firmas'
     | '/sitemap.xml'
     | '/soporte'
     | '/tareas'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/nomina'
     | '/notificaciones'
     | '/perfil'
+    | '/politica-firmas'
     | '/sitemap.xml'
     | '/solicitudes'
     | '/soporte'
@@ -303,6 +315,7 @@ export interface RootRouteChildren {
   NominaRoute: typeof NominaRoute
   NotificacionesRoute: typeof NotificacionesRoute
   PerfilRoute: typeof PerfilRoute
+  PoliticaFirmasRoute: typeof PoliticaFirmasRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SolicitudesRoute: typeof SolicitudesRouteWithChildren
   SoporteRoute: typeof SoporteRoute
@@ -395,6 +408,13 @@ declare module '@tanstack/react-router' {
       path: '/perfil'
       fullPath: '/perfil'
       preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica-firmas': {
+      id: '/politica-firmas'
+      path: '/politica-firmas'
+      fullPath: '/politica-firmas'
+      preLoaderRoute: typeof PoliticaFirmasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -501,6 +521,7 @@ const rootRouteChildren: RootRouteChildren = {
   NominaRoute: NominaRoute,
   NotificacionesRoute: NotificacionesRoute,
   PerfilRoute: PerfilRoute,
+  PoliticaFirmasRoute: PoliticaFirmasRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SolicitudesRoute: SolicitudesRouteWithChildren,
   SoporteRoute: SoporteRoute,

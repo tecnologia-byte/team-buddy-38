@@ -168,6 +168,9 @@ function GestionColaboradores() {
               <p className="truncate font-semibold text-foreground">{c.nombre}</p>
               <p className="truncate text-xs text-accent">{c.cargo}</p>
               <p className="truncate text-xs text-muted-foreground">{c.area}</p>
+              {c.claveProvisional && c.claveProvisionalTexto ? (
+                <ClaveProvisional clave={c.claveProvisionalTexto} />
+              ) : null}
               {c.estadoFoto === "pendiente" ? (
                 <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary">
                   <Camera className="h-3 w-3" /> Foto en revisión
@@ -309,6 +312,35 @@ function GestionColaboradores() {
         </DialogContent>
       </Dialog>
     </AppShell>
+  );
+}
+
+/** Muestra la contraseña provisional; deja de existir cuando el colaborador crea la suya. */
+function ClaveProvisional({ clave }: { clave: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <span className="rounded bg-secondary px-2 py-0.5 font-mono text-[11px] text-foreground">
+        {visible ? clave : "••••••••"}
+      </span>
+      <button
+        type="button"
+        className="text-[11px] font-medium text-primary underline"
+        onClick={() => setVisible((v) => !v)}
+      >
+        {visible ? "Ocultar" : "Ver clave provisional"}
+      </button>
+      <button
+        type="button"
+        className="text-[11px] font-medium text-primary underline"
+        onClick={() => {
+          void navigator.clipboard?.writeText(clave);
+          toast.success("Clave provisional copiada");
+        }}
+      >
+        Copiar
+      </button>
+    </div>
   );
 }
 
