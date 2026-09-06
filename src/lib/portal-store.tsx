@@ -40,6 +40,8 @@ export type Colaborador = Empleado & {
   firmaConsentimiento?: string | undefined;
   verificado: boolean;
   claveProvisional: boolean;
+  /** Clave provisional en texto, visible solo para Administración, RR.HH. y Contabilidad. */
+  claveProvisionalTexto?: string | undefined;
   /** Correo personal opcional, además del correo de acceso. */
   correoAlterno?: string | undefined;
   /** Número de WhatsApp con código de país, por ejemplo 18095551234. */
