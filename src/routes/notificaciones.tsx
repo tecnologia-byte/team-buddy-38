@@ -32,7 +32,7 @@ function Notificaciones() {
       <AppHeader titulo="Notificaciones" />
       <div className="space-y-3 px-4 py-5">
         {misAvisos.map((a) => {
-          const esPolitica = /pol\u00edtica/i.test(a.titulo);
+          const esPolitica = /política/i.test(a.titulo);
           return (
             <article key={a.id} className="surface-card p-4">
               <div className="flex items-center gap-3">
@@ -50,7 +50,7 @@ function Notificaciones() {
                   className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
                 >
                   <FileSignature className="h-4 w-4" />
-                  Ver las pol\u00edticas de firma
+                  Ver las políticas de firma
                 </Link>
               ) : null}
             </article>
