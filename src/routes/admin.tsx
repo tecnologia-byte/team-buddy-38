@@ -270,21 +270,16 @@ function Contabilidad() {
 }
 
 function Firmas() {
-  const { colaboradores, pagos, guardarFirma, borrarFirma, firmaPermanente } = usePortal();
+  const { colaboradores, pagos, guardarFirma, borrarFirma, pedirRenovarFirma } = usePortal();
   const [activo, setActivo] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [acepta, setAcepta] = useState(false);
-  const [siempre, setSiempre] = useState(false);
   const conFirma = colaboradores.filter((c) => c.firma).length;
-  const vencidas = colaboradores.filter(
-    (c) => c.firma && !c.firmaPermanente && c.firmaPagosRestantes <= 0,
-  ).length;
+  const sinFirma = colaboradores.filter((c) => !c.firma).length;
 
   const abrir = (id: string) => {
-    const c = colaboradores.find((x) => x.id === id);
     setActivo(id);
     setAcepta(false);
-    setSiempre(Boolean(c?.firmaPermanente));
   };
 
   return (
@@ -295,21 +290,20 @@ function Firmas() {
           <h3 className="font-display font-bold text-foreground">Firmas digitales</h3>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Cada firma recogida es válida para <strong>{LIMITE_PAGOS_FIRMA} pagos</strong>. Al agotarse
-          hay que recogerla nuevamente, salvo que el colaborador autorice dejar siempre la misma
-          firma. El sistema la coloca automáticamente en el espacio de{" "}
-          <strong>“Recibí conforme”</strong> del volante de pago.
+          La firma recogida queda <strong>permanente</strong>: no hay que volver a firmar en cada
+          pago. Si en algún caso hace falta renovarla, se le avisa al colaborador. El sistema la
+          coloca automáticamente en el espacio de <strong>“Recibí conforme”</strong> del volante de
+          pago.
         </p>
         <p className="mt-2 text-xs font-semibold text-foreground">
           {conFirma} de {colaboradores.length} colaboradores con firma registrada
-          {vencidas > 0 ? ` · ${vencidas} por renovar` : ""}
+          {sinFirma > 0 ? ` · ${sinFirma} sin firma` : ""}
         </p>
       </div>
 
       {colaboradores.map((c) => {
         const pago = pagos.find((p) => p.colaboradorId === c.id);
         const abierto = activo === c.id;
-        const vencida = Boolean(c.firma) && !c.firmaPermanente && c.firmaPagosRestantes <= 0;
         return (
           <article key={c.id} className="surface-card p-4">
             <div className="flex items-center gap-3">
@@ -319,16 +313,8 @@ function Firmas() {
                 <p className="truncate text-xs text-muted-foreground">{c.cargo || "Sin cargo"}</p>
               </div>
               <Etiqueta
-                texto={
-                  !c.firma
-                    ? "Sin firma"
-                    : c.firmaPermanente
-                      ? "Firma permanente"
-                      : vencida
-                        ? "Vencida"
-                        : `Vale ${c.firmaPagosRestantes} pago${c.firmaPagosRestantes === 1 ? "" : "s"}`
-                }
-                tono={!c.firma || vencida ? (vencida ? "warning" : "muted") : "success"}
+                texto={c.firma ? "Firma permanente" : "Sin firma"}
+                tono={c.firma ? "success" : "muted"}
               />
             </div>
 
@@ -340,10 +326,7 @@ function Firmas() {
                   className="mx-auto max-h-16 object-contain"
                 />
                 <p className="mt-1 text-center text-[11px] text-muted-foreground">
-                  Registrada el {c.firmaActualizada ?? "—"} ·{" "}
-                  {c.firmaPermanente
-                    ? "vigencia permanente autorizada"
-                    : `${c.firmaPagosRestantes} de ${c.firmaLimitePagos} pagos restantes`}
+                  Registrada el {c.firmaActualizada ?? "—"} · vigencia permanente
                 </p>
                 {c.firmaConsentimiento ? (
                   <p className="text-center text-[11px] text-muted-foreground">
@@ -351,13 +334,6 @@ function Firmas() {
                   </p>
                 ) : null}
               </div>
-            ) : null}
-
-            {vencida ? (
-              <p className="mt-2 rounded-md bg-secondary px-2 py-1.5 text-[11px] font-medium text-foreground">
-                La firma cubrió sus {c.firmaLimitePagos} pagos: hay que recogerla de nuevo antes del
-                próximo volante.
-              </p>
             ) : null}
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -373,17 +349,12 @@ function Firmas() {
                   size="sm"
                   variant="outline"
                   onClick={async () => {
-                    const r = await firmaPermanente(c.id, !c.firmaPermanente);
-                    if (r.ok)
-                      toast.success(
-                        c.firmaPermanente
-                          ? `La firma de ${c.nombre} vuelve a vencer cada ${LIMITE_PAGOS_FIRMA} pagos`
-                          : `${c.nombre} dejará siempre la misma firma`,
-                      );
-                    else toast.error(r.error ?? "No se pudo actualizar");
+                    const r = await pedirRenovarFirma(c.id);
+                    if (r.ok) toast.success(`Le avisamos a ${c.nombre} que debe firmar de nuevo`);
+                    else toast.error(r.error ?? "No se pudo avisar");
                   }}
                 >
-                  {c.firmaPermanente ? "Quitar firma permanente" : "Dejar siempre la misma"}
+                  Pedir renovar firma
                 </Button>
               ) : null}
               {c.firma ? (
