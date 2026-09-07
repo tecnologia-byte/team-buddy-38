@@ -197,13 +197,9 @@ type Contexto = {
   aprobarFoto: (id: string) => Promise<Resultado>;
   rechazarFoto: (id: string, motivo: string) => Promise<Resultado>;
   actualizarPago: (id: string, cambios: Partial<Pago>) => Promise<Resultado>;
-  guardarFirma: (
-    id: string,
-    dataUrl: string,
-    opciones?: { permanente?: boolean },
-  ) => Promise<Resultado>;
+  guardarFirma: (id: string, dataUrl: string) => Promise<Resultado>;
   borrarFirma: (id: string) => Promise<Resultado>;
-  firmaPermanente: (id: string, permanente: boolean) => Promise<Resultado>;
+  pedirRenovarFirma: (id: string) => Promise<Resultado>;
   verificar: (id: string, verificado: boolean) => Promise<Resultado>;
   consumirFirma: (id: string) => Promise<Resultado>;
   enviarAvisoManual: (datos: {
@@ -233,13 +229,12 @@ const g = globalThis as unknown as { __ivadPortalContext?: Context<Contexto | nu
 const PortalContext =
   g.__ivadPortalContext ?? (g.__ivadPortalContext = createContext<Contexto | null>(null));
 
-/** Una firma digital solo es válida para esta cantidad de pagos, salvo que el
- *  colaborador autorice dejar la misma firma de forma permanente. */
-export const LIMITE_PAGOS_FIRMA = 3;
+/** La firma digital registrada es permanente: no vence por cantidad de pagos.
+ *  Si alguna vez hay que renovarla, se le avisa al colaborador. */
+export const LIMITE_PAGOS_FIRMA = 0;
 
 /** Indica si la firma del colaborador sigue vigente para firmar un pago. */
-export const firmaVigente = (c?: Colaborador | undefined) =>
-  Boolean(c?.firma) && (c!.firmaPermanente || c!.firmaPagosRestantes > 0);
+export const firmaVigente = (c?: Colaborador | undefined) => Boolean(c?.firma);
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
@@ -775,38 +770,28 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   );
 
   const guardarFirma = useCallback(
-    async (
-      id: string,
-      dataUrl: string,
-      opciones?: { permanente?: boolean },
-    ): Promise<Resultado> => {
-      const permanente = Boolean(opciones?.permanente);
+    async (id: string, dataUrl: string): Promise<Resultado> => {
       const { error } = await supabase
         .from("perfiles")
         .update({
           firma: dataUrl,
           firma_actualizada: new Date().toISOString(),
-          firma_limite_pagos: LIMITE_PAGOS_FIRMA,
-          firma_pagos_restantes: permanente ? LIMITE_PAGOS_FIRMA : LIMITE_PAGOS_FIRMA,
-          firma_permanente: permanente,
+          firma_pagos_restantes: 0,
+          firma_permanente: true,
           firma_consentimiento_at: new Date().toISOString(),
         } as never)
         .eq("id", id);
       if (error) return { ok: false, error: error.message };
       await crearAviso(
         id,
-        permanente
-          ? "Autorizaste tu firma de forma permanente"
-          : `Tu firma digital fue registrada por ${LIMITE_PAGOS_FIRMA} pagos`,
-        permanente
-          ? "Registramos tu firma digital y autorizaste dejar siempre la misma: se usará en el espacio de “Recibí conforme” de todos tus volantes de pago hasta que tú o Administración la revoquen."
-          : `Registramos tu firma digital y aceptaste el compromiso: es válida para ${LIMITE_PAGOS_FIRMA} pagos. Al agotarse te pediremos firmar nuevamente, salvo que autorices dejar siempre la misma firma.`,
+        "Tu firma digital quedó registrada",
+        "Registramos tu firma digital y aceptaste el compromiso: queda vigente de forma permanente y se usará en el espacio de “Recibí conforme” de tus volantes de pago. Si en algún momento hay que renovarla, te avisaremos por aquí.",
         { etiqueta: "Firma digital", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
       );
       await cargar();
       return { ok: true };
     },
-    [userId, crearAviso, cargar],
+    [crearAviso, cargar],
   );
 
   const borrarFirma = useCallback(
@@ -828,31 +813,18 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [cargar],
   );
 
-  const firmaPermanente = useCallback(
-    async (id: string, permanente: boolean): Promise<Resultado> => {
-      const { error } = await supabase
-        .from("perfiles")
-        .update({
-          firma_permanente: permanente,
-          firma_consentimiento_at: new Date().toISOString(),
-          ...(permanente ? {} : { firma_pagos_restantes: LIMITE_PAGOS_FIRMA }),
-        } as never)
-        .eq("id", id);
-      if (error) return { ok: false, error: error.message };
+  /** Le pide al colaborador registrar su firma de nuevo (solo cuando hace falta). */
+  const pedirRenovarFirma = useCallback(
+    async (id: string): Promise<Resultado> => {
       await crearAviso(
         id,
-        permanente
-          ? "Autorizaste tu firma permanentemente"
-          : `Tu firma vuelve a vencer cada ${LIMITE_PAGOS_FIRMA} pagos`,
-        permanente
-          ? "Tu firma digital queda vigente de forma permanente: la usaremos en todos tus volantes de pago hasta que se revoque."
-          : `Se retiró la autorización permanente: tu firma actual cubre ${LIMITE_PAGOS_FIRMA} pagos y luego deberás registrarla de nuevo.`,
+        "Necesitamos que registres tu firma otra vez",
+        "Tu firma digital es permanente, pero en este caso necesitamos que la registres de nuevo. Pasa por Administración o pide ayuda desde Soporte.",
         { etiqueta: "Firma digital", enlace: "/perfil", enlaceTexto: "Ver mi perfil" },
       );
-      await cargar();
       return { ok: true };
     },
-    [crearAviso, cargar],
+    [crearAviso],
   );
 
   /** Otorga o retira la insignia de verificación (solo Administración / RR.HH.). */
@@ -885,35 +857,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [crearAviso, cargar],
   );
 
-  /** Descuenta un pago de la vigencia de la firma y avisa cuando toca volver a firmar. */
-  const consumirFirma = useCallback(
-    async (id: string): Promise<Resultado> => {
-      const c = colaboradores.find((x) => x.id === id);
-      if (!c || !c.firma || c.firmaPermanente) return { ok: true };
-      const restantes = Math.max(0, c.firmaPagosRestantes - 1);
-      const { error } = await supabase
-        .from("perfiles")
-        .update({ firma_pagos_restantes: restantes } as never)
-        .eq("id", id);
-      if (error) return { ok: false, error: error.message };
-      if (restantes === 0) {
-        await crearAviso(
-          id,
-          "Debes registrar tu firma nuevamente",
-          `Tu firma digital cubrió ${c.firmaLimitePagos} pagos y venció. Registra una firma nueva para seguir recibiendo tus volantes de pago firmados.`,
-        );
-      } else if (restantes === 1) {
-        await crearAviso(
-          id,
-          "Tu firma digital vence en el próximo pago",
-          "Después del siguiente pago deberás registrar tu firma de nuevo, salvo que autorices dejar la misma siempre.",
-        );
-      }
-      await cargar();
-      return { ok: true };
-    },
-    [colaboradores, crearAviso, cargar],
-  );
+  /** La firma es permanente: no se descuenta vigencia por pago. */
+  const consumirFirma = useCallback(async (_id: string): Promise<Resultado> => ({ ok: true }), []);
   consumirFirmaRef.current = consumirFirma;
 
   const crearTicket = useCallback(
@@ -1176,7 +1121,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     actualizarPago,
     guardarFirma,
     borrarFirma,
-    firmaPermanente,
+    pedirRenovarFirma,
     verificar,
     consumirFirma,
     enviarAvisoManual,
