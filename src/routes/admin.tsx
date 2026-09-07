@@ -378,10 +378,10 @@ function Firmas() {
                   <p className="font-semibold uppercase">Compromiso de firma digital</p>
                   <p className="mt-1 text-muted-foreground">
                     {c.nombre || "El colaborador"} autoriza a IVAD SRL a usar esta firma digital en
-                    el espacio de “Recibí conforme” de sus volantes de pago, y acepta que la firma
-                    tiene vigencia de <strong>{LIMITE_PAGOS_FIRMA} pagos</strong>; al agotarse se le
-                    solicitará registrarla nuevamente. Si autoriza dejar siempre la misma firma, esta
-                    se mantendrá vigente hasta que él mismo o Administración la revoque.
+                    el espacio de “Recibí conforme” de sus volantes de pago y documentos personales.
+                    La firma queda <strong>permanente</strong>: se mantiene vigente hasta que él
+                    mismo o Administración la revoque. Si en algún caso hace falta renovarla, se le
+                    avisará por el portal.
                   </p>
                   <label className="mt-2 flex items-start gap-2">
                     <Checkbox
@@ -390,17 +390,6 @@ function Firmas() {
                       className="mt-0.5"
                     />
                     <span>Leí y acepto el compromiso de firma digital.</span>
-                  </label>
-                  <label className="mt-2 flex items-start gap-2">
-                    <Checkbox
-                      checked={siempre}
-                      onCheckedChange={(v) => setSiempre(v === true)}
-                      className="mt-0.5"
-                    />
-                    <span>
-                      Autorizo dejar siempre la misma firma (sin renovarla cada{" "}
-                      {LIMITE_PAGOS_FIRMA} pagos).
-                    </span>
                   </label>
                 </div>
                 <FirmaPad
@@ -412,14 +401,17 @@ function Firmas() {
                       return;
                     }
                     setGuardando(true);
-                    const r = await guardarFirma(c.id, dataUrl, { permanente: siempre });
+                    const r = await guardarFirma(c.id, dataUrl);
                     setGuardando(false);
                     if (r.ok) {
-                      toast.success(
-                        siempre
-                          ? `Firma de ${c.nombre} guardada como permanente`
-                          : `Firma de ${c.nombre} guardada, válida por ${LIMITE_PAGOS_FIRMA} pagos`,
-                      );
+                      toast.success(`Firma de ${c.nombre} guardada de forma permanente`);
+                      setActivo(null);
+                    } else {
+                      toast.error(r.error ?? "No se pudo guardar la firma");
+                    }
+                  }}
+                />
+
                       setActivo(null);
                     } else {
                       toast.error(r.error ?? "No se pudo guardar la firma");
