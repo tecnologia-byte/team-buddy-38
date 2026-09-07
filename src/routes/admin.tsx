@@ -411,13 +411,6 @@ function Firmas() {
                     }
                   }}
                 />
-
-                      setActivo(null);
-                    } else {
-                      toast.error(r.error ?? "No se pudo guardar la firma");
-                    }
-                  }}
-                />
               </div>
             ) : null}
 
