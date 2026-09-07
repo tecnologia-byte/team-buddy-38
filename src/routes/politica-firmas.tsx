@@ -60,9 +60,10 @@ function PoliticaFirmas() {
               terceros. Solo la ven las personas de Administración y Contabilidad que emiten tus
               documentos.
             </Punto>
-            <Punto icon={FileSignature} titulo="Vigencia limitada">
-              Cada firma es válida hasta <strong>3 pagos</strong>. Al agotarse debes registrarla de
-              nuevo, salvo que hayas autorizado expresamente dejarla de forma permanente.
+            <Punto icon={FileSignature} titulo="Vigencia permanente">
+              Tu firma queda registrada de forma <strong>permanente</strong>, así no tienes que
+              firmar en cada pago. Si en algún caso hace falta renovarla, te lo notificaremos por el
+              portal.
             </Punto>
           </div>
         </section>

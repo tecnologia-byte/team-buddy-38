@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, FileSignature } from "lucide-react";
 import { AppShell, AppHeader } from "@/components/app-shell";
 import { notificaciones } from "@/lib/data";
 import { usePortal } from "@/lib/portal-store";
@@ -31,17 +31,31 @@ function Notificaciones() {
     <AppShell>
       <AppHeader titulo="Notificaciones" />
       <div className="space-y-3 px-4 py-5">
-        {misAvisos.map((a) => (
-          <article key={a.id} className="surface-card flex items-center gap-3 p-4">
-            <div className="min-w-0 flex-1">
-              <p className="font-display font-bold text-foreground">{a.titulo}</p>
-              <p className="text-sm text-muted-foreground">{a.detalle}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{a.fecha}</p>
-            </div>
-            {a.nuevo ? <span className="h-2.5 w-2.5 rounded-full bg-accent" /> : null}
-            <ChevronRight className="h-5 w-5 text-primary" />
-          </article>
-        ))}
+        {misAvisos.map((a) => {
+          const esPolitica = /política/i.test(a.titulo);
+          return (
+            <article key={a.id} className="surface-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-display font-bold text-foreground">{a.titulo}</p>
+                  <p className="text-sm text-muted-foreground">{a.detalle}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{a.fecha}</p>
+                </div>
+                {a.nuevo ? <span className="h-2.5 w-2.5 rounded-full bg-accent" /> : null}
+                {esPolitica ? null : <ChevronRight className="h-5 w-5 text-primary" />}
+              </div>
+              {esPolitica ? (
+                <Link
+                  to="/politica-firmas"
+                  className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  <FileSignature className="h-4 w-4" />
+                  Ver las políticas de firma
+                </Link>
+              ) : null}
+            </article>
+          );
+        })}
         {notificaciones.map((n) => (
           <article key={n.titulo} className="surface-card flex items-center gap-3 p-4">
             <div className="min-w-0 flex-1">

@@ -160,22 +160,16 @@ export function VolanteEditor() {
             {colaboradores.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nombre}
-                {!c.firma
-                  ? " · sin firma"
-                  : c.firmaPermanente
-                    ? " · firma permanente"
-                    : c.firmaPagosRestantes > 0
-                      ? ` · firma válida para ${c.firmaPagosRestantes} pago(s)`
-                      : " · firma vencida, hay que recogerla otra vez"}
+                {c.firma ? " · firma permanente" : " · sin firma"}
               </option>
             ))}
           </select>
         </div>
 
-        {elegido && elegido.firma && !firmaVigente(elegido) ? (
+        {elegido && !elegido.firma ? (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
-            La firma de {elegido.nombre} cubrió sus {elegido.firmaLimitePagos} pagos y venció: recógela
-            de nuevo en la pestaña Firmas para que aparezca en el volante.
+            {elegido.nombre} todavía no tiene firma registrada: recógela en la pestaña Firmas para
+            que aparezca en el volante.
           </p>
         ) : null}
 
