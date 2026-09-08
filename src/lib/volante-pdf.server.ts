@@ -249,13 +249,19 @@ export async function volantePdfBase64(d: VolanteCorreo): Promise<string> {
     font: normal,
     color: GRIS,
   });
-  pagina.drawText("Administración & Gestión Humana", {
-    x: width - M - anchoFirma,
-    y,
-    size: 8,
-    font: normal,
-    color: GRIS,
-  });
+  pagina.drawText(
+    d.firmaEmpresaNombre
+      ? `${d.firmaEmpresaNombre}${d.firmaEmpresaCargo ? ` · ${d.firmaEmpresaCargo}` : ""}`
+      : "Administración & Gestión Humana",
+    {
+      x: width - M - anchoFirma,
+      y,
+      size: 8,
+      font: normal,
+      color: GRIS,
+    },
+  );
+
   if (d.firmaFecha) {
     y -= 10;
     pagina.drawText(`Firma digital registrada el ${d.firmaFecha}`, {
