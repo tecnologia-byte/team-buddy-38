@@ -7,10 +7,10 @@ import {
   Inbox,
   Plus,
 } from "lucide-react";
-import { AppShell, AppHeader, SectionTitle } from "@/components/app-shell";
+import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { tiposSolicitud } from "@/lib/derechos";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, type Colaborador } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/solicitudes/")({
   head: () => ({
@@ -169,5 +169,43 @@ function Solicitudes() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+/** Muestra la respuesta de la solicitud con la foto y el nombre de quien respondió. */
+function Respuesta({
+  respuesta,
+  quien,
+  estado,
+}: {
+  respuesta?: string | undefined;
+  quien?: Colaborador | undefined;
+  estado: string;
+}) {
+  const primerNombre = quien?.nombre.split(" ")[0] ?? "Recursos Humanos";
+  const accion =
+    estado === "Aprobada"
+      ? "aprobó tu solicitud"
+      : estado === "Rechazada"
+        ? "rechazó tu solicitud"
+        : "respondió tu solicitud";
+
+  return (
+    <div className="mt-2 rounded-lg bg-muted p-2.5">
+      <div className="flex items-center gap-2">
+        <Avatar iniciales={quien?.iniciales ?? "RH"} size="sm" foto={quien?.foto} />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">
+            {primerNombre} {accion}
+          </p>
+          {quien ? (
+            <p className="truncate text-[11px] text-muted-foreground">
+              {quien.nombre} · {quien.cargo}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      {respuesta ? <p className="mt-2 text-xs text-foreground">{respuesta}</p> : null}
+    </div>
   );
 }
