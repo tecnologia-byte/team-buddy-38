@@ -12,7 +12,9 @@ import {
   type LineaVolante,
 } from "@/components/volante-pago";
 import { enviarReciboFn } from "@/lib/correo.functions";
+import { FirmaPad } from "@/components/firma-pad";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
+
 
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 const fechaCorta = (d: Date) => `${dosDigitos(d.getDate())}/${dosDigitos(d.getMonth() + 1)}/${d.getFullYear()}`;
@@ -49,8 +51,14 @@ export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
+  const [firmante, setFirmante] = useState("");
   const [enviando, setEnviando] = useState(false);
   const elegido = colaboradores.find((c) => c.id === seleccion);
+  const gestores = colaboradores.filter(
+    (c) =>
+      c.rol === "Administrador" || c.rol === "Recursos Humanos" || c.rol === "Contabilidad",
+  );
+
 
   // Numeración y fechas automáticas al abrir la plantilla.
   useEffect(() => {
@@ -60,6 +68,8 @@ export function VolanteEditor() {
   const nuevoVolante = () => {
     setDatos({ ...volanteVacio, ...datosAutomaticos() });
     setSeleccion("");
+    setFirmante("");
+
   };
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
@@ -125,6 +135,10 @@ export function VolanteEditor() {
           deducciones: limpiar(datos.deducciones),
           ...(datos.firma ? { firma: datos.firma } : {}),
           ...(datos.firmaFecha ? { firmaFecha: datos.firmaFecha } : {}),
+          ...(datos.firmaEmpresa ? { firmaEmpresa: datos.firmaEmpresa } : {}),
+          ...(datos.firmaEmpresaNombre ? { firmaEmpresaNombre: datos.firmaEmpresaNombre } : {}),
+          ...(datos.firmaEmpresaCargo ? { firmaEmpresaCargo: datos.firmaEmpresaCargo } : {}),
+
         },
       });
       if (res.ok) toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
@@ -172,6 +186,48 @@ export function VolanteEditor() {
             que aparezca en el volante.
           </p>
         ) : null}
+
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label htmlFor="volante-firmante">Firma por IVAD SRL (Administración y Gestión Humana)</Label>
+          <select
+            id="volante-firmante"
+            value={firmante}
+            onChange={(e) => {
+              const id = e.target.value;
+              setFirmante(id);
+              const g = gestores.find((x) => x.id === id);
+              setDatos((d) => ({
+                ...d,
+                firmaEmpresa: g?.firma,
+                firmaEmpresaNombre: g?.nombre,
+                firmaEmpresaCargo: g?.cargo,
+              }));
+            }}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Selecciona quién firma por la empresa…</option>
+            {gestores.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nombre} · {g.rol}
+                {g.firma ? "" : " · sin firma"}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Si la persona ya tiene su firma registrada, se coloca sola en el espacio de “Por IVAD
+            SRL”. Si no, puede firmar aquí mismo para este volante.
+          </p>
+          {firmante && !gestores.find((g) => g.id === firmante)?.firma ? (
+            <FirmaPad
+              etiqueta="Usar esta firma en el volante"
+              onGuardar={(dataUrl) => {
+                setDatos((d) => ({ ...d, firmaEmpresa: dataUrl }));
+                toast.success("Firma agregada al volante");
+              }}
+            />
+          ) : null}
+        </div>
+
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo

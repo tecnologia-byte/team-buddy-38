@@ -7,10 +7,10 @@ import {
   Inbox,
   Plus,
 } from "lucide-react";
-import { AppShell, AppHeader, SectionTitle } from "@/components/app-shell";
+import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { tiposSolicitud } from "@/lib/derechos";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, type Colaborador } from "@/lib/portal-store";
 
 export const Route = createFileRoute("/solicitudes/")({
   head: () => ({
@@ -41,7 +41,9 @@ export const tonoEstado: Record<string, string> = {
 };
 
 function Solicitudes() {
-  const { misSolicitudes, solicitudesPendientes, esRRHH, cancelarSolicitud } = usePortal();
+  const { misSolicitudes, solicitudesPendientes, esRRHH, cancelarSolicitud, colaboradores } =
+    usePortal();
+
 
   return (
     <AppShell>
@@ -135,11 +137,14 @@ function Solicitudes() {
                       {s.motivo ? (
                         <p className="mt-1 text-sm text-foreground">{s.motivo}</p>
                       ) : null}
-                      {s.respuesta ? (
-                        <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">
-                          Respuesta de RR.HH.: {s.respuesta}
-                        </p>
+                      {s.respuesta || s.respondidoPor ? (
+                        <Respuesta
+                          respuesta={s.respuesta}
+                          quien={colaboradores.find((c) => c.id === s.respondidoPor)}
+                          estado={s.estado}
+                        />
                       ) : null}
+
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${tonoEstado[s.estado]}`}
@@ -164,5 +169,43 @@ function Solicitudes() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+/** Muestra la respuesta de la solicitud con la foto y el nombre de quien respondió. */
+function Respuesta({
+  respuesta,
+  quien,
+  estado,
+}: {
+  respuesta?: string | undefined;
+  quien?: Colaborador | undefined;
+  estado: string;
+}) {
+  const primerNombre = quien?.nombre.split(" ")[0] ?? "Recursos Humanos";
+  const accion =
+    estado === "Aprobada"
+      ? "aprobó tu solicitud"
+      : estado === "Rechazada"
+        ? "rechazó tu solicitud"
+        : "respondió tu solicitud";
+
+  return (
+    <div className="mt-2 rounded-lg bg-muted p-2.5">
+      <div className="flex items-center gap-2">
+        <Avatar iniciales={quien?.iniciales ?? "RH"} size="sm" foto={quien?.foto} />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">
+            {primerNombre} {accion}
+          </p>
+          {quien ? (
+            <p className="truncate text-[11px] text-muted-foreground">
+              {quien.nombre} · {quien.cargo}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      {respuesta ? <p className="mt-2 text-xs text-foreground">{respuesta}</p> : null}
+    </div>
   );
 }
