@@ -41,7 +41,9 @@ export const tonoEstado: Record<string, string> = {
 };
 
 function Solicitudes() {
-  const { misSolicitudes, solicitudesPendientes, esRRHH, cancelarSolicitud } = usePortal();
+  const { misSolicitudes, solicitudesPendientes, esRRHH, cancelarSolicitud, colaboradores } =
+    usePortal();
+
 
   return (
     <AppShell>
@@ -135,11 +137,14 @@ function Solicitudes() {
                       {s.motivo ? (
                         <p className="mt-1 text-sm text-foreground">{s.motivo}</p>
                       ) : null}
-                      {s.respuesta ? (
-                        <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">
-                          Respuesta de RR.HH.: {s.respuesta}
-                        </p>
+                      {s.respuesta || s.respondidoPor ? (
+                        <Respuesta
+                          respuesta={s.respuesta}
+                          quien={colaboradores.find((c) => c.id === s.respondidoPor)}
+                          estado={s.estado}
+                        />
                       ) : null}
+
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${tonoEstado[s.estado]}`}
