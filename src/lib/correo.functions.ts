@@ -42,6 +42,10 @@ const volanteSchema = z.object({
   deducciones: z.array(lineaSchema).max(20).default([]),
   firma: z.string().max(400000).optional(),
   firmaFecha: z.string().max(40).optional(),
+  firmaEmpresa: z.string().max(400000).optional(),
+  firmaEmpresaNombre: z.string().max(120).optional(),
+  firmaEmpresaCargo: z.string().max(120).optional(),
+
 });
 
 /** Envía el recibo/volante de pago al colaborador desde nomina@ivadsrl.com, con el documento adjunto. */

@@ -19,6 +19,10 @@ export type VolanteCorreo = {
   deducciones: LineaCorreo[];
   firma?: string | undefined;
   firmaFecha?: string | undefined;
+  firmaEmpresa?: string | undefined;
+  firmaEmpresaNombre?: string | undefined;
+  firmaEmpresaCargo?: string | undefined;
+
 };
 
 const esc = (t: string) =>
