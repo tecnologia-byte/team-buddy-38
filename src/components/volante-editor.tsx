@@ -187,6 +187,48 @@ export function VolanteEditor() {
           </p>
         ) : null}
 
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label htmlFor="volante-firmante">Firma por IVAD SRL (Administración y Gestión Humana)</Label>
+          <select
+            id="volante-firmante"
+            value={firmante}
+            onChange={(e) => {
+              const id = e.target.value;
+              setFirmante(id);
+              const g = gestores.find((x) => x.id === id);
+              setDatos((d) => ({
+                ...d,
+                firmaEmpresa: g?.firma,
+                firmaEmpresaNombre: g?.nombre,
+                firmaEmpresaCargo: g?.cargo,
+              }));
+            }}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Selecciona quién firma por la empresa…</option>
+            {gestores.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nombre} · {g.rol}
+                {g.firma ? "" : " · sin firma"}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Si la persona ya tiene su firma registrada, se coloca sola en el espacio de “Por IVAD
+            SRL”. Si no, puede firmar aquí mismo para este volante.
+          </p>
+          {firmante && !gestores.find((g) => g.id === firmante)?.firma ? (
+            <FirmaPad
+              etiqueta="Usar esta firma en el volante"
+              onGuardar={(dataUrl) => {
+                setDatos((d) => ({ ...d, firmaEmpresa: dataUrl }));
+                toast.success("Firma agregada al volante");
+              }}
+            />
+          ) : null}
+        </div>
+
+
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo
             label="Comprobante No. (automático)"
