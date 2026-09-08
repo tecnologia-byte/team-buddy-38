@@ -51,8 +51,14 @@ export function VolanteEditor() {
   const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
+  const [firmante, setFirmante] = useState("");
   const [enviando, setEnviando] = useState(false);
   const elegido = colaboradores.find((c) => c.id === seleccion);
+  const gestores = colaboradores.filter(
+    (c) =>
+      c.rol === "Administrador" || c.rol === "Recursos Humanos" || c.rol === "Contabilidad",
+  );
+
 
   // Numeración y fechas automáticas al abrir la plantilla.
   useEffect(() => {
