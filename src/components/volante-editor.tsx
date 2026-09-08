@@ -68,6 +68,8 @@ export function VolanteEditor() {
   const nuevoVolante = () => {
     setDatos({ ...volanteVacio, ...datosAutomaticos() });
     setSeleccion("");
+    setFirmante("");
+
   };
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
@@ -133,6 +135,10 @@ export function VolanteEditor() {
           deducciones: limpiar(datos.deducciones),
           ...(datos.firma ? { firma: datos.firma } : {}),
           ...(datos.firmaFecha ? { firmaFecha: datos.firmaFecha } : {}),
+          ...(datos.firmaEmpresa ? { firmaEmpresa: datos.firmaEmpresa } : {}),
+          ...(datos.firmaEmpresaNombre ? { firmaEmpresaNombre: datos.firmaEmpresaNombre } : {}),
+          ...(datos.firmaEmpresaCargo ? { firmaEmpresaCargo: datos.firmaEmpresaCargo } : {}),
+
         },
       });
       if (res.ok) toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
