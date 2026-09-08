@@ -93,6 +93,15 @@ export function volanteHtml(d: VolanteCorreo) {
         </div>
         <div style="font-size:11px;color:#0d1b2a;">${esc(d.nombre)}${d.firmaFecha ? ` · firma registrada el ${esc(d.firmaFecha)}` : ""}</div>
       </div>
+
+      <div style="margin-top:24px;text-align:center;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#5a6c82;">Por IVAD SRL</div>
+        <div style="height:70px;border-bottom:1px solid #0d1b2a;margin:6px auto 4px;max-width:300px;">
+          ${d.firmaEmpresa ? `<img src="${d.firmaEmpresa}" alt="Firma por IVAD SRL" style="max-height:68px;display:block;margin:0 auto;" />` : ""}
+        </div>
+        <div style="font-size:11px;color:#0d1b2a;">${esc(d.firmaEmpresaNombre ?? "Administración & Gestión Humana")}${d.firmaEmpresaCargo ? ` · ${esc(d.firmaEmpresaCargo)}` : ""}</div>
+      </div>
+
     </div>
   </div>
 </body></html>`;
