@@ -12,7 +12,9 @@ import {
   type LineaVolante,
 } from "@/components/volante-pago";
 import { enviarReciboFn } from "@/lib/correo.functions";
+import { FirmaPad } from "@/components/firma-pad";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
+
 
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 const fechaCorta = (d: Date) => `${dosDigitos(d.getDate())}/${dosDigitos(d.getMonth() + 1)}/${d.getFullYear()}`;
