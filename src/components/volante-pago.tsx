@@ -20,6 +20,10 @@ export type DatosVolante = {
   deducciones: LineaVolante[];
   firma?: string | undefined;
   firmaFecha?: string | undefined;
+  firmaEmpresa?: string | undefined;
+  firmaEmpresaNombre?: string | undefined;
+  firmaEmpresaCargo?: string | undefined;
+
 };
 
 export const volanteVacio: DatosVolante = {
@@ -161,12 +165,26 @@ export function VolantePago({ datos }: { datos: DatosVolante }) {
           </div>
         </div>
         <div className="text-center">
-          <div className="h-16" />
+          <div className="flex h-16 items-end justify-center">
+            {datos.firmaEmpresa ? (
+              <img
+                src={datos.firmaEmpresa}
+                alt={`Firma de ${datos.firmaEmpresaNombre ?? "Administración & Gestión Humana"}`}
+                className="max-h-16 object-contain"
+              />
+            ) : null}
+          </div>
           <div className="border-t border-foreground/60 pt-1">
             <p className="font-semibold uppercase">Por IVAD SRL</p>
-            <p className="text-[10px] text-foreground">Administración &amp; Gestión Humana</p>
+            <p className="text-[10px] text-foreground">
+              {datos.firmaEmpresaNombre || "Administración & Gestión Humana"}
+            </p>
+            <p className="text-[10px] text-foreground">
+              {datos.firmaEmpresaCargo || "Administración & Gestión Humana"}
+            </p>
           </div>
         </div>
+
       </div>
     </div>
   );
