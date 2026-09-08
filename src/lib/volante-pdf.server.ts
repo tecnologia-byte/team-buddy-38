@@ -203,6 +203,23 @@ export async function volantePdfBase64(d: VolanteCorreo): Promise<string> {
   }
 
   const anchoFirma = 200;
+
+  // Firma por IVAD SRL (Administración y Gestión Humana)
+  if (d.firmaEmpresa?.startsWith("data:image/png;base64,")) {
+    try {
+      const png = await pdf.embedPng(d.firmaEmpresa);
+      const escala = Math.min(150 / png.width, 52 / png.height);
+      pagina.drawImage(png, {
+        x: width - M - anchoFirma + 10,
+        y: y + 6,
+        width: png.width * escala,
+        height: png.height * escala,
+      });
+    } catch {
+      // firma inválida: se deja el espacio en blanco
+    }
+  }
+
   pagina.drawLine({
     start: { x: M, y },
     end: { x: M + anchoFirma, y },
