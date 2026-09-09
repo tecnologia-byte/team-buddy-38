@@ -39,6 +39,8 @@ export type Colaborador = Empleado & {
   firmaPermanente: boolean;
   firmaConsentimiento?: string | undefined;
   verificado: boolean;
+  /** Solo el personal autorizado de nómina puede ver y emitir volantes de pago. */
+  accesoNomina: boolean;
   claveProvisional: boolean;
   /** Clave provisional en texto, visible solo para Administración, RR.HH. y Contabilidad. */
   claveProvisionalTexto?: string | undefined;
@@ -153,6 +155,8 @@ type Contexto = {
   colaboradorActual?: Colaborador | undefined;
   esAdmin: boolean;
   esRRHH: boolean;
+  /** Acceso a la información confidencial de nómina y volantes de pago. */
+  esNomina: boolean;
   esContable: boolean;
   fotosPendientes: Colaborador[];
   misAvisos: Aviso[];
@@ -267,6 +271,7 @@ type FilaPerfil = {
   correo_alterno?: string | null;
   whatsapp?: string | null;
   canal_avisos?: string | null;
+  acceso_nomina?: boolean | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
@@ -297,6 +302,7 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   correoAlterno: p.correo_alterno ?? undefined,
   whatsapp: p.whatsapp ?? "",
   canalAvisos: ((p.canal_avisos as CanalAvisos) ?? "correo") satisfies CanalAvisos,
+  accesoNomina: Boolean(p.acceso_nomina),
   rol,
 });
 
