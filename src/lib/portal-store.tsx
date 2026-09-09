@@ -1097,6 +1097,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       sesion.rol === "Recursos Humanos" ||
       sesion.rol === "Contabilidad",
     esContable: sesion.rol === "Administrador" || sesion.rol === "Contabilidad",
+    esNomina: Boolean(colaboradorActual?.accesoNomina),
     fotosPendientes: colaboradores.filter((c) => c.estadoFoto === "pendiente"),
     misAvisos: avisos.filter((a) => a.para === sesion.email),
     tickets,
