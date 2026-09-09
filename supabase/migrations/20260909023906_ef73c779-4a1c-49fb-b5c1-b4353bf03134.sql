@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.es_nomina(uuid) FROM PUBLIC;

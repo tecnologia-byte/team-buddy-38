@@ -110,6 +110,7 @@ export type Database = {
       }
       perfiles: {
         Row: {
+          acceso_nomina: boolean
           area: string
           canal_avisos: string
           cargo: string
@@ -141,6 +142,7 @@ export type Database = {
           whatsapp: string
         }
         Insert: {
+          acceso_nomina?: boolean
           area?: string
           canal_avisos?: string
           cargo?: string
@@ -172,6 +174,7 @@ export type Database = {
           whatsapp?: string
         }
         Update: {
+          acceso_nomina?: boolean
           area?: string
           canal_avisos?: string
           cargo?: string
@@ -422,6 +425,7 @@ export type Database = {
       }
       es_contable: { Args: { _user_id: string }; Returns: boolean }
       es_gestor: { Args: { _user_id: string }; Returns: boolean }
+      es_nomina: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

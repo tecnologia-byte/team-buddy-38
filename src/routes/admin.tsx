@@ -52,7 +52,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
-  const { esAdmin, esContable, sesion } = usePortal();
+  const { esAdmin, esContable, esNomina, sesion } = usePortal();
 
   if (!esAdmin && !esContable) {
     return (
@@ -80,10 +80,12 @@ function Admin() {
     <AppShell>
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
-        <Tabs defaultValue="contabilidad">
-          <TabsList className="grid w-full grid-cols-3 print:hidden">
-            <TabsTrigger value="contabilidad">Nómina</TabsTrigger>
-            <TabsTrigger value="volante">Volante</TabsTrigger>
+        <Tabs defaultValue={esNomina ? "contabilidad" : "firmas"}>
+          <TabsList
+            className={`grid w-full print:hidden ${esNomina ? "grid-cols-3" : "grid-cols-1"}`}
+          >
+            {esNomina ? <TabsTrigger value="contabilidad">Nómina</TabsTrigger> : null}
+            {esNomina ? <TabsTrigger value="volante">Volante</TabsTrigger> : null}
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
           </TabsList>
           {esAdmin ? (
@@ -103,13 +105,16 @@ function Admin() {
             </>
           ) : null}
 
-
-          <TabsContent value="contabilidad" className="mt-4">
-            <Contabilidad />
-          </TabsContent>
-          <TabsContent value="volante" className="mt-4">
-            <VolanteEditor />
-          </TabsContent>
+          {esNomina ? (
+            <>
+              <TabsContent value="contabilidad" className="mt-4">
+                <Contabilidad />
+              </TabsContent>
+              <TabsContent value="volante" className="mt-4">
+                <VolanteEditor />
+              </TabsContent>
+            </>
+          ) : null}
           <TabsContent value="firmas" className="mt-4">
             <Firmas />
           </TabsContent>

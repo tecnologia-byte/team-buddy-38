@@ -74,13 +74,13 @@ const vacio: Borrador = {
 };
 
 function GestionColaboradores() {
-  const { esRRHH, esContable, sesion, colaboradores, guardarColaborador, eliminarColaborador } =
+  const { esRRHH, esNomina, sesion, colaboradores, guardarColaborador, eliminarColaborador } =
     usePortal();
   const [busqueda, setBusqueda] = useState("");
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
-  if (!esRRHH && !esContable) {
+  if (!esRRHH) {
     return (
       <AppShell>
         <AppHeader titulo="Colaboradores" subtitulo="Acceso restringido" volver />
@@ -120,7 +120,7 @@ function GestionColaboradores() {
     const { salario, ...resto } = r.data;
     const res = await guardarColaborador({
       ...resto,
-      ...(esContable ? { salario } : {}),
+      ...(esNomina ? { salario } : {}),
       estado: borrador.estado,
       id: borrador.id,
     });
@@ -270,7 +270,7 @@ function GestionColaboradores() {
                 error={errores["telefono"]}
                 onChange={(v) => setBorrador({ ...borrador, telefono: v })}
               />
-              {esContable ? (
+              {esNomina ? (
                 <Campo
                   id="salario"
                   label="Salario mensual (RD$)"
@@ -280,7 +280,7 @@ function GestionColaboradores() {
                 />
               ) : (
                 <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
-                  El salario solo lo administra Contabilidad.
+                  El salario solo lo administra el personal autorizado de nómina.
                 </p>
               )}
               <div className="space-y-2">
