@@ -1,6 +1,7 @@
 /** Genera el recibo de pago de IVAD en PDF (solo servidor). */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { VolanteCorreo } from "./volante-correo.server";
+import { LOGO_IVAD_PNG_BASE64 } from "./logo-pdf";
 import { pesosCorreo } from "./volante-correo.server";
 
 const NAVY = rgb(0.07, 0.135, 0.239);
@@ -22,22 +23,33 @@ export async function volantePdfBase64(d: VolanteCorreo): Promise<string> {
 
   // Encabezado
   pagina.drawRectangle({ x: 0, y: height - 96, width, height: 96, color: NAVY });
+  // Logo de IVAD dentro del encabezado, igual que en el volante en pantalla.
+  let M2 = M;
+  try {
+    const logo = await pdf.embedPng(`data:image/png;base64,${LOGO_IVAD_PNG_BASE64}`);
+    const alto = 56;
+    const ancho = (logo.width / logo.height) * alto;
+    pagina.drawImage(logo, { x: M, y: height - 96 + (96 - alto) / 2, width: ancho, height: alto });
+    M2 = M + ancho + 14;
+  } catch {
+    // si el logo no se puede incrustar, el encabezado queda solo con el texto
+  }
   pagina.drawText("IVAD HOME & GOODS, SRL", {
-    x: M,
+    x: M2,
     y: height - 44,
     size: 16,
     font: negrita,
     color: rgb(1, 1, 1),
   });
   pagina.drawText("RNC: 102334112  ·  Ave. 27 de Febrero #142, Santiago de los Caballeros, R.D.", {
-    x: M,
+    x: M2,
     y: height - 60,
     size: 8.5,
     font: normal,
     color: rgb(0.85, 0.88, 0.93),
   });
   pagina.drawText("VOLANTE OFICIAL DE PAGO DE NOMINA", {
-    x: M,
+    x: M2,
     y: height - 80,
     size: 10,
     font: negrita,
