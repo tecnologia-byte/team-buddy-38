@@ -48,7 +48,7 @@ const datosAutomaticos = () => {
 
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
 export function VolanteEditor() {
-  const { colaboradores } = usePortal();
+  const { colaboradores, enviarAvisoManual } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
   const [firmante, setFirmante] = useState("");
@@ -141,8 +141,23 @@ export function VolanteEditor() {
 
         },
       });
-      if (res.ok) toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
-      else toast.error(res.error ?? "No se pudo enviar el recibo");
+      if (res.ok) {
+        // Aviso dentro del portal, además del correo con el PDF adjunto.
+        const bruto = limpiar(datos.ingresos).reduce((t, l) => t + l.monto, 0);
+        const deducido = limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
+        const neto = (bruto - deducido).toLocaleString("es-DO", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        await enviarAvisoManual({
+          destino: elegido.id,
+          titulo: `Volante de pago ${datos.comprobante}`,
+          detalle:
+            `Se registró tu pago del período ${datos.periodoDesde} al ${datos.periodoHasta}. ` +
+            `Neto recibido: RD$ ${neto}. Te enviamos el volante en PDF a ${elegido.email}.`,
+        }).catch(() => undefined);
+        toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
+      } else toast.error(res.error ?? "No se pudo enviar el recibo");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo enviar el recibo");
     } finally {
