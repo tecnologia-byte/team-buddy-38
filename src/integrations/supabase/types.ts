@@ -404,6 +404,82 @@ export type Database = {
         }
         Relationships: []
       }
+      volantes: {
+        Row: {
+          colaborador_id: string
+          comprobante: string
+          creado_por: string | null
+          created_at: string
+          datos: Json
+          enviado_at: string | null
+          enviado_por: string | null
+          error: string | null
+          estado: string
+          fecha_emision: string
+          id: string
+          neto: number
+          periodo_desde: string
+          periodo_hasta: string
+          updated_at: string
+        }
+        Insert: {
+          colaborador_id: string
+          comprobante?: string
+          creado_por?: string | null
+          created_at?: string
+          datos?: Json
+          enviado_at?: string | null
+          enviado_por?: string | null
+          error?: string | null
+          estado?: string
+          fecha_emision?: string
+          id?: string
+          neto?: number
+          periodo_desde?: string
+          periodo_hasta?: string
+          updated_at?: string
+        }
+        Update: {
+          colaborador_id?: string
+          comprobante?: string
+          creado_por?: string | null
+          created_at?: string
+          datos?: Json
+          enviado_at?: string | null
+          enviado_por?: string | null
+          error?: string | null
+          estado?: string
+          fecha_emision?: string
+          id?: string
+          neto?: number
+          periodo_desde?: string
+          periodo_hasta?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volantes_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volantes_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volantes_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
