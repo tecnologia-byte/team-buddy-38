@@ -105,7 +105,10 @@ export async function despacharVolante({
 
   // 2. Envío por WhatsApp si el canal es 'whatsapp' o 'ambos'
   if (canal === "whatsapp" || canal === "ambos") {
-    const numWa = (destino.whatsapp ?? "").replace(/\D/g, "");
+    let numWa = (destino.whatsapp ?? "").replace(/\D/g, "");
+    if (numWa.length === 10 && (numWa.startsWith("809") || numWa.startsWith("829") || numWa.startsWith("849"))) {
+      numWa = "1" + numWa;
+    }
     if (numWa && numWa.length >= 10) {
       const textoWa =
         `Hola ${volante.nombre}, se ha emitido tu recibo de pago de nómina.\n\n` +
@@ -137,7 +140,11 @@ export async function despacharVolante({
   }
 
   if (medios.length > 0) {
-    return { ok: true, medios };
+    return {
+      ok: true,
+      medios,
+      ...(errores.length > 0 ? { advertencia: errores.join("; ") } : {}),
+    };
   }
 
   return { ok: false, medios: [], error: errores.join("; ") || "No se pudo entregar por ningún canal" };

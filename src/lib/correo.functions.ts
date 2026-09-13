@@ -73,6 +73,7 @@ export const enviarReciboFn = createServerFn({ method: "POST" })
     return {
       ok: res.ok,
       medios: res.medios.join(" y "),
+      advertencia: res.advertencia,
       error: res.error,
     };
   });

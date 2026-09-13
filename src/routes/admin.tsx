@@ -314,10 +314,18 @@ function Contabilidad() {
                           await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
                           const res = await enviarReciboPago(p, c, puenteWhatsappUrl, puenteWhatsappToken).catch((e) => ({
                             ok: false as const,
+                            medios: "",
                             error: e instanceof Error ? e.message : "Error de envío",
                           }));
-                          if (res.ok) toast.success(`Recibo enviado por ${'medios' in res ? res.medios : 'Correo'} a ${c.nombre}`);
-                          else toast.error(res.error ?? "No se pudo enviar el recibo");
+                          if (res.ok) {
+                            if ("advertencia" in res && res.advertencia) {
+                              toast.warning(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "Correo"}, pero falló: ${res.advertencia}`);
+                            } else {
+                              toast.success(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "Correo"} a ${c.nombre}`);
+                            }
+                          } else {
+                            toast.error(res.error ?? "No se pudo enviar el recibo");
+                          }
                         }}
                       >
                         Enviar recibo

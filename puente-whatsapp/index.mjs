@@ -95,7 +95,16 @@ const leerCuerpo = (req) =>
     });
   });
 
-const numeroWa = (n) => `${String(n).replace(/\D/g, "")}@s.whatsapp.net`;
+function normalizarNumero(n) {
+  let num = String(n || "").replace(/\D/g, "");
+  // Si tiene 10 dígitos y es de República Dominicana (809, 829, 849), le agregamos el código de país 1
+  if (num.length === 10 && (num.startsWith("809") || num.startsWith("829") || num.startsWith("849"))) {
+    num = "1" + num;
+  }
+  return num;
+}
+
+const numeroWa = (n) => `${normalizarNumero(n)}@s.whatsapp.net`;
 
 createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -112,9 +121,13 @@ createServer(async (req, res) => {
 
   if (req.url === "/enviar" && req.method === "POST") {
     const { para, texto, documentoBase64, nombreArchivo, mimetype } = await leerCuerpo(req);
+    const jid = numeroWa(para);
+    console.log(`[Puente WhatsApp] Peticion de envio a: ${jid} (para original: "${para}", conectado=${estado.conectado}, documento=${Boolean(documentoBase64)})`);
+
     if (!estado.conectado) {
+      console.warn(`[Puente WhatsApp] Intento de envio fallido: WhatsApp no esta conectado.`);
       res.writeHead(409);
-      return res.end(JSON.stringify({ error: "WhatsApp no esta conectado" }));
+      return res.end(JSON.stringify({ error: "WhatsApp no esta conectado. Escanea el código QR en Administracion > WhatsApp." }));
     }
     try {
       if (documentoBase64) {
@@ -122,17 +135,22 @@ createServer(async (req, res) => {
           documentoBase64.replace(/^data:[^;]+;base64,/, ""),
           "base64",
         );
-        await sock.sendMessage(numeroWa(para), {
+        console.log(`[Puente WhatsApp] Enviando documento "${nombreArchivo}" (${buffer.length} bytes) a ${jid}...`);
+        await sock.sendMessage(jid, {
           document: buffer,
           mimetype: mimetype || "application/pdf",
           fileName: nombreArchivo || "documento.pdf",
           caption: texto ? String(texto) : undefined,
         });
+        console.log(`[Puente WhatsApp] Documento enviado exitosamente a ${jid}`);
       } else {
-        await sock.sendMessage(numeroWa(para), { text: String(texto ?? "") });
+        console.log(`[Puente WhatsApp] Enviando texto a ${jid}...`);
+        await sock.sendMessage(jid, { text: String(texto ?? "") });
+        console.log(`[Puente WhatsApp] Texto enviado exitosamente a ${jid}`);
       }
       return res.end(JSON.stringify({ ok: true }));
     } catch (e) {
+      console.error(`[Puente WhatsApp] Error al enviar a ${jid}:`, e.message);
       res.writeHead(500);
       return res.end(JSON.stringify({ error: e.message }));
     }
