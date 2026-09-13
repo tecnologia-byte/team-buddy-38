@@ -44,14 +44,14 @@ export const Route = createFileRoute("/rrhh/colaboradores")({
 });
 
 const esquema = z.object({
-  nombre: z.string().trim().min(3, "Nombre demasiado corto").max(80),
+  nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(80),
   cargo: z.string().trim().min(2, "Indica el cargo").max(80),
   area: z.string().trim().min(2, "Indica el área").max(60),
-  email: z.string().trim().email("Correo inválido").max(120),
-  telefono: z.string().trim().max(30),
-  whatsapp: z.string().trim().max(30),
-  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]),
-  salario: z.coerce.number().min(0).max(1000000),
+  email: z.string().trim().email("Correo electrónico inválido").max(120),
+  telefono: z.string().default(""),
+  whatsapp: z.string().default(""),
+  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
+  salario: z.coerce.number().min(0, "El salario no puede ser negativo").max(10000000),
 });
 
 type Borrador = {
@@ -85,6 +85,7 @@ function GestionColaboradores() {
   const [busqueda, setBusqueda] = useState("");
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [guardando, setGuardando] = useState(false);
 
   if (!esRRHH) {
     return (
@@ -112,7 +113,7 @@ function GestionColaboradores() {
   );
 
   const guardar = async () => {
-    if (!borrador) return;
+    if (!borrador || guardando) return;
     const r = esquema.safeParse(borrador);
     if (!r.success) {
       const errs: Record<string, string> = {};
@@ -120,22 +121,34 @@ function GestionColaboradores() {
         errs[String(i.path[0])] = i.message;
       });
       setErrores(errs);
+      const primerError = r.error.issues[0]?.message ?? "Por favor revisa los datos ingresados";
+      toast.error(primerError);
       return;
     }
     setErrores({});
-    const { salario, ...resto } = r.data;
-    const res = await guardarColaborador({
-      ...resto,
-      ...(esNomina ? { salario } : {}),
-      estado: borrador.estado,
-      id: borrador.id,
-    });
-    if (!res.ok) {
-      toast.error(res.error ?? "No se pudo guardar");
-      return;
+    setGuardando(true);
+    try {
+      const { salario, ...resto } = r.data;
+      const res = await guardarColaborador({
+        ...resto,
+        telefono: resto.telefono?.trim() ?? "",
+        whatsapp: resto.whatsapp?.replace(/\D/g, "") ?? "",
+        canalAvisos: resto.canalAvisos,
+        ...(esNomina ? { salario } : {}),
+        estado: borrador.estado,
+        id: borrador.id,
+      });
+      if (!res.ok) {
+        toast.error(res.error ?? "No se pudo guardar");
+        return;
+      }
+      toast.success("Colaborador actualizado con éxito");
+      setBorrador(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error inesperado al guardar");
+    } finally {
+      setGuardando(false);
     }
-    toast.success("Colaborador actualizado");
-    setBorrador(null);
   };
 
 
@@ -338,10 +351,12 @@ function GestionColaboradores() {
             </div>
           ) : null}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBorrador(null)}>
+            <Button variant="outline" disabled={guardando} onClick={() => setBorrador(null)}>
               Cancelar
             </Button>
-            <Button onClick={guardar}>Guardar</Button>
+            <Button disabled={guardando} onClick={guardar}>
+              {guardando ? "Guardando..." : "Guardar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
