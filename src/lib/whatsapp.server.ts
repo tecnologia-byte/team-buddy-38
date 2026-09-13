@@ -46,9 +46,26 @@ export async function estadoPuente(puente: string, token?: string): Promise<Esta
   };
 }
 
-/** Envía un mensaje de WhatsApp al número indicado (con código de país). */
-export async function enviarWhatsapp(puente: string, para: string, texto: string, token?: string) {
-  await llamar(puente, "/enviar", { para, texto }, token);
+/** Envía un mensaje o documento (PDF) de WhatsApp al número indicado (con código de país). */
+export async function enviarWhatsapp(
+  puente: string,
+  para: string,
+  texto: string,
+  token?: string,
+  doc?: { documentoBase64?: string; nombreArchivo?: string; mimetype?: string },
+) {
+  await llamar(
+    puente,
+    "/enviar",
+    {
+      para,
+      texto,
+      ...(doc?.documentoBase64 ? { documentoBase64: doc.documentoBase64 } : {}),
+      ...(doc?.nombreArchivo ? { nombreArchivo: doc.nombreArchivo } : {}),
+      ...(doc?.mimetype ? { mimetype: doc.mimetype } : {}),
+    },
+    token,
+  );
   return { ok: true as const };
 }
 

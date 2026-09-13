@@ -202,69 +202,36 @@ async function enviarReciboPago(
   puenteUrl?: string,
   puenteToken?: string,
 ) {
-  const canal = c.canalAvisos ?? "correo";
+  const canal = (c.canalAvisos ?? "correo") as "correo" | "whatsapp" | "ambos" | "ninguno";
   const comprobante = `IVAD-${pago.id.slice(0, 8).toUpperCase()}`;
-  const envios: string[] = [];
-  const errores: string[] = [];
 
-  // Envío por Correo si el canal es 'correo' o 'ambos'
-  if (canal === "correo" || canal === "ambos") {
-    if (c.email) {
-      const resCorreo = await enviarReciboFn({
-        data: {
-          para: c.email,
-          comprobante,
-          fechaEmision: new Date().toLocaleDateString("es-DO"),
-          periodoDesde: pago.periodo,
-          periodoHasta: pago.periodo,
-          nombre: c.nombre,
-          cargo: c.cargo,
-          departamento: c.area,
-          ingreso: c.ingreso,
-          ingresos: [{ concepto: "Salario neto del período", monto: pago.monto }],
-          deducciones: [],
-          ...(c.firma ? { firma: c.firma } : {}),
-          ...(c.firmaActualizada ? { firmaFecha: c.firmaActualizada } : {}),
-        },
-      }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "Error correo" }));
+  const res = await enviarReciboFn({
+    data: {
+      para: c.email || "",
+      whatsapp: c.whatsapp ?? undefined,
+      canalAvisos: canal,
+      puenteWhatsappUrl: puenteUrl,
+      puenteWhatsappToken: puenteToken,
+      comprobante,
+      fechaEmision: new Date().toLocaleDateString("es-DO"),
+      periodoDesde: pago.periodo,
+      periodoHasta: pago.periodo,
+      nombre: c.nombre,
+      cargo: c.cargo,
+      departamento: c.area,
+      ingreso: c.ingreso,
+      ingresos: [{ concepto: "Salario neto del período", monto: pago.monto }],
+      deducciones: [],
+      ...(c.firma ? { firma: c.firma } : {}),
+      ...(c.firmaActualizada ? { firmaFecha: c.firmaActualizada } : {}),
+    },
+  }).catch((e: unknown) => ({
+    ok: false as const,
+    medios: "",
+    error: e instanceof Error ? e.message : "Error al despachar el recibo",
+  }));
 
-      if (resCorreo.ok) envios.push("Correo");
-      else errores.push(`Correo: ${resCorreo.error}`);
-    } else {
-      errores.push("Sin correo registrado");
-    }
-  }
-
-  // Envío por WhatsApp si el canal es 'whatsapp' o 'ambos'
-  if (canal === "whatsapp" || canal === "ambos") {
-    const num = (c.whatsapp ?? "").replace(/\D/g, "");
-    if (num && num.length >= 10 && puenteUrl) {
-      const texto = `Hola ${c.nombre}, se ha emitido tu recibo de pago de nómina.\n\n` +
-        `Periodo: ${pago.periodo}\n` +
-        `Comprobante: ${comprobante}\n` +
-        `Monto neto: RD$ ${pesos(pago.monto)}\n\n` +
-        `Puedes consultar los detalles y descargar tu volante desde el Portal: https://personalivad.ivadsrl.com/nomina`;
-
-      const resWa = await enviarWhatsappFn({
-        data: {
-          puente: puenteUrl,
-          para: num,
-          texto,
-          token: puenteToken || "ivad-secret-token",
-        },
-      }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "Error WhatsApp" }));
-
-      if (resWa.ok) envios.push("WhatsApp");
-      else errores.push(`WhatsApp: ${resWa.error}`);
-    } else if (!num) {
-      errores.push("Sin número de WhatsApp");
-    }
-  }
-
-  if (envios.length > 0) {
-    return { ok: true as const, medios: envios.join(" y ") };
-  }
-  return { ok: false as const, error: errores.join("; ") || "No se pudo despachar el recibo" };
+  return res;
 }
 
 function Contabilidad() {

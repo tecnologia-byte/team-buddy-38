@@ -111,13 +111,26 @@ createServer(async (req, res) => {
   if (req.url === "/estado") return res.end(JSON.stringify(estado));
 
   if (req.url === "/enviar" && req.method === "POST") {
-    const { para, texto } = await leerCuerpo(req);
+    const { para, texto, documentoBase64, nombreArchivo, mimetype } = await leerCuerpo(req);
     if (!estado.conectado) {
       res.writeHead(409);
       return res.end(JSON.stringify({ error: "WhatsApp no esta conectado" }));
     }
     try {
-      await sock.sendMessage(numeroWa(para), { text: String(texto ?? "") });
+      if (documentoBase64) {
+        const buffer = Buffer.from(
+          documentoBase64.replace(/^data:[^;]+;base64,/, ""),
+          "base64",
+        );
+        await sock.sendMessage(numeroWa(para), {
+          document: buffer,
+          mimetype: mimetype || "application/pdf",
+          fileName: nombreArchivo || "documento.pdf",
+          caption: texto ? String(texto) : undefined,
+        });
+      } else {
+        await sock.sendMessage(numeroWa(para), { text: String(texto ?? "") });
+      }
       return res.end(JSON.stringify({ ok: true }));
     } catch (e) {
       res.writeHead(500);

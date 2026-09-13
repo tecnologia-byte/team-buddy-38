@@ -25,16 +25,36 @@ export const estadoWhatsappFn = createServerFn({ method: "POST" })
     }),
   );
 
-/** Envía un mensaje de WhatsApp a un colaborador. */
+/** Envía un mensaje o documento (PDF) de WhatsApp a un colaborador. */
 export const enviarWhatsappFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    puenteSchema.extend({ para: z.string().min(8).max(20), texto: z.string().min(1).max(3000) }).parse(data),
+    puenteSchema
+      .extend({
+        para: z.string().min(8).max(20),
+        texto: z.string().max(3000).optional(),
+        documentoBase64: z.string().optional(),
+        nombreArchivo: z.string().max(100).optional(),
+        mimetype: z.string().max(80).optional(),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) =>
     resultado(async () => {
       const { enviarWhatsapp } = await import("./whatsapp.server");
-      await enviarWhatsapp(data.puente, data.para, data.texto, data.token);
+      await enviarWhatsapp(
+        data.puente,
+        data.para,
+        data.texto ?? "",
+        data.token,
+        data.documentoBase64
+          ? {
+              documentoBase64: data.documentoBase64,
+              nombreArchivo: data.nombreArchivo,
+              mimetype: data.mimetype,
+            }
+          : undefined,
+      );
       return { ok: true as const };
     }),
   );

@@ -25,7 +25,11 @@ export const enviarCorreoFn = createServerFn({ method: "POST" })
 const lineaSchema = z.object({ concepto: z.string().max(160).default(""), monto: z.number().default(0) });
 
 const volanteSchema = z.object({
-  para: z.string().email(),
+  para: z.string().optional().default(""),
+  whatsapp: z.string().optional(),
+  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
+  puenteWhatsappUrl: z.string().optional(),
+  puenteWhatsappToken: z.string().optional(),
   comprobante: z.string().max(60).default(""),
   fechaEmision: z.string().max(40).default(""),
   periodoDesde: z.string().max(40).default(""),
@@ -45,47 +49,30 @@ const volanteSchema = z.object({
   firmaEmpresa: z.string().max(400000).optional(),
   firmaEmpresaNombre: z.string().max(120).optional(),
   firmaEmpresaCargo: z.string().max(120).optional(),
-
 });
 
-/** Envía el recibo/volante de pago al colaborador desde nomina@ivadsrl.com, con el documento adjunto. */
+/** Envía el recibo/volante de pago al colaborador según su canal preferido (Correo, WhatsApp o Ambos), con el PDF adjunto. */
 export const enviarReciboFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => volanteSchema.parse(data))
   .handler(async ({ data }) => {
-    const { enviarCorreoInstitucional, REMITENTE_NOMINA } = await import("./correo.server");
-    const { pesosCorreo } = await import("./volante-correo.server");
-    const { volantePdfBase64 } = await import("./volante-pdf.server");
-    const { para, ...volante } = data;
+    const { despacharVolante } = await import("./volante-envio.server");
+    const { para, whatsapp, canalAvisos, puenteWhatsappUrl, puenteWhatsappToken, ...volante } = data;
 
-    const bruto = volante.ingresos.reduce((s, l) => s + l.monto, 0);
-    const deducido = volante.deducciones.reduce((s, l) => s + l.monto, 0);
-    const neto = bruto - deducido;
-    const pdf = await volantePdfBase64(volante);
+    const res = await despacharVolante({
+      destino: {
+        correo: para,
+        whatsapp,
+        canalAvisos,
+        puenteUrl: puenteWhatsappUrl,
+        puenteToken: puenteWhatsappToken,
+      },
+      volante,
+    });
 
-    return enviarCorreoInstitucional(
-      {
-        para,
-        nombre: volante.nombre,
-        titulo: "Se registró tu pago de nómina",
-        etiqueta: "Pago de nómina",
-        detalle:
-          `Contabilidad registró tu pago correspondiente al período ${volante.periodoDesde} al ${volante.periodoHasta}.\n` +
-          `Comprobante No. ${volante.comprobante}\nNeto recibido: RD$ ${pesosCorreo(neto)}\n\n` +
-          `Adjuntamos tu recibo de pago en PDF; puedes abrirlo, imprimirlo o guardarlo.`,
-        enlace: "/nomina",
-        enlaceTexto: "Ver mi nómina",
-      },
-      {
-        from: REMITENTE_NOMINA,
-        asunto: `Recibo de pago ${volante.comprobante || volante.periodoHasta} · IVAD`,
-        adjuntos: [
-          {
-            filename: `recibo-${(volante.comprobante || "ivad").replace(/[^\w-]/g, "")}.pdf`,
-            content: pdf,
-            contentType: "application/pdf",
-          },
-        ],
-      },
-    );
+    return {
+      ok: res.ok,
+      medios: res.medios.join(" y "),
+      error: res.error,
+    };
   });

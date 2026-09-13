@@ -121,7 +121,7 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
     }
     if (
       !window.confirm(
-        `Se enviará el volante en PDF al correo de ${ids.length} colaborador(es). ¿Confirmas el envío?`,
+        `Se enviará el volante en PDF según los canales elegidos (Correo y/o WhatsApp) a ${ids.length} colaborador(es). ¿Confirmas el envío?`,
       )
     )
       return;
@@ -132,7 +132,7 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
       else {
         const bien = res.resultados.filter((r) => r.ok).length;
         const mal = res.resultados.filter((r) => !r.ok);
-        if (bien) toast.success(`${bien} volante(s) enviado(s) por correo`);
+        if (bien) toast.success(`${bien} volante(s) despachado(s) exitosamente`);
         for (const r of mal) toast.error(`${r.nombre || "Colaborador"}: ${r.error}`);
       }
       setSel([]);

@@ -50,9 +50,18 @@ export const enviarVolantesFn = createServerFn({ method: "POST" })
       return { ok: false as const, error: "No hay volantes pendientes por enviar.", resultados: [] };
     }
 
-    const { enviarVolantePorCorreo } = await import("./volante-envio.server");
+    const { despacharVolante } = await import("./volante-envio.server");
 
-    const resultados: Array<{ id: string; nombre: string; ok: boolean; error?: string }> = [];
+    // Consultamos la configuración del puente WhatsApp para los colaboradores que elijan WhatsApp o Ambos
+    const { data: ajustesFilas } = await supabase
+      .from("ajustes")
+      .select("clave, valor")
+      .in("clave", ["whatsapp_puente_url", "whatsapp_puente_token"]);
+
+    const puenteUrl = ajustesFilas?.find((a) => a.clave === "whatsapp_puente_url")?.valor;
+    const puenteToken = ajustesFilas?.find((a) => a.clave === "whatsapp_puente_token")?.valor;
+
+    const resultados: Array<{ id: string; nombre: string; ok: boolean; error?: string; medios?: string }> = [];
 
     for (const fila of filas) {
       const d = (fila.datos ?? {}) as Record<string, unknown>;
@@ -61,61 +70,60 @@ export const enviarVolantesFn = createServerFn({ method: "POST" })
 
       const { data: perfil } = await supabase
         .from("perfiles")
-        .select("id, nombre, email, correo_alterno")
+        .select("id, nombre, email, correo_alterno, whatsapp, canal_avisos")
         .eq("id", fila.colaborador_id)
         .maybeSingle();
 
       const correo = perfil?.email?.trim() || perfil?.correo_alterno?.trim() || "";
-      if (!correo) {
-        await supabase
-          .from("volantes")
-          .update({ estado: "Error", error: "El colaborador no tiene correo registrado." })
-          .eq("id", fila.id);
-        resultados.push({
-          id: fila.id,
-          nombre: nombre || perfil?.nombre || "Colaborador",
-          ok: false,
-          error: "Sin correo registrado",
-        });
-        continue;
-      }
+      const whatsapp = perfil?.whatsapp?.trim() || "";
+      const canalAvisos = (perfil?.canal_avisos || "correo") as "correo" | "whatsapp" | "ambos" | "ninguno";
 
       try {
         const ingresos = limpiar(d["ingresos"]);
         const deducciones = limpiar(d["deducciones"]);
-        const res = await enviarVolantePorCorreo(correo, {
-          comprobante: String(d["comprobante"] ?? fila.comprobante ?? ""),
-          fechaEmision: String(d["fechaEmision"] ?? fila.fecha_emision ?? ""),
-          periodoDesde: String(d["periodoDesde"] ?? fila.periodo_desde ?? ""),
-          periodoHasta: String(d["periodoHasta"] ?? fila.periodo_hasta ?? ""),
-          nombre: nombre || perfil?.nombre || "",
-          cedula: texto(d["cedula"]),
-          codigo: texto(d["codigo"]),
-          cargo: texto(d["cargo"]),
-          departamento: texto(d["departamento"]),
-          ingreso: texto(d["ingreso"]),
-          banco: texto(d["banco"]),
-          seguridadSocial: texto(d["seguridadSocial"]),
-          ingresos,
-          deducciones,
-          firma: texto(d["firma"]),
-          firmaFecha: texto(d["firmaFecha"]),
-          firmaEmpresa: texto(d["firmaEmpresa"]),
-          firmaEmpresaNombre: texto(d["firmaEmpresaNombre"]),
-          firmaEmpresaCargo: texto(d["firmaEmpresaCargo"]),
+        const res = await despacharVolante({
+          destino: {
+            correo,
+            whatsapp,
+            canalAvisos,
+            puenteUrl,
+            puenteToken,
+          },
+          volante: {
+            comprobante: String(d["comprobante"] ?? fila.comprobante ?? ""),
+            fechaEmision: String(d["fechaEmision"] ?? fila.fecha_emision ?? ""),
+            periodoDesde: String(d["periodoDesde"] ?? fila.periodo_desde ?? ""),
+            periodoHasta: String(d["periodoHasta"] ?? fila.periodo_hasta ?? ""),
+            nombre: nombre || perfil?.nombre || "",
+            cedula: texto(d["cedula"]),
+            codigo: texto(d["codigo"]),
+            cargo: texto(d["cargo"]),
+            departamento: texto(d["departamento"]),
+            ingreso: texto(d["ingreso"]),
+            banco: texto(d["banco"]),
+            seguridadSocial: texto(d["seguridadSocial"]),
+            ingresos,
+            deducciones,
+            firma: texto(d["firma"]),
+            firmaFecha: texto(d["firmaFecha"]),
+            firmaEmpresa: texto(d["firmaEmpresa"]),
+            firmaEmpresaNombre: texto(d["firmaEmpresaNombre"]),
+            firmaEmpresaCargo: texto(d["firmaEmpresaCargo"]),
+          },
         });
 
-        if (!res.ok) throw new Error(res.error ?? "No se pudo enviar el correo");
+        if (!res.ok) throw new Error(res.error ?? "No se pudo despachar el volante");
 
         const neto =
           ingresos.reduce((s, l) => s + l.monto, 0) - deducciones.reduce((s, l) => s + l.monto, 0);
 
+        const mediosTexto = res.medios.join(" y ");
         await supabase.from("avisos").insert({
           para_id: fila.colaborador_id,
           titulo: `Volante de pago ${fila.comprobante || ""}`.trim(),
           detalle:
             `Se registró tu pago del período ${fila.periodo_desde} al ${fila.periodo_hasta}. ` +
-            `Neto recibido: RD$ ${pesos(neto)}. Te enviamos el volante en PDF a ${correo}.`,
+            `Neto recibido: RD$ ${pesos(neto)}. Te enviamos el volante en PDF por ${mediosTexto}.`,
           nuevo: true,
         });
 
@@ -129,7 +137,7 @@ export const enviarVolantesFn = createServerFn({ method: "POST" })
           })
           .eq("id", fila.id);
 
-        resultados.push({ id: fila.id, nombre: nombre || perfil?.nombre || "", ok: true });
+        resultados.push({ id: fila.id, nombre: nombre || perfil?.nombre || "", ok: true, medios: mediosTexto });
       } catch (e) {
         const mensaje = e instanceof Error ? e.message : "No se pudo enviar el volante";
         await supabase
