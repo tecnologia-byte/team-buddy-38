@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const puenteSchema = z.object({ puente: z.string().url().max(300) });
+const puenteSchema = z.object({
+  puente: z.string().url().max(300),
+  token: z.string().max(200).optional(),
+});
 
 const resultado = <T,>(fn: () => Promise<T>) =>
   fn().catch((e: unknown) => ({
@@ -17,7 +20,7 @@ export const estadoWhatsappFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     resultado(async () => {
       const { estadoPuente } = await import("./whatsapp.server");
-      const e = await estadoPuente(data.puente);
+      const e = await estadoPuente(data.puente, data.token);
       return { ok: true as const, ...e };
     }),
   );
@@ -31,7 +34,7 @@ export const enviarWhatsappFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     resultado(async () => {
       const { enviarWhatsapp } = await import("./whatsapp.server");
-      await enviarWhatsapp(data.puente, data.para, data.texto);
+      await enviarWhatsapp(data.puente, data.para, data.texto, data.token);
       return { ok: true as const };
     }),
   );
@@ -43,7 +46,7 @@ export const desvincularWhatsappFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     resultado(async () => {
       const { cerrarPuente } = await import("./whatsapp.server");
-      await cerrarPuente(data.puente);
+      await cerrarPuente(data.puente, data.token);
       return { ok: true as const };
     }),
   );

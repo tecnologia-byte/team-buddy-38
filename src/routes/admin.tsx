@@ -1348,8 +1348,9 @@ function SolicitudesPanel() {
 }
 
 function AdminWhatsApp() {
-  const { puenteWhatsappUrl, guardarPuenteWhatsappUrl } = usePortal();
+  const { puenteWhatsappUrl, puenteWhatsappToken, guardarPuenteWhatsappConfig } = usePortal();
   const [puente, setPuente] = useState(puenteWhatsappUrl);
+  const [token, setToken] = useState(puenteWhatsappToken || "ivad-secret-token");
   const [guardandoPuente, setGuardandoPuente] = useState(false);
   const [consultando, setConsultando] = useState(false);
   const [desvinculando, setDesvinculando] = useState(false);
@@ -1365,13 +1366,18 @@ function AdminWhatsApp() {
     setPuente(puenteWhatsappUrl);
   }, [puenteWhatsappUrl]);
 
-  const consultar = async (urlTarget?: string) => {
+  useEffect(() => {
+    if (puenteWhatsappToken) setToken(puenteWhatsappToken);
+  }, [puenteWhatsappToken]);
+
+  const consultar = async (urlTarget?: string, tokenTarget?: string) => {
     const target = (urlTarget ?? puente).trim();
+    const tok = (tokenTarget ?? token).trim();
     if (!target) return;
     setConsultando(true);
     setErrorPuente(null);
     try {
-      const res = await estadoWhatsappFn({ data: { puente: target } });
+      const res = await estadoWhatsappFn({ data: { puente: target, token: tok } });
       if (!res.ok) {
         setErrorPuente(res.error ?? "No se pudo conectar con el puente de WhatsApp");
         setEstado(null);
@@ -1392,7 +1398,7 @@ function AdminWhatsApp() {
 
   useEffect(() => {
     if (puente) {
-      void consultar(puente);
+      void consultar(puente, token);
     }
   }, []);
 
@@ -1404,27 +1410,27 @@ function AdminWhatsApp() {
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [estado, puente]);
+  }, [estado, puente, token]);
 
-  const guardarPuente = async () => {
+  const guardarConfig = async () => {
     setGuardandoPuente(true);
-    const r = await guardarPuenteWhatsappUrl(puente);
+    const r = await guardarPuenteWhatsappConfig(puente, token);
     setGuardandoPuente(false);
     if (!r.ok) {
-      toast.error(r.error ?? "No se pudo guardar la dirección");
+      toast.error(r.error ?? "No se pudo guardar la configuración");
       return;
     }
-    toast.success("Dirección del puente guardada");
-    await consultar(puente);
+    toast.success("Configuración del puente guardada");
+    await consultar(puente, token);
   };
 
   const desvincular = async () => {
     if (!confirm("¿Seguro que deseas desvincular el WhatsApp actual? Se cerrará la sesión y se generará un código QR nuevo.")) return;
     setDesvinculando(true);
     try {
-      const res = await desvincularWhatsappFn({ data: { puente } });
+      const res = await desvincularWhatsappFn({ data: { puente, token } });
       if (res.ok) {
-        toast.success("Sesión cerrada. Escanea el nuevo código QR.");
+        toast.success("Sesión cerrada. Generando nuevo código QR...");
         await consultar();
       } else {
         toast.error(res.error ?? "Error al desvincular");
@@ -1449,7 +1455,7 @@ function AdminWhatsApp() {
     setEnviandoPrueba(true);
     try {
       const res = await enviarWhatsappFn({
-        data: { puente, para: num, texto: textoPrueba },
+        data: { puente, para: num, texto: textoPrueba, token },
       });
       if (res.ok) {
         toast.success("Mensaje de prueba enviado por WhatsApp");
@@ -1465,38 +1471,53 @@ function AdminWhatsApp() {
 
   return (
     <div className="space-y-6">
-      {/* Configuración de la URL del Puente */}
+      {/* Configuración de la URL y Token del Puente */}
       <section className="surface-card p-5 space-y-4">
-        <SectionTitle>Puente de WhatsApp</SectionTitle>
+        <SectionTitle>Puente de WhatsApp & Código QR</SectionTitle>
         <p className="text-sm text-muted-foreground">
-          El puente conecta la cuenta de WhatsApp de la empresa mediante código QR para enviar avisos automáticos a los colaboradores. Debe estar encendido en la oficina o servidor local (carpeta <code>puente-whatsapp/</code>).
+          El puente conecta la cuenta de WhatsApp corporativa mediante código QR para enviar avisos automáticos a los colaboradores. Debe estar en ejecución en tu servidor o computadora local (en la carpeta <code>puente-whatsapp/</code>).
         </p>
 
-        <div className="space-y-2">
-          <Label htmlFor="puente-url">Dirección del Puente (URL)</Label>
-          <div className="flex flex-col sm:flex-row gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="puente-url">Dirección del Puente (URL)</Label>
             <Input
               id="puente-url"
-              placeholder="http://localhost:8787 o https://wa.ivadsrl.com"
+              placeholder="http://localhost:8787 o https://wa.tudominio.com"
               value={puente}
               onChange={(e) => setPuente(e.target.value)}
-              className="flex-1 font-mono text-sm"
+              className="font-mono text-sm"
             />
-            <Button onClick={guardarPuente} disabled={guardandoPuente}>
-              {guardandoPuente ? "Guardando..." : "Guardar dirección"}
-            </Button>
-            <Button variant="outline" onClick={() => void consultar()} disabled={consultando}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
-              {consultando ? "Verificando..." : "Actualizar"}
-            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Recuerda que si ejecutas el puente localmente para pruebas, puedes exponerlo con <code>cloudflared tunnel --url http://localhost:8787</code> o usar <code>http://localhost:8787</code>.
-          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="puente-token">Clave Secreta (Token)</Label>
+            <Input
+              id="puente-token"
+              type="text"
+              placeholder="ivad-secret-token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className="font-mono text-sm"
+            />
+          </div>
         </div>
+
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Button onClick={guardarConfig} disabled={guardandoPuente}>
+            {guardandoPuente ? "Guardando..." : "Guardar configuración"}
+          </Button>
+          <Button variant="outline" onClick={() => void consultar()} disabled={consultando}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
+            {consultando ? "Comprobando..." : "Actualizar estado"}
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Tip: Si estás ejecutando el puente localmente, abre una terminal en la carpeta <code>puente-whatsapp</code> y corre <code>npm start</code>. Si estás usando Lovable en la nube y tu puente corre en local, puedes exponerlo en segundos con <code>npx localtunnel --port 8787</code> o Cloudflare Tunnel.
+        </p>
       </section>
 
-      {/* Estado de la Conexión */}
+      {/* Estado de la Conexión y QR */}
       <section className="surface-card p-5 space-y-4">
         <SectionTitle>Estado de Vinculación</SectionTitle>
 
@@ -1506,9 +1527,14 @@ function AdminWhatsApp() {
             <div>
               <p className="font-semibold">No se pudo contactar el puente de WhatsApp</p>
               <p className="mt-1 text-xs opacity-90">{errorPuente}</p>
-              <p className="mt-2 text-xs">
-                Asegúrate de que el proceso en la carpeta <code>puente-whatsapp/</code> esté corriendo con <code>npm start</code> y que la clave <code>WHATSAPP_PUENTE_TOKEN</code> coincida.
-              </p>
+              <div className="mt-3 p-3 bg-background/80 rounded-lg text-xs text-foreground space-y-1">
+                <p className="font-semibold">Pasos para conectar y ver el QR:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
+                  <li>Abre la carpeta <code>puente-whatsapp</code> en la terminal.</li>
+                  <li>Ejecuta <code>npm start</code>.</li>
+                  <li>Haz clic en <strong>Actualizar estado</strong> para que el código QR aparezca aquí abajo inmediatamente.</li>
+                </ol>
+              </div>
             </div>
           </div>
         ) : null}
@@ -1543,10 +1569,10 @@ function AdminWhatsApp() {
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-200">
               <p className="font-semibold flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-amber-600" />
-                Esperando vinculación
+                Esperando vinculación con WhatsApp
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Escanea el código QR desde el WhatsApp de la empresa para habilitar el envío automático.
+                Escanea el código QR desde el WhatsApp de tu empresa para habilitar el envío automático.
               </p>
             </div>
 
@@ -1555,28 +1581,37 @@ function AdminWhatsApp() {
                 <img
                   src={estado.qr}
                   alt="Código QR de WhatsApp"
-                  className="w-64 h-64 rounded-xl border bg-white p-2 shadow-sm"
+                  className="w-72 h-72 rounded-xl border bg-white p-3 shadow-md"
                 />
-                <p className="text-xs font-medium text-muted-foreground text-center">
-                  1. Abre WhatsApp en tu celular · 2. Dispositivos vinculados · 3. Vincular un dispositivo
+                <p className="text-xs font-medium text-muted-foreground text-center max-w-sm">
+                  1. Abre WhatsApp en tu celular &gt; 2. Toca Menú o Ajustes &gt; 3. Dispositivos vinculados &gt; 4. Vincular un dispositivo
                 </p>
                 <span className="inline-flex items-center gap-1.5 text-xs text-primary animate-pulse">
-                  <RefreshCw className="h-3 w-3 animate-spin" /> Esperando escaneo...
+                  <RefreshCw className="h-3 w-3 animate-spin" /> Esperando escaneo desde tu teléfono...
                 </span>
               </div>
             ) : (
-              <div className="text-center py-6">
-                <p className="text-sm text-muted-foreground">Generando código QR en el puente...</p>
+              <div className="text-center py-6 border rounded-2xl bg-muted/10">
+                <p className="text-sm font-medium text-foreground">Generando código QR en el puente...</p>
+                <p className="text-xs text-muted-foreground mt-1">El proceso de WhatsApp está iniciando la sesión.</p>
                 <Button className="mt-3" variant="outline" size="sm" onClick={() => void consultar()}>
-                  Verificar QR
+                  <RefreshCw className="mr-2 h-4 w-4" /> Comprobar QR
                 </Button>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {consultando ? "Comprobando conexión con el puente..." : "Haz clic en 'Actualizar' para consultar el estado del puente."}
-          </p>
+          <div className="text-center py-6 border border-dashed rounded-2xl">
+            <Smartphone className="h-8 w-8 mx-auto text-muted-foreground/60 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {consultando ? "Comprobando conexión con el puente de WhatsApp..." : "Haz clic en 'Actualizar estado' para consultar el puente o generar el código QR."}
+            </p>
+            {!consultando && (
+              <Button className="mt-3" size="sm" variant="outline" onClick={() => void consultar()}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Comprobar estado
+              </Button>
+            )}
+          </div>
         )}
       </section>
 

@@ -22,14 +22,11 @@ import pino from "pino";
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
 
-const TOKEN = process.env.PUENTE_TOKEN ?? "";
+const TOKEN = process.env.PUENTE_TOKEN?.trim() || "ivad-secret-token";
 const PORT = Number(process.env.PORT ?? 8787);
 const PORTAL_URL = process.env.PORTAL_URL ?? "";
 
-if (!TOKEN) {
-  console.error("Falta PUENTE_TOKEN. Ejemplo: PUENTE_TOKEN=miclave npm start");
-  process.exit(1);
-}
+console.log(`[Puente WhatsApp] Iniciando con token: ${TOKEN === "ivad-secret-token" ? "(por defecto: ivad-secret-token)" : "(configurado por entorno)"}`);
 
 const estado = { conectado: false, numero: "", qr: "" };
 let sock = null;

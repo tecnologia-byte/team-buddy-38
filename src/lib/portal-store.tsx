@@ -227,7 +227,9 @@ type Contexto = {
   marcarAvisosLeidos: () => Promise<void>;
   recargar: () => Promise<void>;
   puenteWhatsappUrl: string;
+  puenteWhatsappToken: string;
   guardarPuenteWhatsappUrl: (url: string) => Promise<Resultado>;
+  guardarPuenteWhatsappConfig: (url: string, token: string) => Promise<Resultado>;
   actualizarMisAvisos: (whatsapp: string, canalAvisos: CanalAvisos) => Promise<Resultado>;
 };
 
@@ -321,6 +323,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [tareas, setTareas] = useState<TareaAsignada[]>([]);
   const [puenteWhatsappUrl, setPuenteWhatsappUrl] = useState<string>("http://localhost:8787");
+  const [puenteWhatsappToken, setPuenteWhatsappToken] = useState<string>("ivad-secret-token");
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
@@ -495,6 +498,11 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     )?.valor;
     if (puenteAjuste) setPuenteWhatsappUrl(puenteAjuste);
 
+    const tokenAjuste = ((ajustesRes.data ?? []) as Array<{ clave: string; valor: string }>).find(
+      (a) => a.clave === "whatsapp_puente_token",
+    )?.valor;
+    if (tokenAjuste) setPuenteWhatsappToken(tokenAjuste);
+
     setCargando(false);
   }, []);
 
@@ -667,6 +675,23 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const guardarPuenteWhatsappConfig = useCallback(
+    async (url: string, token: string): Promise<Resultado> => {
+      const limpiaUrl = url.trim().replace(/\/+$/, "");
+      const limpiaToken = token.trim();
+      const [resUrl, resToken] = await Promise.all([
+        supabase.from("ajustes").upsert({ clave: "whatsapp_puente_url", valor: limpiaUrl } as never),
+        supabase.from("ajustes").upsert({ clave: "whatsapp_puente_token", valor: limpiaToken } as never),
+      ]);
+      if (resUrl.error) return { ok: false, error: resUrl.error.message };
+      if (resToken.error) return { ok: false, error: resToken.error.message };
+      setPuenteWhatsappUrl(limpiaUrl);
+      setPuenteWhatsappToken(limpiaToken);
+      return { ok: true };
+    },
+    [],
+  );
+
   const actualizarMisAvisos = useCallback(
     async (whatsapp: string, canalAvisos: CanalAvisos): Promise<Resultado> => {
       if (!userId) return { ok: false, error: "Sesión no iniciada" };
@@ -758,6 +783,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
               puente: puenteWhatsappUrl,
               para: c.whatsapp,
               texto,
+              token: puenteWhatsappToken,
             },
           });
         } catch (e) {
@@ -765,7 +791,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [colaboradores, enviarCorreo, puenteWhatsappUrl],
+    [colaboradores, enviarCorreo, puenteWhatsappUrl, puenteWhatsappToken],
   );
 
   const subirFoto = useCallback(
@@ -1205,7 +1231,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     marcarAvisosLeidos,
     recargar: cargar,
     puenteWhatsappUrl,
+    puenteWhatsappToken,
     guardarPuenteWhatsappUrl,
+    guardarPuenteWhatsappConfig,
     actualizarMisAvisos,
   };
 
