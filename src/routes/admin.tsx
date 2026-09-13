@@ -8,9 +8,13 @@ import {
   Check,
   LifeBuoy,
   Lock,
+  MessageSquare,
   PenLine,
   Receipt,
+  RefreshCw,
+  Send,
   ShieldCheck,
+  Smartphone,
   Trash2,
   UserPlus,
   Users,
@@ -33,6 +37,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { SelloVerificado, VerificacionPerfil } from "@/components/verificado";
 import { enviarReciboFn } from "@/lib/correo.functions";
+import {
+  estadoWhatsappFn,
+  enviarWhatsappFn,
+  desvincularWhatsappFn,
+} from "@/lib/whatsapp.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -104,11 +113,12 @@ function Admin() {
                 <TabsTrigger value="soporte">Soporte</TabsTrigger>
                 <TabsTrigger value="accesos">Accesos</TabsTrigger>
               </TabsList>
-              <TabsList className="mt-2 grid w-full grid-cols-4 print:hidden">
+              <TabsList className="mt-2 grid w-full grid-cols-5 print:hidden">
                 <TabsTrigger value="verificados">Verificados</TabsTrigger>
                 <TabsTrigger value="avisos">Avisos</TabsTrigger>
                 <TabsTrigger value="tareas">Tareas</TabsTrigger>
                 <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
+                <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
               </TabsList>
             </>
           ) : null}
@@ -164,6 +174,9 @@ function Admin() {
           </TabsContent>
           <TabsContent value="solicitudes" className="mt-4">
             <SolicitudesPanel />
+          </TabsContent>
+          <TabsContent value="whatsapp" className="mt-4">
+            <AdminWhatsApp />
           </TabsContent>
 
         </Tabs>
@@ -1330,6 +1343,273 @@ function SolicitudesPanel() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AdminWhatsApp() {
+  const { puenteWhatsappUrl, guardarPuenteWhatsappUrl } = usePortal();
+  const [puente, setPuente] = useState(puenteWhatsappUrl);
+  const [guardandoPuente, setGuardandoPuente] = useState(false);
+  const [consultando, setConsultando] = useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
+  const [estado, setEstado] = useState<{ conectado: boolean; numero: string; qr: string } | null>(null);
+  const [errorPuente, setErrorPuente] = useState<string | null>(null);
+
+  // Mensaje de prueba
+  const [telefonoPrueba, setTelefonoPrueba] = useState("");
+  const [textoPrueba, setTextoPrueba] = useState("¡Hola! Este es un mensaje de prueba desde el Portal IVAD.");
+  const [enviandoPrueba, setEnviandoPrueba] = useState(false);
+
+  useEffect(() => {
+    setPuente(puenteWhatsappUrl);
+  }, [puenteWhatsappUrl]);
+
+  const consultar = async (urlTarget?: string) => {
+    const target = (urlTarget ?? puente).trim();
+    if (!target) return;
+    setConsultando(true);
+    setErrorPuente(null);
+    try {
+      const res = await estadoWhatsappFn({ data: { puente: target } });
+      if (!res.ok) {
+        setErrorPuente(res.error ?? "No se pudo conectar con el puente de WhatsApp");
+        setEstado(null);
+      } else {
+        setEstado({
+          conectado: Boolean(res.conectado),
+          numero: String(res.numero ?? ""),
+          qr: String(res.qr ?? ""),
+        });
+      }
+    } catch (e) {
+      setErrorPuente(e instanceof Error ? e.message : "Error al consultar estado");
+      setEstado(null);
+    } finally {
+      setConsultando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (puente) {
+      void consultar(puente);
+    }
+  }, []);
+
+  // Sondeo cada 5s si hay un QR visible para actualizar automáticamente al escanear
+  useEffect(() => {
+    if (estado && !estado.conectado && estado.qr) {
+      const interval = setInterval(() => {
+        void consultar();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [estado, puente]);
+
+  const guardarPuente = async () => {
+    setGuardandoPuente(true);
+    const r = await guardarPuenteWhatsappUrl(puente);
+    setGuardandoPuente(false);
+    if (!r.ok) {
+      toast.error(r.error ?? "No se pudo guardar la dirección");
+      return;
+    }
+    toast.success("Dirección del puente guardada");
+    await consultar(puente);
+  };
+
+  const desvincular = async () => {
+    if (!confirm("¿Seguro que deseas desvincular el WhatsApp actual? Se cerrará la sesión y se generará un código QR nuevo.")) return;
+    setDesvinculando(true);
+    try {
+      const res = await desvincularWhatsappFn({ data: { puente } });
+      if (res.ok) {
+        toast.success("Sesión cerrada. Escanea el nuevo código QR.");
+        await consultar();
+      } else {
+        toast.error(res.error ?? "Error al desvincular");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al desvincular");
+    } finally {
+      setDesvinculando(false);
+    }
+  };
+
+  const enviarPrueba = async () => {
+    const num = telefonoPrueba.replace(/\D/g, "");
+    if (!num || num.length < 10) {
+      toast.error("Ingresa un número válido con código de país (ej: 18095551234)");
+      return;
+    }
+    if (!textoPrueba.trim()) {
+      toast.error("Escribe un mensaje de prueba");
+      return;
+    }
+    setEnviandoPrueba(true);
+    try {
+      const res = await enviarWhatsappFn({
+        data: { puente, para: num, texto: textoPrueba },
+      });
+      if (res.ok) {
+        toast.success("Mensaje de prueba enviado por WhatsApp");
+      } else {
+        toast.error(res.error ?? "No se pudo enviar el mensaje");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al enviar");
+    } finally {
+      setEnviandoPrueba(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Configuración de la URL del Puente */}
+      <section className="surface-card p-5 space-y-4">
+        <SectionTitle>Puente de WhatsApp</SectionTitle>
+        <p className="text-sm text-muted-foreground">
+          El puente conecta la cuenta de WhatsApp de la empresa mediante código QR para enviar avisos automáticos a los colaboradores. Debe estar encendido en la oficina o servidor local (carpeta <code>puente-whatsapp/</code>).
+        </p>
+
+        <div className="space-y-2">
+          <Label htmlFor="puente-url">Dirección del Puente (URL)</Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              id="puente-url"
+              placeholder="http://localhost:8787 o https://wa.ivadsrl.com"
+              value={puente}
+              onChange={(e) => setPuente(e.target.value)}
+              className="flex-1 font-mono text-sm"
+            />
+            <Button onClick={guardarPuente} disabled={guardandoPuente}>
+              {guardandoPuente ? "Guardando..." : "Guardar dirección"}
+            </Button>
+            <Button variant="outline" onClick={() => void consultar()} disabled={consultando}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
+              {consultando ? "Verificando..." : "Actualizar"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Recuerda que si ejecutas el puente localmente para pruebas, puedes exponerlo con <code>cloudflared tunnel --url http://localhost:8787</code> o usar <code>http://localhost:8787</code>.
+          </p>
+        </div>
+      </section>
+
+      {/* Estado de la Conexión */}
+      <section className="surface-card p-5 space-y-4">
+        <SectionTitle>Estado de Vinculación</SectionTitle>
+
+        {errorPuente ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex items-start gap-3">
+            <X className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">No se pudo contactar el puente de WhatsApp</p>
+              <p className="mt-1 text-xs opacity-90">{errorPuente}</p>
+              <p className="mt-2 text-xs">
+                Asegúrate de que el proceso en la carpeta <code>puente-whatsapp/</code> esté corriendo con <code>npm start</code> y que la clave <code>WHATSAPP_PUENTE_TOKEN</code> coincida.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {estado?.conectado ? (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-emerald-950 dark:text-emerald-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white font-bold">
+                <Check className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-base font-bold text-foreground">WhatsApp Conectado</p>
+                <p className="text-sm text-muted-foreground">
+                  Número vinculado: <strong className="font-mono text-foreground">+{estado.numero}</strong>
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Los avisos de nómina, estados de solicitudes y tareas se enviarán automáticamente a través de esta cuenta a los colaboradores que elijan WhatsApp como canal preferido.
+            </p>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void desvincular()}
+              disabled={desvinculando}
+            >
+              {desvinculando ? "Desvinculando..." : "Desvincular este teléfono"}
+            </Button>
+          </div>
+        ) : estado && !estado.conectado ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-200">
+              <p className="font-semibold flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-amber-600" />
+                Esperando vinculación
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Escanea el código QR desde el WhatsApp de la empresa para habilitar el envío automático.
+              </p>
+            </div>
+
+            {estado.qr ? (
+              <div className="flex flex-col items-center justify-center p-6 border rounded-2xl bg-muted/20 space-y-3">
+                <img
+                  src={estado.qr}
+                  alt="Código QR de WhatsApp"
+                  className="w-64 h-64 rounded-xl border bg-white p-2 shadow-sm"
+                />
+                <p className="text-xs font-medium text-muted-foreground text-center">
+                  1. Abre WhatsApp en tu celular · 2. Dispositivos vinculados · 3. Vincular un dispositivo
+                </p>
+                <span className="inline-flex items-center gap-1.5 text-xs text-primary animate-pulse">
+                  <RefreshCw className="h-3 w-3 animate-spin" /> Esperando escaneo...
+                </span>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground">Generando código QR en el puente...</p>
+                <Button className="mt-3" variant="outline" size="sm" onClick={() => void consultar()}>
+                  Verificar QR
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {consultando ? "Comprobando conexión con el puente..." : "Haz clic en 'Actualizar' para consultar el estado del puente."}
+          </p>
+        )}
+      </section>
+
+      {/* Prueba de Envío */}
+      {estado?.conectado ? (
+        <section className="surface-card p-5 space-y-4">
+          <SectionTitle>Prueba de Envío Directo</SectionTitle>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="tel-prueba">Número de destino (con código de país)</Label>
+              <Input
+                id="tel-prueba"
+                placeholder="18095551234"
+                value={telefonoPrueba}
+                onChange={(e) => setTelefonoPrueba(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="msg-prueba">Mensaje</Label>
+              <Textarea
+                id="msg-prueba"
+                rows={2}
+                value={textoPrueba}
+                onChange={(e) => setTextoPrueba(e.target.value)}
+              />
+            </div>
+            <Button onClick={() => void enviarPrueba()} disabled={enviandoPrueba}>
+              <Send className="mr-2 h-4 w-4" />
+              {enviandoPrueba ? "Enviando..." : "Enviar mensaje de prueba"}
+            </Button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

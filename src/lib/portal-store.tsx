@@ -12,6 +12,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { iniciales as inicialesDe, type Cuenta, type Empleado, type Rol } from "@/lib/data";
 import { enviarCorreoFn } from "@/lib/correo.functions";
+import { enviarWhatsappFn } from "@/lib/whatsapp.functions";
 import {
   guardarCuentaFn,
   eliminarCuentaFn,
@@ -225,6 +226,9 @@ type Contexto = {
   ) => Promise<Resultado>;
   marcarAvisosLeidos: () => Promise<void>;
   recargar: () => Promise<void>;
+  puenteWhatsappUrl: string;
+  guardarPuenteWhatsappUrl: (url: string) => Promise<Resultado>;
+  actualizarMisAvisos: (whatsapp: string, canalAvisos: CanalAvisos) => Promise<Resultado>;
 };
 
 // Se guarda en globalThis para que las recargas en caliente (HMR) no creen
@@ -316,6 +320,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [tareas, setTareas] = useState<TareaAsignada[]>([]);
+  const [puenteWhatsappUrl, setPuenteWhatsappUrl] = useState<string>("http://localhost:8787");
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));
 
@@ -350,6 +355,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       ticketsRes,
       solicitudesRes,
       tareasRes,
+      ajustesRes,
     ] =
       await Promise.all([
         supabase.from("perfiles").select("*").order("nombre"),
@@ -360,6 +366,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         supabase.from("soporte_tickets").select("*").order("created_at", { ascending: false }),
         supabase.from("solicitudes").select("*").order("created_at", { ascending: false }),
         supabase.from("tareas").select("*").order("created_at", { ascending: false }),
+        supabase.from("ajustes").select("clave, valor"),
       ]);
 
     const mapaRoles = new Map<string, Rol>();
@@ -482,6 +489,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         fecha: fecha(t.created_at),
       })),
     );
+
+    const puenteAjuste = ((ajustesRes.data ?? []) as Array<{ clave: string; valor: string }>).find(
+      (a) => a.clave === "whatsapp_puente_url",
+    )?.valor;
+    if (puenteAjuste) setPuenteWhatsappUrl(puenteAjuste);
+
     setCargando(false);
   }, []);
 
@@ -613,6 +626,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         ["cumple", "cumple"],
         ["estado", "estado"],
         ["salario", "salario"],
+        ["whatsapp", "whatsapp"],
+        ["canalAvisos", "canal_avisos"],
       ];
       for (const [clave, columna] of campos) {
         const valor = datos[clave];
@@ -637,6 +652,37 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return { ok: true };
     },
     [cargar, colaboradores],
+  );
+
+  const guardarPuenteWhatsappUrl = useCallback(
+    async (url: string): Promise<Resultado> => {
+      const limpia = url.trim().replace(/\/+$/, "");
+      const { error } = await supabase
+        .from("ajustes")
+        .upsert({ clave: "whatsapp_puente_url", valor: limpia } as never);
+      if (error) return { ok: false, error: error.message };
+      setPuenteWhatsappUrl(limpia);
+      return { ok: true };
+    },
+    [],
+  );
+
+  const actualizarMisAvisos = useCallback(
+    async (whatsapp: string, canalAvisos: CanalAvisos): Promise<Resultado> => {
+      if (!userId) return { ok: false, error: "Sesión no iniciada" };
+      const numLimpio = whatsapp.replace(/\D/g, "");
+      const { error } = await supabase
+        .from("perfiles")
+        .update({
+          whatsapp: numLimpio,
+          canal_avisos: canalAvisos,
+        } as never)
+        .eq("id", userId);
+      if (error) return { ok: false, error: error.message };
+      await cargar();
+      return { ok: true };
+    },
+    [userId, cargar],
   );
 
   const eliminarColaborador = useCallback(
@@ -695,9 +741,31 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       },
     ) => {
       await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
-      await enviarCorreo(paraId, titulo, detalle, opciones);
+      const c = colaboradores.find((x) => x.id === paraId);
+      const canal = c?.canalAvisos ?? "correo";
+
+      // 1. Enviar por correo si el canal es "correo" o "ambos"
+      if (canal === "correo" || canal === "ambos") {
+        await enviarCorreo(paraId, titulo, detalle, opciones);
+      }
+
+      // 2. Enviar por WhatsApp si el canal es "whatsapp" o "ambos" y tiene número y puente configurado
+      if ((canal === "whatsapp" || canal === "ambos") && c?.whatsapp && puenteWhatsappUrl) {
+        try {
+          const texto = `*Portal IVAD - ${titulo}*\n\nHola ${c.nombre},\n${detalle}${opciones?.enlace ? `\n\nPuedes verlo aquí: ${opciones.enlace}` : ""}`;
+          await enviarWhatsappFn({
+            data: {
+              puente: puenteWhatsappUrl,
+              para: c.whatsapp,
+              texto,
+            },
+          });
+        } catch (e) {
+          console.error("No se pudo enviar el aviso por WhatsApp:", e);
+        }
+      }
     },
-    [enviarCorreo],
+    [colaboradores, enviarCorreo, puenteWhatsappUrl],
   );
 
   const subirFoto = useCallback(
@@ -1136,6 +1204,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     responderTicket,
     marcarAvisosLeidos,
     recargar: cargar,
+    puenteWhatsappUrl,
+    guardarPuenteWhatsappUrl,
+    actualizarMisAvisos,
   };
 
   return <PortalContext.Provider value={valor}>{children}</PortalContext.Provider>;

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Briefcase,
   Camera,
@@ -7,6 +7,7 @@ import {
   FileText,
   LogOut,
   Mail,
+  MessageSquare,
   Pencil,
   Phone,
   Shield,
@@ -15,8 +16,17 @@ import {
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { VerificacionPerfil } from "@/components/verificado";
-import { usePortal } from "@/lib/portal-store";
+import { usePortal, type CanalAvisos } from "@/lib/portal-store";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
@@ -38,11 +48,32 @@ export const Route = createFileRoute("/perfil")({
 const documentos = ["Carta de trabajo", "Contrato laboral", "Constancia de sueldo", "Recibos de nómina"];
 
 function Perfil() {
-  const { sesion, colaboradorActual, esRRHH, subirFoto } = usePortal();
+  const { sesion, colaboradorActual, esRRHH, subirFoto, actualizarMisAvisos } = usePortal();
   const inputRef = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
 
   const c = colaboradorActual;
+  const [miWhatsapp, setMiWhatsapp] = useState(c?.whatsapp ?? "");
+  const [miCanal, setMiCanal] = useState<CanalAvisos>(c?.canalAvisos ?? "correo");
+  const [guardandoAvisos, setGuardandoAvisos] = useState(false);
+
+  useEffect(() => {
+    if (c) {
+      setMiWhatsapp(c.whatsapp ?? "");
+      setMiCanal(c.canalAvisos ?? "correo");
+    }
+  }, [c]);
+
+  const guardarPreferencias = async () => {
+    setGuardandoAvisos(true);
+    const r = await actualizarMisAvisos(miWhatsapp, miCanal);
+    setGuardandoAvisos(false);
+    if (!r.ok) {
+      toast.error(r.error ?? "No se pudieron guardar las preferencias");
+      return;
+    }
+    toast.success("Preferencias de WhatsApp y avisos actualizadas");
+  };
 
   const elegirFoto = (archivo?: File | null) => {
     if (!archivo || !c) return;
@@ -182,6 +213,48 @@ function Perfil() {
           <Dato icon={Shield} label="Área" valor={c?.area ?? "—"} />
           <Dato icon={Mail} label="Correo" valor={c?.email ?? sesion.email} />
           <Dato icon={Phone} label="Teléfono" valor={c?.telefono ?? "—"} />
+          <Dato icon={MessageSquare} label="WhatsApp" valor={c?.whatsapp ? `+${c.whatsapp}` : "No registrado"} />
+        </section>
+
+        <section className="surface-card p-4 space-y-4">
+          <SectionTitle>Avisos y WhatsApp</SectionTitle>
+          <p className="text-xs text-muted-foreground">
+            Configura cómo quieres recibir respuestas a tus solicitudes de permisos, vacaciones y tareas.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp-perfil">Número de WhatsApp</Label>
+            <Input
+              id="whatsapp-perfil"
+              placeholder="Ej: 18095551234"
+              value={miWhatsapp}
+              onChange={(e) => setMiWhatsapp(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Ingresa tu número con código de país (ej. 1 para República Dominicana seguido de 809/829/849).
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Canal preferido para avisos</Label>
+            <Select value={miCanal} onValueChange={(v) => setMiCanal(v as CanalAvisos)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="correo">Solo Correo electrónico</SelectItem>
+                <SelectItem value="whatsapp">Solo WhatsApp</SelectItem>
+                <SelectItem value="ambos">Correo y WhatsApp (Ambos)</SelectItem>
+                <SelectItem value="ninguno">Solo en el portal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={guardarPreferencias}
+            disabled={guardandoAvisos}
+            className="w-full"
+            variant="outline"
+          >
+            {guardandoAvisos ? "Guardando..." : "Guardar preferencias de contacto"}
+          </Button>
         </section>
 
         {!esRRHH ? (

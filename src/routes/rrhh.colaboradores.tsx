@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Camera, Lock, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { AppShell, AppHeader, Avatar } from "@/components/app-shell";
-import { usePortal, type Colaborador } from "@/lib/portal-store";
+import { usePortal, type Colaborador, type CanalAvisos } from "@/lib/portal-store";
 import { areas } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,8 @@ const esquema = z.object({
   area: z.string().trim().min(2, "Indica el área").max(60),
   email: z.string().trim().email("Correo inválido").max(120),
   telefono: z.string().trim().max(30),
+  whatsapp: z.string().trim().max(30),
+  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]),
   salario: z.coerce.number().min(0).max(1000000),
 });
 
@@ -59,6 +61,8 @@ type Borrador = {
   area: string;
   email: string;
   telefono: string;
+  whatsapp: string;
+  canalAvisos: CanalAvisos;
   salario: string;
   estado: Colaborador["estado"];
 };
@@ -69,6 +73,8 @@ const vacio: Borrador = {
   area: areas[0]!,
   email: "",
   telefono: "",
+  whatsapp: "",
+  canalAvisos: "correo",
   salario: "45000",
   estado: "activo",
 };
@@ -189,6 +195,8 @@ function GestionColaboradores() {
                   area: c.area,
                   email: c.email,
                   telefono: c.telefono,
+                  whatsapp: c.whatsapp ?? "",
+                  canalAvisos: c.canalAvisos ?? "correo",
                   salario: String(c.salario),
                   estado: c.estado,
                 })
@@ -270,6 +278,32 @@ function GestionColaboradores() {
                 error={errores["telefono"]}
                 onChange={(v) => setBorrador({ ...borrador, telefono: v })}
               />
+              <Campo
+                id="whatsapp"
+                label="Número de WhatsApp (ej: 18095551234)"
+                valor={borrador.whatsapp}
+                error={errores["whatsapp"]}
+                onChange={(v) => setBorrador({ ...borrador, whatsapp: v })}
+              />
+              <div className="space-y-2">
+                <Label>Canal preferido para avisos</Label>
+                <Select
+                  value={borrador.canalAvisos}
+                  onValueChange={(v) =>
+                    setBorrador({ ...borrador, canalAvisos: v as CanalAvisos })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="correo">Solo Correo electrónico</SelectItem>
+                    <SelectItem value="whatsapp">Solo WhatsApp</SelectItem>
+                    <SelectItem value="ambos">Correo y WhatsApp (Ambos)</SelectItem>
+                    <SelectItem value="ninguno">Solo en el portal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {esNomina ? (
                 <Campo
                   id="salario"
