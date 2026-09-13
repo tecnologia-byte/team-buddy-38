@@ -48,12 +48,19 @@ const datosAutomaticos = () => {
 };
 
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
-export function VolanteEditor() {
-  const { colaboradores, enviarAvisoManual } = usePortal();
+export function VolanteEditor({
+  inicial,
+  onGuardado,
+}: {
+  inicial?: VolanteGuardado | null;
+  onGuardado?: () => void;
+} = {}) {
+  const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
   const [firmante, setFirmante] = useState("");
-  const [enviando, setEnviando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [idGuardado, setIdGuardado] = useState<string | null>(null);
   const elegido = colaboradores.find((c) => c.id === seleccion);
   const gestores = colaboradores.filter(
     (c) =>
