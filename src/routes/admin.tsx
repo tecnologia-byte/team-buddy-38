@@ -119,7 +119,22 @@ function Admin() {
                 <Contabilidad />
               </TabsContent>
               <TabsContent value="volante" className="mt-4">
-                <VolanteEditor />
+                <VolanteEditor
+                  inicial={editando}
+                  onGuardado={() => setRefrescos((n) => n + 1)}
+                />
+              </TabsContent>
+              <TabsContent value="guardados" className="mt-4">
+                <VolantesBandeja
+                  key={refrescos}
+                  onEditar={(v) => {
+                    setEditando(v);
+                    setPestana("volante");
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="mimi" className="mt-4">
+                <MimiChat />
               </TabsContent>
             </>
           ) : null}
