@@ -1397,10 +1397,8 @@ function AdminWhatsApp() {
   };
 
   useEffect(() => {
-    if (puente) {
-      void consultar(puente, token);
-    }
-  }, []);
+    void consultar(puente, token);
+  }, [puente, token]);
 
   // Sondeo cada 5s si hay un QR visible para actualizar automáticamente al escanear
   useEffect(() => {

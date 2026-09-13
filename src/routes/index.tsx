@@ -36,7 +36,9 @@ function Login() {
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  const registro = portalVacio && !cargando;
+  const [modoForzado, setModoForzado] = useState<"login" | "registro" | null>(null);
+
+  const registro = modoForzado ? modoForzado === "registro" : portalVacio && !cargando;
 
   return (
     <div className="brand-gradient flex min-h-screen flex-col items-center justify-center px-6 py-12">
@@ -136,6 +138,18 @@ function Login() {
                 ? "Crear cuenta de administrador"
                 : "Iniciar sesión"}
           </Button>
+
+          {registro && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setModoForzado("login")}
+                className="text-xs text-primary underline hover:opacity-80"
+              >
+                ¿Ya tienes una cuenta? Iniciar sesión normalmente
+              </button>
+            </div>
+          )}
 
           <p className="border-t border-border pt-4 text-center text-xs text-muted-foreground">
             Las credenciales son creadas por un administrador. Si no tienes acceso, comunícate con
