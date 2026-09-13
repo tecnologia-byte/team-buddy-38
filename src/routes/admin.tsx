@@ -55,6 +55,10 @@ export const Route = createFileRoute("/admin")({
 
 function Admin() {
   const { esAdmin, esContable, esNomina, sesion } = usePortal();
+  const [pestana, setPestana] = useState(esNomina ? "contabilidad" : "firmas");
+  const [editando, setEditando] = useState<VolanteGuardado | null>(null);
+  const [refrescos, setRefrescos] = useState(0);
+
 
   if (!esAdmin && !esContable) {
     return (
