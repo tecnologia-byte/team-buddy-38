@@ -73,11 +73,19 @@ export function VolanteEditor({
     setDatos((d) => (d.comprobante ? d : { ...d, ...datosAutomaticos() }));
   }, []);
 
+  // Abrir un volante guardado para seguir editándolo.
+  useEffect(() => {
+    if (!inicial) return;
+    setDatos({ ...volanteVacio, ...inicial.datos });
+    setSeleccion(inicial.colaboradorId);
+    setIdGuardado(inicial.id);
+  }, [inicial]);
+
   const nuevoVolante = () => {
     setDatos({ ...volanteVacio, ...datosAutomaticos() });
     setSeleccion("");
     setFirmante("");
-
+    setIdGuardado(null);
   };
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
