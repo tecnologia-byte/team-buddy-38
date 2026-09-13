@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mail, Printer, RotateCcw } from "lucide-react";
+import { Printer, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import {
   type DatosVolante,
   type LineaVolante,
 } from "@/components/volante-pago";
-import { enviarReciboFn } from "@/lib/correo.functions";
+import { supabase } from "@/integrations/supabase/client";
+import type { VolanteGuardado } from "@/components/volantes-bandeja";
 import { FirmaPad } from "@/components/firma-pad";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
 
