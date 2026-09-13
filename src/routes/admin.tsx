@@ -1471,89 +1471,42 @@ function AdminWhatsApp() {
 
   return (
     <div className="space-y-6">
-      {/* Configuración de la URL y Token del Puente */}
-      <section className="surface-card p-5 space-y-4">
-        <SectionTitle>Puente de WhatsApp & Código QR</SectionTitle>
-        <p className="text-sm text-muted-foreground">
-          El puente conecta la cuenta de WhatsApp corporativa mediante código QR para enviar avisos automáticos a los colaboradores. Debe estar en ejecución en tu servidor o computadora local (en la carpeta <code>puente-whatsapp/</code>).
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="puente-url">Dirección del Puente (URL)</Label>
-            <Input
-              id="puente-url"
-              placeholder="https://wa.ivadsrl.com"
-              value={puente}
-              onChange={(e) => setPuente(e.target.value)}
-              className="font-mono text-sm"
-            />
+      {/* Vinculación Directa con Código QR */}
+      <section className="surface-card p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
+          <div>
+            <SectionTitle>Conectar WhatsApp Corporativo</SectionTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Escanea el código QR desde tu teléfono para vincular la cuenta y enviar avisos automáticos al personal.
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="puente-token">Clave Secreta (Token)</Label>
-            <Input
-              id="puente-token"
-              type="text"
-              placeholder="ivad-secret-token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button onClick={guardarConfig} disabled={guardandoPuente}>
-            {guardandoPuente ? "Guardando..." : "Guardar configuración"}
-          </Button>
-          <Button variant="outline" onClick={() => void consultar()} disabled={consultando}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void consultar()}
+            disabled={consultando}
+            className="self-start sm:self-auto"
+          >
             <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
-            {consultando ? "Comprobando..." : "Actualizar estado"}
+            {consultando ? "Actualizando..." : "Actualizar QR"}
           </Button>
         </div>
-
-        <p className="text-xs text-muted-foreground">
-          Tip: Si estás ejecutando el puente localmente, abre una terminal en la carpeta <code>puente-whatsapp</code> y corre <code>npm start</code>. Si estás usando Lovable en la nube y tu puente corre en local, puedes exponerlo en segundos con <code>npx localtunnel --port 8787</code> o Cloudflare Tunnel.
-        </p>
-      </section>
-
-      {/* Estado de la Conexión y QR */}
-      <section className="surface-card p-5 space-y-4">
-        <SectionTitle>Estado de Vinculación</SectionTitle>
-
-        {errorPuente ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex items-start gap-3">
-            <X className="h-5 w-5 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">No se pudo contactar el puente de WhatsApp</p>
-              <p className="mt-1 text-xs opacity-90">{errorPuente}</p>
-              <div className="mt-3 p-3 bg-background/80 rounded-lg text-xs text-foreground space-y-1">
-                <p className="font-semibold">Pasos para conectar y ver el QR:</p>
-                <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
-                  <li>Abre la carpeta <code>puente-whatsapp</code> en la terminal.</li>
-                  <li>Ejecuta <code>npm start</code>.</li>
-                  <li>Haz clic en <strong>Actualizar estado</strong> para que el código QR aparezca aquí abajo inmediatamente.</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         {estado?.conectado ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-emerald-950 dark:text-emerald-200 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white font-bold">
-                <Check className="h-6 w-6" />
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-emerald-950 dark:text-emerald-200 space-y-4">
+            <div className="flex items-center gap-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white font-bold shadow-md">
+                <Check className="h-7 w-7" />
               </span>
               <div>
-                <p className="text-base font-bold text-foreground">WhatsApp Conectado</p>
+                <p className="text-lg font-bold text-foreground">WhatsApp Conectado y Operativo</p>
                 <p className="text-sm text-muted-foreground">
-                  Número vinculado: <strong className="font-mono text-foreground">+{estado.numero}</strong>
+                  Número activo: <strong className="font-mono text-foreground font-semibold">+{estado.numero}</strong>
                 </p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Los avisos de nómina, estados de solicitudes y tareas se enviarán automáticamente a través de esta cuenta a los colaboradores que elijan WhatsApp como canal preferido.
+            <p className="text-xs text-muted-foreground max-w-xl">
+              Los avisos de nómina, estados de permisos, vacaciones y tareas se enviarán automáticamente a través de este WhatsApp a los colaboradores registrados.
             </p>
             <Button
               variant="destructive"
@@ -1564,62 +1517,55 @@ function AdminWhatsApp() {
               {desvinculando ? "Desvinculando..." : "Desvincular este teléfono"}
             </Button>
           </div>
-        ) : estado && !estado.conectado ? (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-200">
-              <p className="font-semibold flex items-center gap-2">
-                <Smartphone className="h-4 w-4 text-amber-600" />
-                Esperando vinculación con WhatsApp
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Escanea el código QR desde el WhatsApp de tu empresa para habilitar el envío automático.
-              </p>
-            </div>
-
-            {estado.qr ? (
-              <div className="flex flex-col items-center justify-center p-6 border rounded-2xl bg-muted/20 space-y-3">
-                <img
-                  src={estado.qr}
-                  alt="Código QR de WhatsApp"
-                  className="w-72 h-72 rounded-xl border bg-white p-3 shadow-md"
-                />
-                <p className="text-xs font-medium text-muted-foreground text-center max-w-sm">
-                  1. Abre WhatsApp en tu celular &gt; 2. Toca Menú o Ajustes &gt; 3. Dispositivos vinculados &gt; 4. Vincular un dispositivo
-                </p>
-                <span className="inline-flex items-center gap-1.5 text-xs text-primary animate-pulse">
-                  <RefreshCw className="h-3 w-3 animate-spin" /> Esperando escaneo desde tu teléfono...
+        ) : (
+          <div className="flex flex-col items-center justify-center py-6 px-4">
+            {estado?.qr ? (
+              <div className="flex flex-col items-center justify-center space-y-4 bg-muted/20 border rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-sm">
+                <div className="bg-white p-3 rounded-2xl shadow-md border">
+                  <img
+                    src={estado.qr}
+                    alt="Código QR de WhatsApp"
+                    className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
+                  />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <p className="text-sm font-semibold text-foreground">
+                    Escanea este código con WhatsApp
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    1. Abre WhatsApp en tu celular &rarr; 2. Ajustes o Menú (&#8942;) &rarr; 3. Dispositivos vinculados &rarr; 4. Vincular un dispositivo.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 text-xs font-medium text-primary animate-pulse pt-2">
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Esperando escaneo desde tu teléfono...
                 </span>
               </div>
             ) : (
-              <div className="text-center py-6 border rounded-2xl bg-muted/10">
-                <p className="text-sm font-medium text-foreground">Generando código QR en el puente...</p>
-                <p className="text-xs text-muted-foreground mt-1">El proceso de WhatsApp está iniciando la sesión.</p>
-                <Button className="mt-3" variant="outline" size="sm" onClick={() => void consultar()}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Comprobar QR
+              <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center max-w-sm">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <Smartphone className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-foreground">Preparando código QR...</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {consultando ? "Generando sesión segura..." : "Haz clic en el botón para cargar el código QR."}
+                  </p>
+                </div>
+                <Button onClick={() => void consultar()} disabled={consultando}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
+                  Cargar código QR
                 </Button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-6 border border-dashed rounded-2xl">
-            <Smartphone className="h-8 w-8 mx-auto text-muted-foreground/60 mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {consultando ? "Comprobando conexión con el puente de WhatsApp..." : "Haz clic en 'Actualizar estado' para consultar el puente o generar el código QR."}
-            </p>
-            {!consultando && (
-              <Button className="mt-3" size="sm" variant="outline" onClick={() => void consultar()}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Comprobar estado
-              </Button>
             )}
           </div>
         )}
       </section>
 
-      {/* Prueba de Envío */}
+      {/* Prueba de Envío Directo (solo visible cuando está conectado) */}
       {estado?.conectado ? (
-        <section className="surface-card p-5 space-y-4">
+        <section className="surface-card p-6 space-y-4">
           <SectionTitle>Prueba de Envío Directo</SectionTitle>
-          <div className="space-y-3">
+          <div className="space-y-3 max-w-xl">
             <div className="space-y-1">
               <Label htmlFor="tel-prueba">Número de destino (con código de país)</Label>
               <Input
@@ -1630,7 +1576,7 @@ function AdminWhatsApp() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="msg-prueba">Mensaje</Label>
+              <Label htmlFor="msg-prueba">Mensaje de prueba</Label>
               <Textarea
                 id="msg-prueba"
                 rows={2}
