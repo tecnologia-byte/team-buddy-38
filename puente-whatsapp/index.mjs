@@ -16,11 +16,9 @@
  */
 import { createServer } from "node:http";
 import { Boom } from "@hapi/boom";
-import baileys from "@whiskeysockets/baileys";
+import { makeWASocket, useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
-
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
 
 const TOKEN = process.env.PUENTE_TOKEN?.trim() || "ivad-secret-token";
 const PORT = Number(process.env.PORT ?? 8787);
