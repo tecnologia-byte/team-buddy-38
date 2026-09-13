@@ -121,63 +121,53 @@ export function VolanteEditor({
     }));
   };
 
-  const enviarPorCorreo = async () => {
-    if (!elegido?.email) {
-      toast.error("Selecciona un colaborador con correo registrado.");
+  /** Guarda el volante en la bandeja privada como "Listo" (todavía no se envía a nadie). */
+  const guardar = async () => {
+    if (!seleccion) {
+      toast.error("Selecciona primero al colaborador del volante.");
       return;
     }
-    setEnviando(true);
+    setGuardando(true);
     try {
       const limpiar = (lineas: LineaVolante[]) =>
         lineas
           .filter((l) => l.concepto.trim() || l.monto.trim())
           .map((l) => ({ concepto: l.concepto, monto: numero(l.monto) }));
-      const res = await enviarReciboFn({
-        data: {
-          para: elegido.email,
-          comprobante: datos.comprobante,
-          fechaEmision: datos.fechaEmision,
-          periodoDesde: datos.periodoDesde,
-          periodoHasta: datos.periodoHasta,
-          nombre: datos.nombre || elegido.nombre,
-          cedula: datos.cedula,
-          codigo: datos.codigo,
-          cargo: datos.cargo,
-          departamento: datos.departamento,
-          ingreso: datos.ingreso,
-          banco: datos.banco,
-          seguridadSocial: datos.seguridadSocial,
-          ingresos: limpiar(datos.ingresos),
-          deducciones: limpiar(datos.deducciones),
-          ...(datos.firma ? { firma: datos.firma } : {}),
-          ...(datos.firmaFecha ? { firmaFecha: datos.firmaFecha } : {}),
-          ...(datos.firmaEmpresa ? { firmaEmpresa: datos.firmaEmpresa } : {}),
-          ...(datos.firmaEmpresaNombre ? { firmaEmpresaNombre: datos.firmaEmpresaNombre } : {}),
-          ...(datos.firmaEmpresaCargo ? { firmaEmpresaCargo: datos.firmaEmpresaCargo } : {}),
+      const neto =
+        limpiar(datos.ingresos).reduce((t, l) => t + l.monto, 0) -
+        limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
 
-        },
-      });
-      if (res.ok) {
-        // Aviso dentro del portal, además del correo con el PDF adjunto.
-        const bruto = limpiar(datos.ingresos).reduce((t, l) => t + l.monto, 0);
-        const deducido = limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
-        const neto = (bruto - deducido).toLocaleString("es-DO", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        await enviarAvisoManual({
-          destino: elegido.id,
-          titulo: `Volante de pago ${datos.comprobante}`,
-          detalle:
-            `Se registró tu pago del período ${datos.periodoDesde} al ${datos.periodoHasta}. ` +
-            `Neto recibido: RD$ ${neto}. Te enviamos el volante en PDF a ${elegido.email}.`,
-        }).catch(() => undefined);
-        toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
-      } else toast.error(res.error ?? "No se pudo enviar el recibo");
+      const fila = {
+        colaborador_id: seleccion,
+        comprobante: datos.comprobante,
+        fecha_emision: datos.fechaEmision,
+        periodo_desde: datos.periodoDesde,
+        periodo_hasta: datos.periodoHasta,
+        datos: datos as unknown as Record<string, unknown>,
+        neto,
+        estado: "Listo",
+        error: null,
+      };
+
+      if (idGuardado) {
+        const { error } = await supabase.from("volantes").update(fila).eq("id", idGuardado);
+        if (error) throw new Error(error.message);
+        toast.success("Volante actualizado en la bandeja");
+      } else {
+        const { data: creado, error } = await supabase
+          .from("volantes")
+          .insert(fila)
+          .select("id")
+          .single();
+        if (error) throw new Error(error.message);
+        setIdGuardado(creado.id);
+        toast.success("Volante guardado. Ya aparece en la bandeja, listo para enviar.");
+      }
+      onGuardado?.();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo enviar el recibo");
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar el volante");
     } finally {
-      setEnviando(false);
+      setGuardando(false);
     }
   };
 
