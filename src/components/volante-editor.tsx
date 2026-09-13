@@ -323,9 +323,9 @@ export function VolanteEditor({
           <Button type="button" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Imprimir / Guardar PDF
           </Button>
-          <Button type="button" variant="outline" disabled={enviando} onClick={enviarPorCorreo}>
-            <Mail className="mr-2 h-4 w-4" />
-            {enviando ? "Enviando…" : "Enviar recibo por correo"}
+          <Button type="button" disabled={guardando} onClick={() => void guardar()}>
+            <Save className="mr-2 h-4 w-4" />
+            {guardando ? "Guardando…" : idGuardado ? "Guardar cambios" : "Guardar volante"}
           </Button>
           <Button
             type="button"
