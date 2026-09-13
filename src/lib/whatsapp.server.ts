@@ -16,9 +16,7 @@ async function llamar(puente: string, ruta: string, cuerpo?: unknown, tokenParam
   return texto ? (JSON.parse(texto) as Record<string, unknown>) : {};
 }
 
-import QRCode from "qrcode";
-
-/** Estado de la conexión y código QR pendiente de escanear. */
+/** Estado de la conexión y código QR devuelto por Baileys para escanear. */
 export async function estadoPuente(puente: string, token?: string): Promise<Estado> {
   try {
     const d = await llamar(puente, "/estado", undefined, token);
@@ -30,41 +28,62 @@ export async function estadoPuente(puente: string, token?: string): Promise<Esta
       };
     }
   } catch {
-    // Si el puente externo está iniciando, generamos el QR directo en el portal
+    // Si el puente externo no responde o está iniciando, reporta desconectado
   }
-
-  // Genera el código QR de vinculación institucional para escaneo inmediato
-  const qrData = await QRCode.toDataURL(
-    `2@PortalIVAD-WhatsApp,${Date.now()},IVAD-Home-Goods,${puente}`,
-    { width: 320, margin: 1 }
-  );
 
   return {
     conectado: false,
     numero: "",
-    qr: qrData,
+    qr: "",
   };
 }
 
+export type EnviarWhatsappParams = {
+  puente?: string | undefined;
+  para: string;
+  texto: string;
+  token?: string | undefined;
+  doc?: { documentoBase64?: string; nombreArchivo?: string; mimetype?: string } | undefined;
+};
+
 /** Envía un mensaje o documento (PDF) de WhatsApp al número indicado (con código de país). */
 export async function enviarWhatsapp(
-  puente: string,
-  para: string,
-  texto: string,
+  puenteOParams: string | EnviarWhatsappParams,
+  para?: string,
+  texto?: string,
   token?: string,
   doc?: { documentoBase64?: string; nombreArchivo?: string; mimetype?: string },
 ) {
+  let puente = "";
+  let paraFinal = "";
+  let textoFinal = "";
+  let tokenFinal: string | undefined = undefined;
+  let docFinal = doc;
+
+  if (typeof puenteOParams === "object" && puenteOParams !== null) {
+    puente = puenteOParams.puente || process.env["WHATSAPP_PUENTE_URL"] || "http://localhost:8787";
+    paraFinal = puenteOParams.para;
+    textoFinal = puenteOParams.texto;
+    tokenFinal = puenteOParams.token;
+    docFinal = puenteOParams.doc;
+  } else {
+    puente = puenteOParams || process.env["WHATSAPP_PUENTE_URL"] || "http://localhost:8787";
+    paraFinal = para ?? "";
+    textoFinal = texto ?? "";
+    tokenFinal = token;
+  }
+
   await llamar(
     puente,
     "/enviar",
     {
-      para,
-      texto,
-      ...(doc?.documentoBase64 ? { documentoBase64: doc.documentoBase64 } : {}),
-      ...(doc?.nombreArchivo ? { nombreArchivo: doc.nombreArchivo } : {}),
-      ...(doc?.mimetype ? { mimetype: doc.mimetype } : {}),
+      para: paraFinal,
+      texto: textoFinal,
+      ...(docFinal?.documentoBase64 ? { documentoBase64: docFinal.documentoBase64 } : {}),
+      ...(docFinal?.nombreArchivo ? { nombreArchivo: docFinal.nombreArchivo } : {}),
+      ...(docFinal?.mimetype ? { mimetype: docFinal.mimetype } : {}),
     },
-    token,
+    tokenFinal,
   );
   return { ok: true as const };
 }
@@ -74,4 +93,5 @@ export async function cerrarPuente(puente: string, token?: string) {
   await llamar(puente, "/salir", {}, token);
   return { ok: true as const };
 }
+
 
