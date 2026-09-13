@@ -73,11 +73,16 @@ export async function enviarWhatsapp(
     tokenFinal = token;
   }
 
+  let paraLimpia = (paraFinal ?? "").replace(/\D/g, "");
+  if (paraLimpia.length === 10 && (paraLimpia.startsWith("809") || paraLimpia.startsWith("829") || paraLimpia.startsWith("849"))) {
+    paraLimpia = "1" + paraLimpia;
+  }
+
   await llamar(
     puente,
     "/enviar",
     {
-      para: paraFinal,
+      para: paraLimpia,
       texto: textoFinal,
       ...(docFinal?.documentoBase64 ? { documentoBase64: docFinal.documentoBase64 } : {}),
       ...(docFinal?.nombreArchivo ? { nombreArchivo: docFinal.nombreArchivo } : {}),

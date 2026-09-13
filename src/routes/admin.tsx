@@ -721,10 +721,10 @@ function CuentasUsuarios() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="c-whatsapp">WhatsApp (ej: 18095551234)</Label>
+            <Label htmlFor="c-whatsapp">WhatsApp (ej: +1 849 425 2220 ó 8494252220)</Label>
             <Input
               id="c-whatsapp"
-              placeholder="18095551234"
+              placeholder="+1 849 425 2220"
               value={form.whatsapp ?? ""}
               onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value }))}
             />

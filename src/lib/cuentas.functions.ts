@@ -99,7 +99,7 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       area: data.area.trim(),
       iniciales: inicialesDe(data.nombre),
       ...(data.telefono !== undefined ? { telefono: data.telefono.trim() } : {}),
-      ...(data.whatsapp !== undefined ? { whatsapp: data.whatsapp.replace(/\D/g, "") } : {}),
+      ...(data.whatsapp !== undefined ? { whatsapp: normalizarWhatsApp(data.whatsapp) } : {}),
       ...(data.canalAvisos !== undefined ? { canal_avisos: data.canalAvisos } : {}),
       ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave ?? null } : {}),
     });
@@ -112,6 +112,84 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
     if (errorRol) return { ok: false as const, error: errorRol.message };
 
     return { ok: true as const };
+  });
+
+export function normalizarWhatsApp(v: string | null | undefined): string {
+  let num = (v ?? "").replace(/\D/g, "");
+  // Si es un número dominicano de 10 dígitos (809, 829, 849), le anteponemos el código de país 1
+  if (num.length === 10 && (num.startsWith("809") || num.startsWith("829") || num.startsWith("849"))) {
+    num = "1" + num;
+  }
+  return num;
+}
+
+const colaboradorSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(80),
+  cargo: z.string().trim().max(80).default(""),
+  area: z.string().trim().max(60).default(""),
+  email: z.string().trim().email("Correo electrónico inválido").max(120).optional(),
+  telefono: z.string().default(""),
+  whatsapp: z.string().default(""),
+  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
+  salario: z.number().min(0).max(10000000).optional(),
+  estado: z.enum(["activo", "ausente", "vacaciones"]).default("activo"),
+});
+
+/** Actualiza el expediente completo de un colaborador usando privilegios administrativos (service role). */
+export const guardarColaboradorFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => colaboradorSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const esGestor = (roles ?? []).some(
+      (r) => r.role === "Administrador" || r.role === "Recursos Humanos" || r.role === "Contabilidad",
+    );
+    if (!esGestor) return { ok: false as const, error: "No tienes permisos para modificar expedientes" };
+
+    const sb = await admin();
+    const whatsappNormalizado = normalizarWhatsApp(data.whatsapp);
+
+    const fila: Record<string, unknown> = {
+      nombre: data.nombre.trim(),
+      cargo: data.cargo.trim(),
+      area: data.area.trim(),
+      telefono: data.telefono.trim(),
+      whatsapp: whatsappNormalizado,
+      canal_avisos: data.canalAvisos,
+      estado: data.estado,
+      iniciales: inicialesDe(data.nombre),
+    };
+    if (data.salario !== undefined) {
+      fila.salario = data.salario;
+    }
+
+    const { error: errorPerfil } = await sb
+      .from("perfiles")
+      .update(fila)
+      .eq("id", data.id);
+
+    if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
+
+    // Si se cambió el correo, actualizar auth y perfiles
+    if (data.email) {
+      const nuevoEmail = data.email.trim().toLowerCase();
+      const { data: actual } = await sb
+        .from("perfiles")
+        .select("email")
+        .eq("id", data.id)
+        .maybeSingle();
+
+      if (actual?.email && nuevoEmail !== actual.email.toLowerCase()) {
+        await sb.from("perfiles").update({ email: nuevoEmail }).eq("id", data.id);
+        await sb.auth.admin.updateUserById(data.id, { email: nuevoEmail });
+      }
+    }
+
+    return { ok: true as const, whatsapp: whatsappNormalizado };
   });
 
 /**

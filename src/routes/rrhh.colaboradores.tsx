@@ -132,7 +132,7 @@ function GestionColaboradores() {
       const res = await guardarColaborador({
         ...resto,
         telefono: resto.telefono?.trim() ?? "",
-        whatsapp: resto.whatsapp?.replace(/\D/g, "") ?? "",
+        whatsapp: resto.whatsapp ?? "",
         canalAvisos: resto.canalAvisos,
         ...(esNomina ? { salario } : {}),
         estado: borrador.estado,
@@ -291,13 +291,18 @@ function GestionColaboradores() {
                 error={errores["telefono"]}
                 onChange={(v) => setBorrador({ ...borrador, telefono: v })}
               />
-              <Campo
-                id="whatsapp"
-                label="Número de WhatsApp (ej: 18095551234)"
-                valor={borrador.whatsapp}
-                error={errores["whatsapp"]}
-                onChange={(v) => setBorrador({ ...borrador, whatsapp: v })}
-              />
+              <div className="space-y-1">
+                <Campo
+                  id="whatsapp"
+                  label="Número de WhatsApp (ej: +1 849 425 2220)"
+                  valor={borrador.whatsapp}
+                  error={errores["whatsapp"]}
+                  onChange={(v) => setBorrador({ ...borrador, whatsapp: v })}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Acepta números con o sin <strong>+1</strong> (ej: +1 849 425 2220 ó 8494252220). El sistema detecta automáticamente República Dominicana.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label>Canal preferido para avisos</Label>
                 <Select

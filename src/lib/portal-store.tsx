@@ -20,6 +20,8 @@ import {
   portalVacioFn,
   cambiarCorreoFn,
   establecerClaveFn,
+  guardarColaboradorFn,
+  normalizarWhatsApp,
 } from "@/lib/cuentas.functions";
 
 export type { Cuenta, Rol };
@@ -639,42 +641,28 @@ export function PortalProvider({ children }: { children: ReactNode }) {
             "Para agregar un colaborador crea primero su acceso en Administradores → Usuarios.",
         };
       }
-      const fila: Record<string, string | number> = {};
-      const campos: Array<[keyof Colaborador, string]> = [
-        ["nombre", "nombre"],
-        ["cargo", "cargo"],
-        ["area", "area"],
-        ["telefono", "telefono"],
-        ["ingreso", "ingreso"],
-        ["cumple", "cumple"],
-        ["estado", "estado"],
-        ["salario", "salario"],
-        ["whatsapp", "whatsapp"],
-        ["canalAvisos", "canal_avisos"],
-      ];
-      for (const [clave, columna] of campos) {
-        const valor = datos[clave];
-        if (valor !== undefined) fila[columna] = valor as string | number;
-      }
-      if (datos.nombre) fila["iniciales"] = inicialesDe(datos.nombre);
+      const r = await guardarColaboradorFn({
+        data: {
+          id: datos.id,
+          nombre: datos.nombre ?? "",
+          cargo: datos.cargo ?? "",
+          area: datos.area ?? "",
+          email: datos.email,
+          telefono: datos.telefono ?? "",
+          whatsapp: datos.whatsapp ?? "",
+          canalAvisos: (datos.canalAvisos as CanalAvisos) ?? "correo",
+          salario: datos.salario,
+          estado: (datos.estado as "activo" | "ausente" | "vacaciones") ?? "activo",
+        },
+      }).catch((e: unknown) => ({
+        ok: false as const,
+        error: e instanceof Error ? e.message : "Error al guardar colaborador",
+      }));
 
-      const { error } = await supabase.from("perfiles").update(fila as never).eq("id", datos.id);
-      if (error) return { ok: false, error: error.message };
-
-      // El correo de acceso se cambia en el servidor (auth + perfil) y avisa al nuevo buzón.
-      const actual = colaboradores.find((c) => c.id === datos.id);
-      const nuevoEmail = datos.email?.trim().toLowerCase();
-      if (nuevoEmail && nuevoEmail !== actual?.email.toLowerCase()) {
-        const r = await cambiarCorreoFn({ data: { id: datos.id, email: nuevoEmail } });
-        if (!r.ok) {
-          await cargar();
-          return { ok: false, error: r.error };
-        }
-      }
-      await cargar();
-      return { ok: true };
+      if (r.ok) await cargar();
+      return r;
     },
-    [cargar, colaboradores],
+    [cargar],
   );
 
   const guardarPuenteWhatsappUrl = useCallback(
@@ -710,7 +698,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const actualizarMisAvisos = useCallback(
     async (whatsapp: string, canalAvisos: CanalAvisos, telefono?: string): Promise<Resultado> => {
       if (!userId) return { ok: false, error: "Sesión no iniciada" };
-      const numLimpio = whatsapp.replace(/\D/g, "");
+      const numLimpio = normalizarWhatsApp(whatsapp);
       const cambios: Record<string, string> = {
         whatsapp: numLimpio,
         canal_avisos: canalAvisos,
