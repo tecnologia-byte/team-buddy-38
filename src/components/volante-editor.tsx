@@ -12,6 +12,7 @@ import {
   type LineaVolante,
 } from "@/components/volante-pago";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { VolanteGuardado } from "@/components/volantes-bandeja";
 import { FirmaPad } from "@/components/firma-pad";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
@@ -143,7 +144,7 @@ export function VolanteEditor({
         fecha_emision: datos.fechaEmision,
         periodo_desde: datos.periodoDesde,
         periodo_hasta: datos.periodoHasta,
-        datos: datos as unknown as Record<string, unknown>,
+        datos: datos as unknown as Json,
         neto,
         estado: "Listo",
         error: null,
