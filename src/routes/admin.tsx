@@ -86,12 +86,14 @@ function Admin() {
     <AppShell>
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
-        <Tabs defaultValue={esNomina ? "contabilidad" : "firmas"}>
+        <Tabs value={pestana} onValueChange={setPestana}>
           <TabsList
-            className={`grid w-full print:hidden ${esNomina ? "grid-cols-3" : "grid-cols-1"}`}
+            className={`grid w-full print:hidden ${esNomina ? "grid-cols-5" : "grid-cols-1"}`}
           >
             {esNomina ? <TabsTrigger value="contabilidad">Nómina</TabsTrigger> : null}
             {esNomina ? <TabsTrigger value="volante">Volante</TabsTrigger> : null}
+            {esNomina ? <TabsTrigger value="guardados">Guardados</TabsTrigger> : null}
+            {esNomina ? <TabsTrigger value="mimi">Mimi</TabsTrigger> : null}
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
           </TabsList>
           {esAdmin ? (
