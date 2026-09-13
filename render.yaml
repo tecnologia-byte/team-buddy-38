@@ -1,0 +1,17 @@
+﻿services:
+  - type: web
+    name: puente-whatsapp-ivad
+    runtime: node
+    plan: free
+    rootDir: puente-whatsapp
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 8787
+      - key: PUENTE_TOKEN
+        value: ivad-secret-token
+      - key: PORTAL_URL
+        value: https://personalivad.ivadsrl.com
+    domains:
+      - wa.ivadsrl.com

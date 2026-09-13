@@ -322,7 +322,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [tareas, setTareas] = useState<TareaAsignada[]>([]);
-  const [puenteWhatsappUrl, setPuenteWhatsappUrl] = useState<string>("http://localhost:8787");
+  const [puenteWhatsappUrl, setPuenteWhatsappUrl] = useState<string>("https://wa.ivadsrl.com");
   const [puenteWhatsappToken, setPuenteWhatsappToken] = useState<string>("ivad-secret-token");
   // Evita dependencias circulares entre pagos y firmas.
   const consumirFirmaRef = useRef<(id: string) => Promise<Resultado>>(async () => ({ ok: true }));

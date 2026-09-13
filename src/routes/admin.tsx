@@ -1483,7 +1483,7 @@ function AdminWhatsApp() {
             <Label htmlFor="puente-url">Dirección del Puente (URL)</Label>
             <Input
               id="puente-url"
-              placeholder="http://localhost:8787 o https://wa.tudominio.com"
+              placeholder="https://wa.ivadsrl.com"
               value={puente}
               onChange={(e) => setPuente(e.target.value)}
               className="font-mono text-sm"
