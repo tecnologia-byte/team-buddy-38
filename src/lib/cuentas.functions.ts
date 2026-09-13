@@ -17,6 +17,9 @@ const cuentaSchema = z.object({
   cargo: z.string().default(""),
   area: z.string().default(""),
   rol: rolSchema,
+  telefono: z.string().optional(),
+  whatsapp: z.string().optional(),
+  canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
   emailOriginal: z.string().email().optional(),
 });
 
@@ -95,6 +98,9 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       cargo: data.cargo.trim(),
       area: data.area.trim(),
       iniciales: inicialesDe(data.nombre),
+      ...(data.telefono !== undefined ? { telefono: data.telefono.trim() } : {}),
+      ...(data.whatsapp !== undefined ? { whatsapp: data.whatsapp.replace(/\D/g, "") } : {}),
+      ...(data.canalAvisos !== undefined ? { canal_avisos: data.canalAvisos } : {}),
       ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave ?? null } : {}),
     });
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };

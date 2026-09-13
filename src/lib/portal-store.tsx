@@ -230,7 +230,11 @@ type Contexto = {
   puenteWhatsappToken: string;
   guardarPuenteWhatsappUrl: (url: string) => Promise<Resultado>;
   guardarPuenteWhatsappConfig: (url: string, token: string) => Promise<Resultado>;
-  actualizarMisAvisos: (whatsapp: string, canalAvisos: CanalAvisos) => Promise<Resultado>;
+  actualizarMisAvisos: (
+    whatsapp: string,
+    canalAvisos: CanalAvisos,
+    telefono?: string,
+  ) => Promise<Resultado>;
 };
 
 // Se guarda en globalThis para que las recargas en caliente (HMR) no creen
@@ -541,6 +545,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         rol: c.rol ?? "Colaborador",
         cargo: c.cargo,
         iniciales: c.iniciales,
+        telefono: c.telefono,
+        whatsapp: c.whatsapp,
+        canalAvisos: c.canalAvisos,
       })),
     [colaboradores],
   );
@@ -572,7 +579,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   );
 
   const crearPrimerAdmin = useCallback(
-    async (datos: { email: string; clave: string; nombre: string; cargo: string }) => {
+    async (datos: {
+      email: string;
+      clave: string;
+      nombre: string;
+      cargo: string;
+    }): Promise<Resultado> => {
       const r = await crearPrimerAdminFn({ data: datos });
       if (!r.ok) return r;
       return autenticar(datos.email, datos.clave);
@@ -595,6 +607,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           cargo: cuenta.cargo,
           area: cuenta.area ?? "",
           rol: cuenta.rol,
+          ...(cuenta.telefono !== undefined ? { telefono: cuenta.telefono } : {}),
+          ...(cuenta.whatsapp !== undefined ? { whatsapp: cuenta.whatsapp } : {}),
+          ...(cuenta.canalAvisos !== undefined ? { canalAvisos: cuenta.canalAvisos } : {}),
           ...(emailOriginal ? { emailOriginal } : {}),
         },
       });
@@ -693,15 +708,19 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   );
 
   const actualizarMisAvisos = useCallback(
-    async (whatsapp: string, canalAvisos: CanalAvisos): Promise<Resultado> => {
+    async (whatsapp: string, canalAvisos: CanalAvisos, telefono?: string): Promise<Resultado> => {
       if (!userId) return { ok: false, error: "Sesión no iniciada" };
       const numLimpio = whatsapp.replace(/\D/g, "");
+      const cambios: Record<string, string> = {
+        whatsapp: numLimpio,
+        canal_avisos: canalAvisos,
+      };
+      if (telefono !== undefined) {
+        cambios["telefono"] = telefono.trim();
+      }
       const { error } = await supabase
         .from("perfiles")
-        .update({
-          whatsapp: numLimpio,
-          canal_avisos: canalAvisos,
-        } as never)
+        .update(cambios as never)
         .eq("id", userId);
       if (error) return { ok: false, error: error.message };
       await cargar();

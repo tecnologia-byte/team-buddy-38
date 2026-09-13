@@ -185,33 +185,90 @@ function Admin() {
   );
 }
 
-/** Envía el recibo de un pago al colaborador con el documento adjunto. */
+/** Envía el recibo de un pago al colaborador según su canal preferido (Correo, WhatsApp o Ambos). */
 async function enviarReciboPago(
   pago: { periodo: string; monto: number; id: string },
-  c: { nombre: string; email: string; cargo: string; area: string; ingreso: string; firma?: string | undefined; firmaActualizada?: string | undefined },
+  c: {
+    nombre: string;
+    email: string;
+    cargo: string;
+    area: string;
+    ingreso: string;
+    whatsapp?: string | null | undefined;
+    canalAvisos?: string | null | undefined;
+    firma?: string | undefined;
+    firmaActualizada?: string | undefined;
+  },
+  puenteUrl?: string,
+  puenteToken?: string,
 ) {
-  if (!c.email) return { ok: false as const, error: "El colaborador no tiene correo registrado" };
-  return enviarReciboFn({
-    data: {
-      para: c.email,
-      comprobante: `IVAD-${pago.id.slice(0, 8).toUpperCase()}`,
-      fechaEmision: new Date().toLocaleDateString("es-DO"),
-      periodoDesde: pago.periodo,
-      periodoHasta: pago.periodo,
-      nombre: c.nombre,
-      cargo: c.cargo,
-      departamento: c.area,
-      ingreso: c.ingreso,
-      ingresos: [{ concepto: "Salario neto del período", monto: pago.monto }],
-      deducciones: [],
-      ...(c.firma ? { firma: c.firma } : {}),
-      ...(c.firmaActualizada ? { firmaFecha: c.firmaActualizada } : {}),
-    },
-  });
+  const canal = c.canalAvisos ?? "correo";
+  const comprobante = `IVAD-${pago.id.slice(0, 8).toUpperCase()}`;
+  const envios: string[] = [];
+  const errores: string[] = [];
+
+  // Envío por Correo si el canal es 'correo' o 'ambos'
+  if (canal === "correo" || canal === "ambos") {
+    if (c.email) {
+      const resCorreo = await enviarReciboFn({
+        data: {
+          para: c.email,
+          comprobante,
+          fechaEmision: new Date().toLocaleDateString("es-DO"),
+          periodoDesde: pago.periodo,
+          periodoHasta: pago.periodo,
+          nombre: c.nombre,
+          cargo: c.cargo,
+          departamento: c.area,
+          ingreso: c.ingreso,
+          ingresos: [{ concepto: "Salario neto del período", monto: pago.monto }],
+          deducciones: [],
+          ...(c.firma ? { firma: c.firma } : {}),
+          ...(c.firmaActualizada ? { firmaFecha: c.firmaActualizada } : {}),
+        },
+      }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "Error correo" }));
+
+      if (resCorreo.ok) envios.push("Correo");
+      else errores.push(`Correo: ${resCorreo.error}`);
+    } else {
+      errores.push("Sin correo registrado");
+    }
+  }
+
+  // Envío por WhatsApp si el canal es 'whatsapp' o 'ambos'
+  if (canal === "whatsapp" || canal === "ambos") {
+    const num = (c.whatsapp ?? "").replace(/\D/g, "");
+    if (num && num.length >= 10 && puenteUrl) {
+      const texto = `Hola ${c.nombre}, se ha emitido tu recibo de pago de nómina.\n\n` +
+        `Periodo: ${pago.periodo}\n` +
+        `Comprobante: ${comprobante}\n` +
+        `Monto neto: RD$ ${pesos(pago.monto)}\n\n` +
+        `Puedes consultar los detalles y descargar tu volante desde el Portal: https://personalivad.ivadsrl.com/nomina`;
+
+      const resWa = await enviarWhatsappFn({
+        data: {
+          puente: puenteUrl,
+          para: num,
+          texto,
+          token: puenteToken || "ivad-secret-token",
+        },
+      }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "Error WhatsApp" }));
+
+      if (resWa.ok) envios.push("WhatsApp");
+      else errores.push(`WhatsApp: ${resWa.error}`);
+    } else if (!num) {
+      errores.push("Sin número de WhatsApp");
+    }
+  }
+
+  if (envios.length > 0) {
+    return { ok: true as const, medios: envios.join(" y ") };
+  }
+  return { ok: false as const, error: errores.join("; ") || "No se pudo despachar el recibo" };
 }
 
 function Contabilidad() {
-  const { pagos, colaboradores, actualizarPago } = usePortal();
+  const { pagos, colaboradores, actualizarPago, puenteWhatsappUrl, puenteWhatsappToken } = usePortal();
   const totalPeriodo = pagos.reduce((s, p) => s + p.monto, 0);
   const pendientes = pagos.filter((p) => p.estado === "Pendiente");
   const recibosFaltantes = pagos.filter((p) => p.recibo === "No enviado");
@@ -234,9 +291,9 @@ function Contabilidad() {
                 for (const p of pagos.filter((x) => x.recibo === "No enviado")) {
                   await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
                   const col = colaboradores.find((x) => x.id === p.colaboradorId);
-                  if (col) await enviarReciboPago(p, col).catch(() => undefined);
+                  if (col) await enviarReciboPago(p, col, puenteWhatsappUrl, puenteWhatsappToken).catch(() => undefined);
                 }
-                toast.success("Recibos enviados por correo a los colaboradores");
+                toast.success("Recibos despachados según las preferencias de cada colaborador");
               }}
             >
               Enviar todos
@@ -288,11 +345,11 @@ function Contabilidad() {
                         variant="outline"
                         onClick={async () => {
                           await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
-                          const res = await enviarReciboPago(p, c).catch((e) => ({
+                          const res = await enviarReciboPago(p, c, puenteWhatsappUrl, puenteWhatsappToken).catch((e) => ({
                             ok: false as const,
                             error: e instanceof Error ? e.message : "Error de envío",
                           }));
-                          if (res.ok) toast.success(`Recibo enviado por correo a ${c.email}`);
+                          if (res.ok) toast.success(`Recibo enviado por ${'medios' in res ? res.medios : 'Correo'} a ${c.nombre}`);
                           else toast.error(res.error ?? "No se pudo enviar el recibo");
                         }}
                       >
@@ -618,10 +675,13 @@ const cuentaVacia: Cuenta = {
   rol: "Colaborador",
   cargo: "",
   iniciales: "",
+  telefono: "",
+  whatsapp: "",
+  canalAvisos: "correo",
 };
 
 function CuentasUsuarios() {
-  const { cuentas, sesion, guardarCuenta, eliminarCuenta } = usePortal();
+  const { cuentas, colaboradores, sesion, guardarCuenta, eliminarCuenta } = usePortal();
   const [form, setForm] = useState<Cuenta>(cuentaVacia);
   const [editando, setEditando] = useState<string | null>(null);
 
@@ -650,12 +710,12 @@ function CuentasUsuarios() {
         <div className="flex items-center gap-2">
           <UserPlus className="h-5 w-5 text-accent" />
           <h3 className="font-display font-bold text-foreground">
-            {editando ? "Editar credenciales" : "Crear credenciales de usuario"}
+            {editando ? "Editar credenciales y contacto" : "Crear credenciales de usuario"}
           </h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Los usuarios no pueden registrarse por su cuenta: aquí digitas su correo, contraseña y
-          rol de acceso.
+          Los usuarios no pueden registrarse por su cuenta: aquí digitas su correo, datos de contacto,
+          contraseña y método donde recibirán sus avisos y volantes de pago.
         </p>
         <div className="space-y-2">
           <Label htmlFor="c-nombre">Nombre completo</Label>
@@ -675,8 +735,50 @@ function CuentasUsuarios() {
             required
           />
         </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="c-telefono">Teléfono</Label>
+            <Input
+              id="c-telefono"
+              placeholder="Ej: 809-555-1234"
+              value={form.telefono ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="c-whatsapp">WhatsApp (ej: 18095551234)</Label>
+            <Input
+              id="c-whatsapp"
+              placeholder="18095551234"
+              value={form.whatsapp ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value }))}
+            />
+          </div>
+        </div>
         <div className="space-y-2">
-          <Label htmlFor="c-email">Correo corporativo</Label>
+          <Label htmlFor="c-canal">Canal para recibir avisos y volante de pago</Label>
+          <select
+            id="c-canal"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            value={form.canalAvisos ?? "correo"}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                canalAvisos: e.target.value as "correo" | "whatsapp" | "ambos" | "ninguno",
+              }))
+            }
+          >
+            <option value="correo">Solo Correo electrónico</option>
+            <option value="whatsapp">Solo WhatsApp</option>
+            <option value="ambos">Correo y WhatsApp (Ambos)</option>
+            <option value="ninguno">Solo en el portal</option>
+          </select>
+          <p className="text-[11px] text-muted-foreground">
+            Define por dónde se le enviará el comprobante de pago de nómina y las notificaciones al colaborador.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="c-email">Correo corporativo (acceso)</Label>
           <Input
             id="c-email"
             type="email"
@@ -687,13 +789,15 @@ function CuentasUsuarios() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="c-clave">Contraseña provisional</Label>
+          <Label htmlFor="c-clave">
+            {editando ? "Nueva contraseña (opcional)" : "Contraseña provisional"}
+          </Label>
           <Input
             id="c-clave"
             value={form.clave}
             onChange={(e) => setForm((p) => ({ ...p, clave: e.target.value }))}
-            placeholder="Mínimo 6 caracteres"
-            required
+            placeholder={editando ? "Dejar en blanco para mantener la actual" : "Mínimo 6 caracteres"}
+            required={!editando}
           />
           <p className="text-xs text-muted-foreground">
             Es solo para el primer acceso: al entrar, el colaborador deberá crear su propia
@@ -730,46 +834,75 @@ function CuentasUsuarios() {
       <section>
         <SectionTitle>Cuentas registradas ({cuentas.length})</SectionTitle>
         <div className="space-y-3">
-          {cuentas.map((u) => (
-            <article key={u.email} className="surface-card p-4">
-              <div className="flex items-center gap-3">
-                <Avatar iniciales={u.iniciales} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">{u.nombre}</p>
-                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+          {cuentas.map((u) => {
+            const colab = colaboradores.find((c) => c.email.toLowerCase() === u.email.toLowerCase());
+            const canal = colab?.canalAvisos ?? u.canalAvisos ?? "correo";
+            const canalTexto =
+              canal === "ambos"
+                ? "Correo y WhatsApp"
+                : canal === "whatsapp"
+                ? "Solo WhatsApp"
+                : canal === "ninguno"
+                ? "Solo Portal"
+                : "Solo Correo";
+
+            return (
+              <article key={u.email} className="surface-card p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar iniciales={u.iniciales} size="sm" foto={colab?.foto} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-foreground">{u.nombre}</p>
+                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                    {colab?.whatsapp ? (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        WA: +{colab.whatsapp} {colab.telefono ? `· Tel: ${colab.telefono}` : ""}
+                      </p>
+                    ) : colab?.telefono ? (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        Tel: {colab.telefono}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Etiqueta texto={u.rol} tono="accent" />
                 </div>
-                <Etiqueta texto={u.rol} tono="accent" />
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Etiqueta texto={u.cargo || "Sin cargo"} tono="muted" />
-                <div className="ml-auto flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setForm({ ...u, clave: "" });
-                      setEditando(u.email);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  {u.email !== sesion.email ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Etiqueta texto={u.cargo || "Sin cargo"} tono="muted" />
+                  <Etiqueta texto={`Recibos: ${canalTexto}`} tono="info" />
+                  <div className="ml-auto flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={async () => {
-                        const r = await eliminarCuenta(u.email);
-                        if (r.ok) toast.info(`Acceso de ${u.nombre} eliminado`);
-                        else toast.error(r.error ?? "No se pudo eliminar");
+                      onClick={() => {
+                        setForm({
+                          ...u,
+                          clave: "",
+                          telefono: colab?.telefono ?? u.telefono ?? "",
+                          whatsapp: colab?.whatsapp ?? u.whatsapp ?? "",
+                          canalAvisos: colab?.canalAvisos ?? u.canalAvisos ?? "correo",
+                        });
+                        setEditando(u.email);
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      Editar
                     </Button>
-                  ) : null}
+                    {u.email !== sesion.email ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const r = await eliminarCuenta(u.email);
+                          if (r.ok) toast.info(`Acceso de ${u.nombre} eliminado`);
+                          else toast.error(r.error ?? "No se pudo eliminar");
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>

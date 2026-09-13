@@ -85,6 +85,9 @@ export type Cuenta = {
   rol: Rol;
   cargo: string;
   iniciales: string;
+  telefono?: string;
+  whatsapp?: string;
+  canalAvisos?: "correo" | "whatsapp" | "ambos" | "ninguno";
 };
 
 export const roles: Rol[] = [

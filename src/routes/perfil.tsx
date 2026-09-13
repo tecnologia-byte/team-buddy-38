@@ -53,12 +53,14 @@ function Perfil() {
   const [subiendo, setSubiendo] = useState(false);
 
   const c = colaboradorActual;
+  const [miTelefono, setMiTelefono] = useState(c?.telefono ?? "");
   const [miWhatsapp, setMiWhatsapp] = useState(c?.whatsapp ?? "");
   const [miCanal, setMiCanal] = useState<CanalAvisos>(c?.canalAvisos ?? "correo");
   const [guardandoAvisos, setGuardandoAvisos] = useState(false);
 
   useEffect(() => {
     if (c) {
+      setMiTelefono(c.telefono ?? "");
       setMiWhatsapp(c.whatsapp ?? "");
       setMiCanal(c.canalAvisos ?? "correo");
     }
@@ -66,13 +68,13 @@ function Perfil() {
 
   const guardarPreferencias = async () => {
     setGuardandoAvisos(true);
-    const r = await actualizarMisAvisos(miWhatsapp, miCanal);
+    const r = await actualizarMisAvisos(miWhatsapp, miCanal, miTelefono);
     setGuardandoAvisos(false);
     if (!r.ok) {
       toast.error(r.error ?? "No se pudieron guardar las preferencias");
       return;
     }
-    toast.success("Preferencias de WhatsApp y avisos actualizadas");
+    toast.success("Preferencias de contacto y avisos actualizadas");
   };
 
   const elegirFoto = (archivo?: File | null) => {
@@ -217,10 +219,19 @@ function Perfil() {
         </section>
 
         <section className="surface-card p-4 space-y-4">
-          <SectionTitle>Avisos y WhatsApp</SectionTitle>
+          <SectionTitle>Avisos, Contacto y WhatsApp</SectionTitle>
           <p className="text-xs text-muted-foreground">
-            Configura cómo quieres recibir respuestas a tus solicitudes de permisos, vacaciones y tareas.
+            Configura tus números de contacto y elige dónde quieres recibir tus volantes de pago, avisos y solicitudes.
           </p>
+          <div className="space-y-2">
+            <Label htmlFor="telefono-perfil">Teléfono de contacto</Label>
+            <Input
+              id="telefono-perfil"
+              placeholder="Ej: 809-555-1234"
+              value={miTelefono}
+              onChange={(e) => setMiTelefono(e.target.value)}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="whatsapp-perfil">Número de WhatsApp</Label>
             <Input
