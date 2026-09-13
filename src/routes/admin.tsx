@@ -20,6 +20,8 @@ import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shel
 import { FirmaPad } from "@/components/firma-pad";
 import { ReciboPago } from "@/components/recibo-pago";
 import { VolanteEditor } from "@/components/volante-editor";
+import { VolantesBandeja, type VolanteGuardado } from "@/components/volantes-bandeja";
+import { MimiChat } from "@/components/mimi-chat";
 import { usePortal } from "@/lib/portal-store";
 import { pesos, roles, type Cuenta } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,10 @@ export const Route = createFileRoute("/admin")({
 
 function Admin() {
   const { esAdmin, esContable, esNomina, sesion } = usePortal();
+  const [pestana, setPestana] = useState(esNomina ? "contabilidad" : "firmas");
+  const [editando, setEditando] = useState<VolanteGuardado | null>(null);
+  const [refrescos, setRefrescos] = useState(0);
+
 
   if (!esAdmin && !esContable) {
     return (
@@ -80,12 +86,14 @@ function Admin() {
     <AppShell>
       <AppHeader titulo="Administradores" subtitulo="Contabilidad y controles internos" volver />
       <div className="space-y-6 px-4 py-5">
-        <Tabs defaultValue={esNomina ? "contabilidad" : "firmas"}>
+        <Tabs value={pestana} onValueChange={setPestana}>
           <TabsList
-            className={`grid w-full print:hidden ${esNomina ? "grid-cols-3" : "grid-cols-1"}`}
+            className={`grid w-full print:hidden ${esNomina ? "grid-cols-5" : "grid-cols-1"}`}
           >
             {esNomina ? <TabsTrigger value="contabilidad">Nómina</TabsTrigger> : null}
             {esNomina ? <TabsTrigger value="volante">Volante</TabsTrigger> : null}
+            {esNomina ? <TabsTrigger value="guardados">Guardados</TabsTrigger> : null}
+            {esNomina ? <TabsTrigger value="mimi">Mimi</TabsTrigger> : null}
             <TabsTrigger value="firmas">Firmas</TabsTrigger>
           </TabsList>
           {esAdmin ? (
@@ -111,7 +119,22 @@ function Admin() {
                 <Contabilidad />
               </TabsContent>
               <TabsContent value="volante" className="mt-4">
-                <VolanteEditor />
+                <VolanteEditor
+                  inicial={editando}
+                  onGuardado={() => setRefrescos((n) => n + 1)}
+                />
+              </TabsContent>
+              <TabsContent value="guardados" className="mt-4">
+                <VolantesBandeja
+                  key={refrescos}
+                  onEditar={(v) => {
+                    setEditando(v);
+                    setPestana("volante");
+                  }}
+                />
+              </TabsContent>
+              <TabsContent value="mimi" className="mt-4">
+                <MimiChat />
               </TabsContent>
             </>
           ) : null}

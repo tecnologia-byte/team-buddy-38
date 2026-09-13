@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { enviarVolantesFn } from "@/lib/volantes.functions";
 import { pesos } from "@/lib/data";
 import type { DatosVolante } from "@/components/volante-pago";
@@ -102,7 +103,7 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
       fecha_emision: v.fechaEmision,
       periodo_desde: v.periodoDesde,
       periodo_hasta: v.periodoHasta,
-      datos: v.datos as unknown as Record<string, unknown>,
+      datos: v.datos as unknown as Json,
       neto: v.neto,
       estado: "Borrador",
     });

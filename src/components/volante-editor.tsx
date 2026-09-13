@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mail, Printer, RotateCcw } from "lucide-react";
+import { Printer, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,9 @@ import {
   type DatosVolante,
   type LineaVolante,
 } from "@/components/volante-pago";
-import { enviarReciboFn } from "@/lib/correo.functions";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
+import type { VolanteGuardado } from "@/components/volantes-bandeja";
 import { FirmaPad } from "@/components/firma-pad";
 import { usePortal, firmaVigente } from "@/lib/portal-store";
 
@@ -47,12 +49,19 @@ const datosAutomaticos = () => {
 };
 
 /** Plantilla editable del volante de pago: Contabilidad elige al colaborador y llena el resto a mano. */
-export function VolanteEditor() {
-  const { colaboradores, enviarAvisoManual } = usePortal();
+export function VolanteEditor({
+  inicial,
+  onGuardado,
+}: {
+  inicial?: VolanteGuardado | null;
+  onGuardado?: () => void;
+} = {}) {
+  const { colaboradores } = usePortal();
   const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
   const [seleccion, setSeleccion] = useState("");
   const [firmante, setFirmante] = useState("");
-  const [enviando, setEnviando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [idGuardado, setIdGuardado] = useState<string | null>(null);
   const elegido = colaboradores.find((c) => c.id === seleccion);
   const gestores = colaboradores.filter(
     (c) =>
@@ -65,11 +74,19 @@ export function VolanteEditor() {
     setDatos((d) => (d.comprobante ? d : { ...d, ...datosAutomaticos() }));
   }, []);
 
+  // Abrir un volante guardado para seguir editándolo.
+  useEffect(() => {
+    if (!inicial) return;
+    setDatos({ ...volanteVacio, ...inicial.datos });
+    setSeleccion(inicial.colaboradorId);
+    setIdGuardado(inicial.id);
+  }, [inicial]);
+
   const nuevoVolante = () => {
     setDatos({ ...volanteVacio, ...datosAutomaticos() });
     setSeleccion("");
     setFirmante("");
-
+    setIdGuardado(null);
   };
 
   const set = <K extends keyof DatosVolante>(campo: K, valor: DatosVolante[K]) =>
@@ -105,63 +122,53 @@ export function VolanteEditor() {
     }));
   };
 
-  const enviarPorCorreo = async () => {
-    if (!elegido?.email) {
-      toast.error("Selecciona un colaborador con correo registrado.");
+  /** Guarda el volante en la bandeja privada como "Listo" (todavía no se envía a nadie). */
+  const guardar = async () => {
+    if (!seleccion) {
+      toast.error("Selecciona primero al colaborador del volante.");
       return;
     }
-    setEnviando(true);
+    setGuardando(true);
     try {
       const limpiar = (lineas: LineaVolante[]) =>
         lineas
           .filter((l) => l.concepto.trim() || l.monto.trim())
           .map((l) => ({ concepto: l.concepto, monto: numero(l.monto) }));
-      const res = await enviarReciboFn({
-        data: {
-          para: elegido.email,
-          comprobante: datos.comprobante,
-          fechaEmision: datos.fechaEmision,
-          periodoDesde: datos.periodoDesde,
-          periodoHasta: datos.periodoHasta,
-          nombre: datos.nombre || elegido.nombre,
-          cedula: datos.cedula,
-          codigo: datos.codigo,
-          cargo: datos.cargo,
-          departamento: datos.departamento,
-          ingreso: datos.ingreso,
-          banco: datos.banco,
-          seguridadSocial: datos.seguridadSocial,
-          ingresos: limpiar(datos.ingresos),
-          deducciones: limpiar(datos.deducciones),
-          ...(datos.firma ? { firma: datos.firma } : {}),
-          ...(datos.firmaFecha ? { firmaFecha: datos.firmaFecha } : {}),
-          ...(datos.firmaEmpresa ? { firmaEmpresa: datos.firmaEmpresa } : {}),
-          ...(datos.firmaEmpresaNombre ? { firmaEmpresaNombre: datos.firmaEmpresaNombre } : {}),
-          ...(datos.firmaEmpresaCargo ? { firmaEmpresaCargo: datos.firmaEmpresaCargo } : {}),
+      const neto =
+        limpiar(datos.ingresos).reduce((t, l) => t + l.monto, 0) -
+        limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
 
-        },
-      });
-      if (res.ok) {
-        // Aviso dentro del portal, además del correo con el PDF adjunto.
-        const bruto = limpiar(datos.ingresos).reduce((t, l) => t + l.monto, 0);
-        const deducido = limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
-        const neto = (bruto - deducido).toLocaleString("es-DO", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        await enviarAvisoManual({
-          destino: elegido.id,
-          titulo: `Volante de pago ${datos.comprobante}`,
-          detalle:
-            `Se registró tu pago del período ${datos.periodoDesde} al ${datos.periodoHasta}. ` +
-            `Neto recibido: RD$ ${neto}. Te enviamos el volante en PDF a ${elegido.email}.`,
-        }).catch(() => undefined);
-        toast.success(`Recibo enviado a ${elegido.email} desde nomina@ivadsrl.com`);
-      } else toast.error(res.error ?? "No se pudo enviar el recibo");
+      const fila = {
+        colaborador_id: seleccion,
+        comprobante: datos.comprobante,
+        fecha_emision: datos.fechaEmision,
+        periodo_desde: datos.periodoDesde,
+        periodo_hasta: datos.periodoHasta,
+        datos: datos as unknown as Json,
+        neto,
+        estado: "Listo",
+        error: null,
+      };
+
+      if (idGuardado) {
+        const { error } = await supabase.from("volantes").update(fila).eq("id", idGuardado);
+        if (error) throw new Error(error.message);
+        toast.success("Volante actualizado en la bandeja");
+      } else {
+        const { data: creado, error } = await supabase
+          .from("volantes")
+          .insert(fila)
+          .select("id")
+          .single();
+        if (error) throw new Error(error.message);
+        setIdGuardado(creado.id);
+        toast.success("Volante guardado. Ya aparece en la bandeja, listo para enviar.");
+      }
+      onGuardado?.();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo enviar el recibo");
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar el volante");
     } finally {
-      setEnviando(false);
+      setGuardando(false);
     }
   };
 
@@ -317,9 +324,9 @@ export function VolanteEditor() {
           <Button type="button" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" /> Imprimir / Guardar PDF
           </Button>
-          <Button type="button" variant="outline" disabled={enviando} onClick={enviarPorCorreo}>
-            <Mail className="mr-2 h-4 w-4" />
-            {enviando ? "Enviando…" : "Enviar recibo por correo"}
+          <Button type="button" disabled={guardando} onClick={() => void guardar()}>
+            <Save className="mr-2 h-4 w-4" />
+            {guardando ? "Guardando…" : idGuardado ? "Guardar cambios" : "Guardar volante"}
           </Button>
           <Button
             type="button"
