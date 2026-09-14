@@ -43,23 +43,11 @@ async function llamar(puente: string, ruta: string, cuerpo?: unknown, tokenParam
 
 /** Estado de la conexión y código QR devuelto por Baileys para escanear. */
 export async function estadoPuente(puente: string, token?: string): Promise<Estado> {
-  try {
-    const d = await llamar(puente, "/estado", undefined, token);
-    if (d && (d["qr"] || d["conectado"])) {
-      return {
-        conectado: Boolean(d["conectado"]),
-        numero: String(d["numero"] ?? ""),
-        qr: String(d["qr"] ?? ""),
-      };
-    }
-  } catch {
-    // Si el puente externo no responde o está iniciando, reporta desconectado
-  }
-
+  const d = await llamar(puente, "/estado", undefined, token);
   return {
-    conectado: false,
-    numero: "",
-    qr: "",
+    conectado: Boolean(d["conectado"]),
+    numero: String(d["numero"] ?? ""),
+    qr: String(d["qr"] ?? ""),
   };
 }
 
