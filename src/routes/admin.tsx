@@ -842,7 +842,7 @@ function CuentasUsuarios() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Etiqueta texto={u.cargo || "Sin cargo"} tono="muted" />
-                  <Etiqueta texto={`Recibos: ${canalTexto}`} tono="info" />
+                  <Etiqueta texto={`Recibos: ${canalTexto}`} tono="accent" />
                   <div className="ml-auto flex gap-2">
                     <Button
                       size="sm"
@@ -1516,6 +1516,7 @@ function AdminWhatsApp() {
       }, 5000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [estado, puente, token]);
 
   const guardarConfig = async () => {

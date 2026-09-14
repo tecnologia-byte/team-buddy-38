@@ -48,7 +48,7 @@ export async function despacharVolante({
 }: {
   destino: DestinoVolante;
   volante: VolanteEnvio;
-}): Promise<{ ok: boolean; medios: string[]; error?: string }> {
+}): Promise<{ ok: boolean; medios: string[]; error?: string; advertencia?: string }> {
   const canal = (destino.canalAvisos || "correo") as "correo" | "whatsapp" | "ambos" | "ninguno";
   if (canal === "ninguno") {
     return { ok: true, medios: ["Portal"] };
