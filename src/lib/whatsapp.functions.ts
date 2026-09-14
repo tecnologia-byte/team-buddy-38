@@ -50,8 +50,8 @@ export const enviarWhatsappFn = createServerFn({ method: "POST" })
         data.documentoBase64
           ? {
               documentoBase64: data.documentoBase64,
-              nombreArchivo: data.nombreArchivo,
-              mimetype: data.mimetype,
+              ...(data.nombreArchivo ? { nombreArchivo: data.nombreArchivo } : {}),
+              ...(data.mimetype ? { mimetype: data.mimetype } : {}),
             }
           : undefined,
       );

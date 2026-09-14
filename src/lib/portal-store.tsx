@@ -26,6 +26,9 @@ import {
 
 export type { Cuenta, Rol };
 
+/** Dirección pública del portal, para los enlaces que salen por WhatsApp. */
+const PORTAL_URL_PUBLICA = "https://personalivad.ivadsrl.com";
+
 export type EstadoFoto = "sin_foto" | "pendiente" | "aprobada" | "rechazada";
 
 export type Colaborador = Empleado & {
@@ -775,17 +778,24 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
       const c = colaboradores.find((x) => x.id === paraId);
       const canal = c?.canalAvisos ?? "correo";
+      if (canal === "ninguno") return;
 
-      // 1. Enviar por correo si el canal es "correo" o "ambos"
-      if (canal === "correo" || canal === "ambos") {
-        await enviarCorreo(paraId, titulo, detalle, opciones);
-      }
+      const quiereWhatsapp = canal === "whatsapp" || canal === "ambos";
+      const puedeWhatsapp = Boolean(quiereWhatsapp && c?.whatsapp && puenteWhatsappUrl);
 
-      // 2. Enviar por WhatsApp si el canal es "whatsapp" o "ambos" y tiene número y puente configurado
-      if ((canal === "whatsapp" || canal === "ambos") && c?.whatsapp && puenteWhatsappUrl) {
+      // 1. WhatsApp: mensaje con el mismo contenido del aviso y enlace al portal
+      let waEnviado = false;
+      if (puedeWhatsapp && c) {
         try {
-          const texto = `*Portal IVAD - ${titulo}*\n\nHola ${c.nombre},\n${detalle}${opciones?.enlace ? `\n\nPuedes verlo aquí: ${opciones.enlace}` : ""}`;
-          await enviarWhatsappFn({
+          const enlaceAbs = opciones?.enlace
+            ? opciones.enlace.startsWith("http")
+              ? opciones.enlace
+              : `${PORTAL_URL_PUBLICA}${opciones.enlace}`
+            : PORTAL_URL_PUBLICA;
+          const texto =
+            `*Portal IVAD · ${titulo}*\n\nHola ${c.nombre},\n${detalle}\n\n` +
+            `${opciones?.enlaceTexto ?? "Ver en el portal"}: ${enlaceAbs}`;
+          const r = await enviarWhatsappFn({
             data: {
               puente: puenteWhatsappUrl,
               para: c.whatsapp,
@@ -793,9 +803,15 @@ export function PortalProvider({ children }: { children: ReactNode }) {
               token: puenteWhatsappToken,
             },
           });
+          waEnviado = Boolean((r as { ok?: boolean } | undefined)?.ok);
         } catch (e) {
           console.error("No se pudo enviar el aviso por WhatsApp:", e);
         }
+      }
+
+      // 2. Correo: cuando lo pidió, o como respaldo si el WhatsApp no salió
+      if (canal === "correo" || canal === "ambos" || !waEnviado) {
+        await enviarCorreo(paraId, titulo, detalle, opciones);
       }
     },
     [colaboradores, enviarCorreo, puenteWhatsappUrl, puenteWhatsappToken],

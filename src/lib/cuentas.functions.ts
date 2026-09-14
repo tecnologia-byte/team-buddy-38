@@ -164,12 +164,12 @@ export const guardarColaboradorFn = createServerFn({ method: "POST" })
       iniciales: inicialesDe(data.nombre),
     };
     if (data.salario !== undefined) {
-      fila.salario = data.salario;
+      fila["salario"] = data.salario;
     }
 
     const { error: errorPerfil } = await sb
       .from("perfiles")
-      .update(fila)
+      .update(fila as never)
       .eq("id", data.id);
 
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
