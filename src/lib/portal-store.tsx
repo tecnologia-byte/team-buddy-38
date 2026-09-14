@@ -26,6 +26,9 @@ import {
 
 export type { Cuenta, Rol };
 
+/** Dirección pública del portal, para los enlaces que salen por WhatsApp. */
+const PORTAL_URL_PUBLICA = "https://personalivad.ivadsrl.com";
+
 export type EstadoFoto = "sin_foto" | "pendiente" | "aprobada" | "rechazada";
 
 export type Colaborador = Empleado & {
