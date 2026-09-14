@@ -4,37 +4,50 @@ type Estado = { conectado: boolean; numero: string; qr: string };
 
 const limpiar = (url: string) => url.trim().replace(/\/+$/, "");
 
+/**
+ * Llama al puente. El servidor gratuito se "duerme" y el primer intento puede
+ * tardar hasta un minuto en despertar, por eso reintentamos con paciencia.
+ */
 async function llamar(puente: string, ruta: string, cuerpo?: unknown, tokenParam?: string) {
   const token = tokenParam?.trim() || process.env["WHATSAPP_PUENTE_TOKEN"] || "ivad-secret-token";
-  const res = await fetch(`${limpiar(puente)}${ruta}`, {
-    method: cuerpo ? "POST" : "GET",
-    headers: { "Content-Type": "application/json", "X-Puente-Token": token },
-    ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
-  });
-  const texto = await res.text();
-  if (!res.ok) throw new Error(`Puente ${res.status}: ${texto.slice(0, 200)}`);
-  return texto ? (JSON.parse(texto) as Record<string, unknown>) : {};
+  const url = `${limpiar(puente)}${ruta}`;
+  const intentos = 3;
+  let ultimo = "";
+
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const res = await fetch(url, {
+        method: cuerpo ? "POST" : "GET",
+        headers: { "Content-Type": "application/json", "X-Puente-Token": token },
+        ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
+        signal: AbortSignal.timeout(55_000),
+      });
+      const texto = await res.text();
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        ultimo = `Puente ${res.status}: el servidor del puente está despertando`;
+      } else if (!res.ok) {
+        throw new Error(`Puente ${res.status}: ${texto.slice(0, 200)}`);
+      } else {
+        return texto ? (JSON.parse(texto) as Record<string, unknown>) : {};
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.startsWith("Puente 4")) throw e;
+      ultimo = msg;
+    }
+    if (i < intentos - 1) await new Promise((r) => setTimeout(r, 2500));
+  }
+
+  throw new Error(ultimo || "El puente de WhatsApp no responde");
 }
 
 /** Estado de la conexión y código QR devuelto por Baileys para escanear. */
 export async function estadoPuente(puente: string, token?: string): Promise<Estado> {
-  try {
-    const d = await llamar(puente, "/estado", undefined, token);
-    if (d && (d["qr"] || d["conectado"])) {
-      return {
-        conectado: Boolean(d["conectado"]),
-        numero: String(d["numero"] ?? ""),
-        qr: String(d["qr"] ?? ""),
-      };
-    }
-  } catch {
-    // Si el puente externo no responde o está iniciando, reporta desconectado
-  }
-
+  const d = await llamar(puente, "/estado", undefined, token);
   return {
-    conectado: false,
-    numero: "",
-    qr: "",
+    conectado: Boolean(d["conectado"]),
+    numero: String(d["numero"] ?? ""),
+    qr: String(d["qr"] ?? ""),
   };
 }
 

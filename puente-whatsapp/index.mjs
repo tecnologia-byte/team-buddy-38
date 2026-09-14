@@ -172,3 +172,16 @@ createServer(async (req, res) => {
 }).listen(PORT, () => console.log(`Puente escuchando en http://localhost:${PORT}`));
 
 conectar();
+
+// Evita que el servidor gratuito se "duerma" y pierda la sesion de WhatsApp:
+// se hace una visita a si mismo cada 10 minutos.
+const AUTO_URL = process.env.RENDER_EXTERNAL_URL || process.env.PUENTE_URL_PUBLICA || "";
+if (AUTO_URL) {
+  setInterval(() => {
+    fetch(`${AUTO_URL.replace(/\/+$/, "")}/estado`, {
+      headers: { "X-Puente-Token": TOKEN },
+    })
+      .then(() => console.log("[Puente WhatsApp] Auto-visita para mantenerse despierto"))
+      .catch(() => {});
+  }, 10 * 60 * 1000);
+}
