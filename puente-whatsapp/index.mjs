@@ -166,11 +166,18 @@ async function conectar() {
     // Respuestas automáticas con IA para mensajes entrantes
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
       if (!PORTAL_URL || !Array.isArray(messages)) return;
-      for (const m of messages) {
-        if (m.key.fromMe || m.key.remoteJid?.endsWith("@g.us")) continue;
-        const remitente = m.key.remoteJid?.split("@")[0] || "";
+        if (
+          m.key.fromMe ||
+          !m.key.remoteJid ||
+          m.key.remoteJid === "status@broadcast" ||
+          m.key.remoteJid.endsWith("@g.us")
+        ) {
+          continue;
+        }
 
-        // Extraer texto contemplando mensajes efímeros, respuestas citadas y botones
+        const remitente = m.key.remoteJid.split("@")[0] || "";
+
+        // Extraer texto contemplando mensajes efímeros, respuestas citadas, botones, captions y notas de voz
         const msg = m.message;
         if (!msg) continue;
         const sub =
@@ -180,15 +187,22 @@ async function conectar() {
           msg.documentWithCaptionMessage?.message ||
           msg;
 
-        const texto = (
+        let texto = (
           sub.conversation ||
           sub.extendedTextMessage?.text ||
           sub.buttonsResponseMessage?.selectedDisplayText ||
           sub.buttonsResponseMessage?.selectedButtonId ||
           sub.templateButtonReplyMessage?.selectedId ||
           sub.listResponseMessage?.title ||
+          sub.imageMessage?.caption ||
+          sub.videoMessage?.caption ||
+          sub.documentMessage?.caption ||
           ""
         ).trim();
+
+        if (!texto && sub.audioMessage) {
+          texto = "[Nota de voz recibida]";
+        }
 
         if (!texto) continue;
 

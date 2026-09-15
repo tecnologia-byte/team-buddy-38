@@ -229,7 +229,18 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           });
         }
 
-        // 4. Si el volante está esperando explicación de motivo (estado "EsperandoMotivo"):
+        // 4. Manejo de notas de voz
+        if (textoUsuario.startsWith("[Nota de voz") || textoUsuario.startsWith("[Archivo multimedia")) {
+          return Response.json({
+            respuesta:
+              `¡Hola, ${primerNombre}! 👋 He recibido tu mensaje.\n\n` +
+              `Para procesar tu volante en el sistema oficial, por favor respóndeme por texto:\n` +
+              `👉 Responde *SÍ* si estás conforme con tu pago para enviarte de inmediato tu volante en PDF firmado.\n` +
+              `👉 Responde *NO* si tienes alguna inconformidad o duda sobre tus horas extras, deducciones o monto.`,
+          });
+        }
+
+        // 5. Si el volante está esperando explicación de motivo (estado "EsperandoMotivo"):
         if (estadoVolante === "EsperandoMotivo") {
           // El colaborador está enviando la explicación de por qué no está conforme
           await supabaseAdmin.from("soporte_tickets").insert({
