@@ -531,29 +531,42 @@ createServer(async (req, res) => {
     }
   }
 
-  // Envío de mensajes y documentos PDF (volantes de pago)
-  if (req.url === "/enviar" && req.method === "POST") {
-    const { para, texto, documentoBase64, nombreArchivo, mimetype } = await leerCuerpo(req);
-    const jid = numeroWa(para);
-    ultimoDestinoEnviado = { telefono: normalizarNumero(para), time: Date.now() };
+// Cola de envíos secuencial con protección anti-spam y simulación de comportamiento humano
+const colaEnvios = [];
+let procesandoCola = false;
 
-    if (!estado.conectado) {
-      log(`[Puente WhatsApp] Intento de envío fallido: WhatsApp no está conectado.`);
-      res.writeHead(409);
-      return res.end(
-        JSON.stringify({
-          error: "WhatsApp no está conectado. Por favor verifica el estado en Administración > WhatsApp.",
-        }),
-      );
-    }
+async function procesarColaEnvios() {
+  if (procesandoCola) return;
+  procesandoCola = true;
+
+  while (colaEnvios.length > 0) {
+    const item = colaEnvios.shift();
+    const { jid, texto, documentoBase64, nombreArchivo, mimetype, resolve, reject } = item;
 
     try {
+      if (!sock || !estado.conectado) {
+        throw new Error("WhatsApp no está conectado.");
+      }
+
+      // 1. Simulación humana de 'escribiendo...' (Presence: composing)
+      // Indispensable para que los servidores de WhatsApp identifiquen actividad humana legítima
+      try {
+        await sock.sendPresenceUpdate("composing", jid);
+      } catch {
+        /* ignorar */
+      }
+
+      // Pausa humana de tipeo (entre 1.8s y 3.5s según la longitud)
+      const tiempoTipeo = Math.min(4000, Math.max(1800, (texto?.length || 20) * 20 + Math.random() * 1000));
+      await new Promise((r) => setTimeout(r, tiempoTipeo));
+
+      // 2. Envío del documento o texto
       if (documentoBase64) {
         const buffer = Buffer.from(
           documentoBase64.replace(/^data:[^;]+;base64,/, ""),
           "base64",
         );
-        log(`[Puente WhatsApp] Enviando documento "${nombreArchivo || "documento.pdf"}" (${buffer.length} bytes) a ${jid}...`);
+        log(`[Puente WhatsApp] 📄 Enviando documento "${nombreArchivo || "documento.pdf"}" (${buffer.length} bytes) a ${jid}...`);
         const enviadoDoc = await sock.sendMessage(jid, {
           document: buffer,
           mimetype: mimetype || "application/pdf",
@@ -563,18 +576,70 @@ createServer(async (req, res) => {
         if (enviadoDoc?.key?.id && enviadoDoc?.message) {
           guardarMensaje(enviadoDoc.key.id, enviadoDoc.message);
         }
-        log(`[Puente WhatsApp] Documento enviado exitosamente a ${jid}`);
       } else {
-        log(`[Puente WhatsApp] Enviando texto a ${jid}...`);
+        log(`[Puente WhatsApp] 💬 Enviando texto a ${jid}...`);
         const enviado = await sock.sendMessage(jid, { text: String(texto ?? "") });
         if (enviado?.key?.id && enviado?.message) {
           guardarMensaje(enviado.key.id, enviado.message);
         }
-        log(`[Puente WhatsApp] Texto enviado exitosamente a ${jid}`);
       }
-      return res.end(JSON.stringify({ ok: true }));
+
+      try {
+        await sock.sendPresenceUpdate("paused", jid);
+      } catch {
+        /* ignorar */
+      }
+
+      log(`[Puente WhatsApp] ✅ Mensaje entregado con éxito a ${jid}.`);
+      resolve({ ok: true });
     } catch (e) {
-      log(`[Puente WhatsApp] Error al enviar a ${jid}:`, e.message);
+      log(`[Puente WhatsApp] ❌ Error enviando a ${jid}:`, e.message);
+      reject(e);
+    }
+
+    // 3. Pausa anti-baneo / anti-spam si hay más mensajes en cola (4 a 7 segundos de intervalo)
+    if (colaEnvios.length > 0) {
+      const pausaJitter = 4000 + Math.floor(Math.random() * 3000);
+      log(`[Puente WhatsApp] ⏱️ Pausa anti-spam de ${(pausaJitter / 1000).toFixed(1)}s antes del siguiente envío (${colaEnvios.length} restantes)...`);
+      await new Promise((r) => setTimeout(r, pausaJitter));
+    }
+  }
+
+  procesandoCola = false;
+}
+
+  // Envío de mensajes y documentos PDF (volantes de pago) con cola protegida anti-spam
+  if (req.url === "/enviar" && req.method === "POST") {
+    const { para, texto, documentoBase64, nombreArchivo, mimetype } = await leerCuerpo(req);
+    const jid = numeroWa(para);
+    ultimoDestinoEnviado = { telefono: normalizarNumero(para), time: Date.now() };
+
+    if (!estado.conectado) {
+      log(`[Puente WhatsApp] Intento de envío rechazado: WhatsApp no está conectado.`);
+      res.writeHead(409);
+      return res.end(
+        JSON.stringify({
+          error: "WhatsApp no está conectado. Por favor verifica el estado en Administración > WhatsApp.",
+        }),
+      );
+    }
+
+    try {
+      const resultado = await new Promise((resolve, reject) => {
+        colaEnvios.push({
+          jid,
+          texto,
+          documentoBase64,
+          nombreArchivo,
+          mimetype,
+          resolve,
+          reject,
+        });
+        void procesarColaEnvios();
+      });
+
+      return res.end(JSON.stringify(resultado));
+    } catch (e) {
       res.writeHead(500);
       return res.end(JSON.stringify({ error: e.message }));
     }

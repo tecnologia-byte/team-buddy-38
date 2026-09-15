@@ -242,6 +242,9 @@ async function enviarReciboPago(
 
 function Contabilidad() {
   const { pagos, colaboradores, actualizarPago, puenteWhatsappUrl, puenteWhatsappToken } = usePortal();
+  const [enviandoTodos, setEnviandoTodos] = useState(false);
+  const [progresoEnvio, setProgresoEnvio] = useState<string | null>(null);
+
   const totalPeriodo = pagos.reduce((s, p) => s + p.monto, 0);
   const pendientes = pagos.filter((p) => p.estado === "Pendiente");
   const recibosFaltantes = pagos.filter((p) => p.recibo === "No enviado");
@@ -257,30 +260,67 @@ function Contabilidad() {
       <section>
         <SectionTitle
           action={
-            <button
-              type="button"
-              className="text-xs font-medium text-primary underline"
-              onClick={async () => {
-                let despachados = 0;
-                for (const p of pagos.filter((x) => x.recibo === "No enviado")) {
-                  const col = colaboradores.find((x) => x.id === p.colaboradorId);
-                  if (col) {
-                    const res = await enviarReciboPago(p, col, puenteWhatsappUrl, puenteWhatsappToken).catch(() => undefined);
-                    if (res && "ok" in res && res.ok) {
-                      await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
-                      despachados++;
-                    }
+            <div className="flex items-center gap-2">
+              {progresoEnvio && (
+                <span className="text-xs text-muted-foreground animate-pulse font-mono">
+                  {progresoEnvio}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={enviandoTodos || recibosFaltantes.length === 0}
+                className="text-xs font-medium text-primary underline disabled:opacity-50 disabled:no-underline flex items-center gap-1"
+                onClick={async () => {
+                  if (enviandoTodos) return;
+                  const porEnviar = pagos.filter((x) => x.recibo === "No enviado");
+                  if (porEnviar.length === 0) {
+                    toast.info("No hay recibos pendientes de envío en este período.");
+                    return;
                   }
-                }
-                if (despachados > 0) {
-                  toast.success(`${despachados} recibos despachados según las preferencias de cada colaborador`);
-                } else {
-                  toast.error("No se pudo entregar ningún recibo. Verifica la conexión de WhatsApp o el correo.");
-                }
-              }}
-            >
-              Enviar todos
-            </button>
+
+                  setEnviandoTodos(true);
+                  let despachados = 0;
+
+                  try {
+                    for (let i = 0; i < porEnviar.length; i++) {
+                      const p = porEnviar[i];
+                      const col = colaboradores.find((x) => x.id === p.colaboradorId);
+                      if (col) {
+                        setProgresoEnvio(`Despachando ${i + 1}/${porEnviar.length}: ${col.nombre}...`);
+                        const res = await enviarReciboPago(p, col, puenteWhatsappUrl, puenteWhatsappToken).catch(() => undefined);
+                        if (res && "ok" in res && res.ok) {
+                          await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
+                          despachados++;
+                        }
+                        // Pausa de seguridad anti-spam / anti-bloqueo entre envíos consecutivos
+                        if (i < porEnviar.length - 1) {
+                          setProgresoEnvio(`Pausa segura anti-spam (${i + 1}/${porEnviar.length})...`);
+                          await new Promise((r) => setTimeout(r, 4000 + Math.floor(Math.random() * 2500)));
+                        }
+                      }
+                    }
+
+                    if (despachados > 0) {
+                      toast.success(`${despachados} recibos despachados de forma segura con protección anti-spam.`);
+                    } else {
+                      toast.error("No se pudo entregar ningún recibo. Verifica la conexión de WhatsApp o el correo.");
+                    }
+                  } finally {
+                    setEnviandoTodos(false);
+                    setProgresoEnvio(null);
+                  }
+                }}
+              >
+                {enviandoTodos ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    Enviando de forma segura...
+                  </>
+                ) : (
+                  "Enviar todos"
+                )}
+              </button>
+            </div>
           }
         >
           Pagos del personal
