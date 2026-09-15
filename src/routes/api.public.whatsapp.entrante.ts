@@ -73,21 +73,29 @@ Responde ÚNICAMENTE en formato JSON estricto:
   }
 
   // Fallback heurístico de lenguaje natural
-  const t = texto.trim().toLowerCase();
-  if (
-    /^(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias|ta to bien|to bien|ta to|si mimi)[\s.!,]*$/i.test(t) ||
-    /\b(si|sí|conforme|de acuerdo|todo bien|correcto|recibido|recibí|recibi conforme)\b/i.test(t)
-  ) {
+  const t = " " + texto.trim().toLowerCase() + " ";
+  const contieneSi =
+    /(^|\s)(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias|ta to bien|to bien|ta to|si mimi|lo recibi|recibi)($|\s|[.,!])/i.test(
+      t,
+    );
+
+  if (contieneSi) {
     return { intencion: "CONFORME" };
   }
 
   if (
-    /\b(horas extras|descontaron|descuento|falta|faltan|comision|comisiones|no me cuadra|incompleto|error|reclamo|diferencia|menos|no me pagaron)\b/i.test(t)
+    /(horas extras|descontaron|descuento|falta|faltan|comision|comisiones|no me cuadra|incompleto|error|reclamo|diferencia|menos|no me pagaron|faltante)/i.test(
+      t,
+    )
   ) {
     return { intencion: "INCONFORME_CON_DETALLE", motivo: texto };
   }
 
-  if (/^(no|nop|negativo|inconforme|no estoy conforme|no conforme|tengo dudas)[\s.!,]*$/i.test(t)) {
+  if (
+    /(^|\s)(no|nop|negativo|inconforme|no estoy conforme|no conforme|tengo dudas|no mimi)($|\s|[.,!])/i.test(
+      t,
+    )
+  ) {
     return { intencion: "INCONFORME_SIN_DETALLE" };
   }
 
@@ -127,21 +135,55 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // 1. Identificar al colaborador en el expediente de perfiles
+        // 1. Identificar al colaborador en el expediente de perfiles de forma robusta
         let perfil: { id: string; nombre: string; email: string; whatsapp: string } | null = null;
-        if (numCompleto) {
-          const { data: p } = await supabaseAdmin
+        if (numCompleto || sinPrefijo) {
+          // Búsqueda secuencial segura para evitar incompatibilidades de sintaxis en PostgREST
+          const { data: p1 } = await supabaseAdmin
             .from("perfiles")
             .select("id, nombre, email, whatsapp")
-            .or(`whatsapp.eq.${numCompleto},whatsapp.eq.${sinPrefijo},telefono.eq.${numCompleto},telefono.eq.${sinPrefijo}`)
-            .limit(1)
+            .eq("whatsapp", numCompleto)
             .maybeSingle();
-          if (p) perfil = p;
+
+          if (p1) {
+            perfil = p1;
+          } else {
+            const { data: p2 } = await supabaseAdmin
+              .from("perfiles")
+              .select("id, nombre, email, whatsapp")
+              .eq("whatsapp", sinPrefijo)
+              .maybeSingle();
+
+            if (p2) {
+              perfil = p2;
+            } else {
+              const { data: p3 } = await supabaseAdmin
+                .from("perfiles")
+                .select("id, nombre, email, whatsapp")
+                .ilike("whatsapp", `%${sinPrefijo}%`)
+                .maybeSingle();
+
+              if (p3) {
+                perfil = p3;
+              } else {
+                const { data: p4 } = await supabaseAdmin
+                  .from("perfiles")
+                  .select("id, nombre, email, whatsapp")
+                  .ilike("telefono", `%${sinPrefijo}%`)
+                  .maybeSingle();
+                if (p4) perfil = p4;
+              }
+            }
+          }
         }
 
-        // Si no es un colaborador registrado, Mimi permanece en silencio
+        // Si no es un colaborador registrado, Mimi le indica cortésmente cómo identificarse
         if (!perfil) {
-          return Response.json({ respuesta: "" });
+          return Response.json({
+            respuesta:
+              `¡Hola! 👋 Soy Mimi, asistente virtual de Gestión Humana de IVAD SRL.\n\n` +
+              `Tu número no aparece vinculado a un colaborador registrado. Si eres colaborador de IVAD, puedes actualizar tus datos en https://personalivad.ivadsrl.com o escribir a nomina@ivadsrl.com.`,
+          });
         }
 
         // 2. Buscar el último volante registrado para este colaborador
