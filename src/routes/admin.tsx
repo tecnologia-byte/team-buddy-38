@@ -1557,7 +1557,7 @@ function AdminWhatsApp() {
         setCodigoGenerado(res.codigo);
         toast.success("¡Código de vinculación listo! Ingrésalo en tu WhatsApp.");
       } else {
-        toast.error(res.error ?? "No se pudo generar el código");
+        toast.error(("error" in res ? res.error : null) ?? "No se pudo generar el código");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al solicitar código");
