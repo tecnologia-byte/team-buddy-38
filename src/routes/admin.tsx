@@ -151,7 +151,54 @@ function Admin() {
                 />
               </TabsContent>
               <TabsContent value="mimi" className="mt-4">
-                <MimiChat />
+                <MimiChat
+                  onCargarVolante={(datosBorrador, colaboradorId) => {
+                    const col = colaboradores.find(
+                      (c) =>
+                        (colaboradorId && c.id === colaboradorId) ||
+                        (datosBorrador.nombre &&
+                          c.nombre.toLowerCase().includes(String(datosBorrador.nombre).toLowerCase())),
+                    );
+                    setEditando({
+                      id: "mimi-" + Date.now(),
+                      colaboradorId: col?.id ?? "",
+                      comprobante:
+                        datosBorrador.comprobante ||
+                        `IVAD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, "0")}`,
+                      periodoDesde: datosBorrador.periodoDesde || "",
+                      periodoHasta: datosBorrador.periodoHasta || "",
+                      fechaEmision: datosBorrador.fechaEmision || new Date().toLocaleDateString("es-DO"),
+                      neto: 0,
+                      estado: "Borrador",
+                      error: null,
+                      datos: {
+                        comprobante: datosBorrador.comprobante || "",
+                        fechaEmision: datosBorrador.fechaEmision || new Date().toLocaleDateString("es-DO"),
+                        periodoDesde: datosBorrador.periodoDesde || "",
+                        periodoHasta: datosBorrador.periodoHasta || "",
+                        nombre: col?.nombre || datosBorrador.nombre || "",
+                        cedula: col?.cedula || datosBorrador.cedula || "",
+                        codigo: col?.codigo || datosBorrador.codigo || "",
+                        cargo: col?.cargo || datosBorrador.cargo || "",
+                        departamento: col?.area || datosBorrador.departamento || "",
+                        ingreso: col?.ingreso || datosBorrador.ingreso || "",
+                        banco: col?.banco || datosBorrador.banco || "",
+                        seguridadSocial: col?.seguridadSocial || datosBorrador.seguridadSocial || "",
+                        ingresos:
+                          Array.isArray(datosBorrador.ingresos) && datosBorrador.ingresos.length > 0
+                            ? datosBorrador.ingresos
+                            : [{ concepto: "Salario Base del Período", monto: "" }],
+                        deducciones:
+                          Array.isArray(datosBorrador.deducciones) && datosBorrador.deducciones.length > 0
+                            ? datosBorrador.deducciones
+                            : [{ concepto: "Aporte AFP - Fondo de Pensiones (2.87%)", monto: "" }],
+                      },
+                      creado: new Date().toISOString(),
+                    });
+                    setPestana("volante");
+                    toast.success("¡Propuesta de Mimi cargada directamente en el editor de volantes!");
+                  }}
+                />
               </TabsContent>
             </>
           ) : null}

@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Calculator,
   FileSpreadsheet,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -148,8 +149,24 @@ function formatearTamano(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante: any | null } {
+  const match = /```json:volante\s*([\s\S]*?)```/.exec(texto);
+  if (!match) return { textoLimpio: texto, datosVolante: null };
+  try {
+    const datosVolante = JSON.parse(match[1]);
+    const textoLimpio = texto.replace(/```json:volante\s*([\s\S]*?)```/, "").trim();
+    return { textoLimpio, datosVolante };
+  } catch {
+    return { textoLimpio: texto, datosVolante: null };
+  }
+}
+
 /** Chat de Mimi: Asistente Contable Privada con análisis de documentos y privacidad estricta */
-export function MimiChat() {
+export function MimiChat({
+  onCargarVolante,
+}: {
+  onCargarVolante?: (datos: any, colaboradorId?: string) => void;
+} = {}) {
   const [mensajes, setMensajes] = useState<Mensaje[]>([BIENVENIDA]);
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
@@ -324,73 +341,109 @@ export function MimiChat() {
 
       {/* Historial de Mensajes */}
       <div className="surface-card space-y-4 p-4 min-h-[360px] max-h-[560px] overflow-y-auto">
-        {mensajes.map((m, i) => (
-          <div
-            key={i}
-            className={`max-w-[90%] rounded-2xl p-3.5 text-sm ${
-              m.rol === "user"
-                ? "ml-auto bg-primary text-primary-foreground shadow-sm"
-                : "bg-secondary text-secondary-foreground border border-border/50"
-            }`}
-          >
-            {/* Adjuntos del mensaje */}
-            {m.adjuntos && m.adjuntos.length > 0 ? (
-              <div className="mb-2 space-y-1.5 pb-2 border-b border-primary-foreground/20">
-                <p className="text-[11px] font-semibold opacity-90">Documentos adjuntos:</p>
-                <div className="flex flex-wrap gap-2">
-                  {m.adjuntos.map((a, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-1 text-xs backdrop-blur-sm"
-                    >
-                      {a.vistaPrevia ? (
-                        <img
-                          src={a.vistaPrevia}
-                          alt={a.nombre}
-                          className="h-5 w-5 rounded object-cover border border-white/20"
-                        />
-                      ) : a.tipo.includes("pdf") ? (
-                        <FileText className="h-4 w-4" />
-                      ) : a.tipo.includes("csv") || a.nombre.endsWith(".csv") ? (
-                        <FileSpreadsheet className="h-4 w-4" />
-                      ) : (
-                        <FileText className="h-4 w-4" />
-                      )}
-                      <span className="truncate max-w-[160px] font-medium">{a.nombre}</span>
-                      {a.tamano ? (
-                        <span className="text-[10px] opacity-75">({formatearTamano(a.tamano)})</span>
-                      ) : null}
-                    </div>
-                  ))}
+        {mensajes.map((m, i) => {
+          const { textoLimpio, datosVolante } =
+            m.rol === "assistant"
+              ? extraerVolanteJson(m.texto)
+              : { textoLimpio: m.texto, datosVolante: null };
+
+          return (
+            <div
+              key={i}
+              className={`max-w-[90%] rounded-2xl p-3.5 text-sm ${
+                m.rol === "user"
+                  ? "ml-auto bg-primary text-primary-foreground shadow-sm"
+                  : "bg-secondary text-secondary-foreground border border-border/50"
+              }`}
+            >
+              {/* Adjuntos del mensaje */}
+              {m.adjuntos && m.adjuntos.length > 0 ? (
+                <div className="mb-2 space-y-1.5 pb-2 border-b border-primary-foreground/20">
+                  <p className="text-[11px] font-semibold opacity-90">Documentos adjuntos:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {m.adjuntos.map((a, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-1 text-xs backdrop-blur-sm"
+                      >
+                        {a.vistaPrevia ? (
+                          <img
+                            src={a.vistaPrevia}
+                            alt={a.nombre}
+                            className="h-5 w-5 rounded object-cover border border-white/20"
+                          />
+                        ) : a.tipo.includes("pdf") ? (
+                          <FileText className="h-4 w-4" />
+                        ) : a.tipo.includes("csv") || a.nombre.endsWith(".csv") ? (
+                          <FileSpreadsheet className="h-4 w-4" />
+                        ) : (
+                          <FileText className="h-4 w-4" />
+                        )}
+                        <span className="truncate max-w-[160px] font-medium">{a.nombre}</span>
+                        {a.tamano ? (
+                          <span className="text-[10px] opacity-75">({formatearTamano(a.tamano)})</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            {/* Texto del mensaje con formato limpio */}
-            <div className="whitespace-pre-wrap leading-relaxed font-sans">{m.texto}</div>
+              {/* Texto del mensaje con formato limpio */}
+              <div className="whitespace-pre-wrap leading-relaxed font-sans">{textoLimpio}</div>
 
-            {/* Botón para copiar respuesta de la asistente */}
-            {m.rol === "assistant" && i > 0 ? (
-              <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-2">
-                <button
-                  type="button"
-                  onClick={() => void copiarTexto(m.texto, i)}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {copiadoId === i ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      <span>Copiado</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      <span>Copiar cálculo / reporte</span>
-                    </>
+              {/* Tarjeta de acción interactiva para Cargar en el Editor de Volantes */}
+              {datosVolante && (
+                <div className="mt-3 p-3 rounded-xl bg-primary/10 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-foreground">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">
+                        Propuesta de Volante Lista para Cargar
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {datosVolante.nombre || "Colaborador"} · {datosVolante.periodoDesde || "Período"} {datosVolante.periodoHasta ? `al ${datosVolante.periodoHasta}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  {onCargarVolante && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => onCargarVolante(datosVolante)}
+                      className="text-xs h-8 flex items-center gap-1.5 shadow-sm shrink-0"
+                    >
+                      <span>Cargar en Editor de Volantes</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   )}
-                </button>
-              </div>
-            ) : null}
+                </div>
+              )}
+
+              {/* Botón para copiar respuesta de la asistente */}
+              {m.rol === "assistant" && i > 0 ? (
+                <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => void copiarTexto(textoLimpio, i)}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {copiadoId === i ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Copiado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copiar cálculo / reporte</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : null}
 
             {/* Fuentes oficiales consultadas */}
             {m.fuentes?.length ? (
@@ -412,7 +465,8 @@ export function MimiChat() {
               </div>
             ) : null}
           </div>
-        ))}
+        );
+      })}
 
         {pensando ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/40 p-3 rounded-xl border border-border/40">
