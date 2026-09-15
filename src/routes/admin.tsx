@@ -22,6 +22,8 @@ import {
   Copy,
   KeyRound,
   QrCode,
+  Mail,
+  ShieldAlert,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { FirmaPad } from "@/components/firma-pad";
@@ -673,6 +675,7 @@ function CuentasUsuarios() {
   const { cuentas, colaboradores, sesion, guardarCuenta, eliminarCuenta } = usePortal();
   const [form, setForm] = useState<Cuenta>(cuentaVacia);
   const [editando, setEditando] = useState<string | null>(null);
+  const [enviandoClaves, setEnviandoClaves] = useState(false);
 
   const limpiar = () => {
     setForm(cuentaVacia);
@@ -822,6 +825,41 @@ function CuentasUsuarios() {
 
       <section>
         <SectionTitle>Cuentas registradas ({cuentas.length})</SectionTitle>
+
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+          <div className="flex items-center gap-2.5 text-xs">
+            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="font-semibold">Seguridad de Cuentas y Contraseñas Provisionales</p>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                Las contraseñas provisionales se envían desde <strong>Cuenta@ivadsrl.com</strong>. Por seguridad, al ingresar el sistema obliga al colaborador a crear su clave personal definitiva.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={enviandoClaves}
+            className="h-8 gap-1.5 border-amber-400 bg-white hover:bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:border-amber-700 dark:text-amber-100 text-xs font-semibold"
+            onClick={async () => {
+              setEnviandoClaves(true);
+              const { enviarClavesProvisionalesPendientesFn } = await import("@/lib/cuentas.functions");
+              const res = await enviarClavesProvisionalesPendientesFn();
+              setEnviandoClaves(false);
+              if (!res.ok) {
+                toast.error(res.error ?? "No se pudieron enviar las contraseñas");
+              } else if (res.total === 0) {
+                toast.info("No hay colaboradores con contraseña provisional pendiente.");
+              } else {
+                toast.success(`Se enviaron ${res.enviados} contraseñas provisionales desde Cuenta@ivadsrl.com`);
+              }
+            }}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {enviandoClaves ? "Enviando..." : "Enviar todas las claves provisionales por correo"}
+          </Button>
+        </div>
+
         <div className="space-y-3">
           {cuentas.map((u) => {
             const colab = colaboradores.find((c) => c.email.toLowerCase() === u.email.toLowerCase());
@@ -857,6 +895,27 @@ function CuentasUsuarios() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Etiqueta texto={u.cargo || "Sin cargo"} tono="muted" />
                   <Etiqueta texto={`Recibos: ${canalTexto}`} tono="accent" />
+                  {colab?.claveProvisional && colab?.claveProvisionalTexto ? (
+                    <div className="flex items-center gap-1.5 rounded-md bg-amber-100/80 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-900/50">
+                      <span>🔒 Clave: <strong>{colab.claveProvisionalTexto}</strong></span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 px-1 text-[10px] text-amber-800 hover:text-amber-950 hover:bg-amber-200/70 dark:text-amber-300 gap-1"
+                        onClick={async () => {
+                          const { enviarClaveProvisionalIndividualFn } = await import("@/lib/cuentas.functions");
+                          const res = await enviarClaveProvisionalIndividualFn({ data: { id: colab.id } });
+                          if (res.ok) {
+                            toast.success(`Contraseña provisional enviada a ${u.email} desde Cuenta@ivadsrl.com`);
+                          } else {
+                            toast.error(res.error ?? "Error al enviar correo");
+                          }
+                        }}
+                      >
+                        <Mail className="h-2.5 w-2.5" /> Enviar correo
+                      </Button>
+                    </div>
+                  ) : null}
                   <div className="ml-auto flex gap-2">
                     <Button
                       size="sm"

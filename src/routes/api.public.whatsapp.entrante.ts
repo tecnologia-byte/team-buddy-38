@@ -15,17 +15,47 @@ function normalizarTel(t: string): { completo: string; sinPrefijo: string } {
   return { completo: num, sinPrefijo };
 }
 
-type IntencionMimi = "CONFORME" | "INCONFORME_SIN_DETALLE" | "INCONFORME_CON_DETALLE" | "OTRO";
+type IntencionMimi = "CONFORME" | "INCONFORME" | "OTRO";
 
 /**
  * Clasificador inteligente de lenguaje humano para Mimi.
- * Usa Gemini 2.5 Flash cuando hay API Key disponible para entender modismos dominicanos,
- * abreviaturas, typos y lenguaje natural, con un respaldo robusto local por reglas.
+ * Detecta objeciones como "me siento que es muy poco", modismos dominicanos,
+ * abreviaturas, typos y lenguaje natural con Gemini 2.5 Flash y respaldo por reglas.
  */
 async function clasificarIntencionHumana(
   texto: string,
   apiKey?: string,
 ): Promise<{ intencion: IntencionMimi; motivo?: string }> {
+  const t = " " + texto.trim().toLowerCase() + " ";
+
+  // 1. Detección prioritaria de objeciones / inconformidades
+  // Si dice "pero", "muy poco", "poco", "incompleto", "no", "menos", etc., SIEMPRE es INCONFORME
+  // aún si incluye palabras de cortesía como "gracias".
+  const tieneObjecion =
+    /(pero|muy poco|poco|incompleto|no me cuadra|no estoy conforme|no conforme|falta|faltan|menos|error|reclamo|diferencia|no me pagaron|descontaron|descuento|esperaba mas|esperaba más|no me parece|muy bajito|injusto)/i.test(
+      t,
+    );
+
+  if (tieneObjecion) {
+    return { intencion: "INCONFORME", motivo: texto };
+  }
+
+  // 2. Si dice 'no' explícito
+  if (/(^|\s)(no|nop|negativo|para nada|que va|tengo dudas|no mimi)($|\s|[.,!])/i.test(t)) {
+    return { intencion: "INCONFORME", motivo: texto };
+  }
+
+  // 3. Si dice 'sí' explícito sin objeciones
+  const contieneSi =
+    /(^|\s)(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias|ta to bien|to bien|ta to|si mimi|lo recibi|recibi)($|\s|[.,!])/i.test(
+      t,
+    );
+
+  if (contieneSi) {
+    return { intencion: "CONFORME" };
+  }
+
+  // 4. Si hay API Key de Gemini, clasificación por lenguaje natural humano profundo
   if (apiKey) {
     try {
       const prompt = `Eres Mimi, asistente de Recursos Humanos y Nómina de IVAD SRL (República Dominicana).
@@ -33,14 +63,13 @@ A un colaborador se le envió el resumen de su volante de pago y se le preguntó
 
 Mensaje recibido del colaborador: "${texto}"
 
-Clasifica la intención del colaborador en una de estas 4 categorías:
-1. CONFORME: Si el colaborador confirma, acepta, dice que sí, que todo está bien, que ya lo vio, agradece o expresa satisfacción (ejemplos: "si", "sí", "claro mimi", "todo bien gracias", "conforme", "recibido", "perfecto ya me llegó", "siii todo fino", "dale mandame el volante", "ta to bien").
-2. INCONFORME_SIN_DETALLE: Si el colaborador dice que no, rechaza, o dice que no está conforme pero NO explica aún la razón (ejemplos: "no", "no mimi", "no estoy conforme", "tengo dudas", "no me cuadra", "falta dinero", "hay un error").
-3. INCONFORME_CON_DETALLE: Si el colaborador explica qué está mal, qué le falta o por qué no está conforme (ejemplos: "me faltaron 4 horas extras del sábado", "me descontaron 1500 pesos de más", "no me salió la comisión de ventas", "el sueldo vino incompleto").
-4. OTRO: Si el mensaje es una pregunta general o saludo no relacionado.
+Clasifica la intención del colaborador en una de estas 3 categorías:
+1. CONFORME: Si el colaborador confirma, acepta, dice que sí, que todo está bien, que ya lo vio, agradece o expresa satisfacción (ejemplos: "si", "sí", "claro mimi", "todo bien gracias", "conforme", "recibido", "perfecto", "siii todo fino", "dale mandame el volante", "ta to bien").
+2. INCONFORME: Si el colaborador rechaza, dice que no, manifiesta que el monto es poco, que le falta dinero, que tiene dudas, que no le cuadra o que hay un error (ejemplos: "no", "gracias pero me siento que es muy poco", "no estoy conforme", "falta dinero", "me faltaron horas extras").
+3. OTRO: Si el mensaje es una pregunta general o saludo no relacionado.
 
 Responde ÚNICAMENTE en formato JSON estricto:
-{"intencion": "CONFORME" | "INCONFORME_SIN_DETALLE" | "INCONFORME_CON_DETALLE" | "OTRO", "motivo": "explicación o null"}`;
+{"intencion": "CONFORME" | "INCONFORME" | "OTRO", "motivo": "explicación o null"}`;
 
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -62,7 +91,7 @@ Responde ÚNICAMENTE en formato JSON estricto:
           if (parsed.intencion) {
             return {
               intencion: parsed.intencion as IntencionMimi,
-              ...(parsed.motivo ? { motivo: String(parsed.motivo) } : {}),
+              motivo: parsed.motivo ? String(parsed.motivo) : texto,
             };
           }
         }
@@ -72,34 +101,71 @@ Responde ÚNICAMENTE en formato JSON estricto:
     }
   }
 
-  // Fallback heurístico de lenguaje natural
-  const t = " " + texto.trim().toLowerCase() + " ";
-  const contieneSi =
-    /(^|\s)(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias|ta to bien|to bien|ta to|si mimi|lo recibi|recibi)($|\s|[.,!])/i.test(
-      t,
-    );
-
-  if (contieneSi) {
-    return { intencion: "CONFORME" };
-  }
-
-  if (
-    /(horas extras|descontaron|descuento|falta|faltan|comision|comisiones|no me cuadra|incompleto|error|reclamo|diferencia|menos|no me pagaron|faltante)/i.test(
-      t,
-    )
-  ) {
-    return { intencion: "INCONFORME_CON_DETALLE", motivo: texto };
-  }
-
-  if (
-    /(^|\s)(no|nop|negativo|inconforme|no estoy conforme|no conforme|tengo dudas|no mimi)($|\s|[.,!])/i.test(
-      t,
-    )
-  ) {
-    return { intencion: "INCONFORME_SIN_DETALLE" };
-  }
-
   return { intencion: "OTRO" };
+}
+
+/**
+ * Genera una respuesta 100% humana, empática y personalizada con Gemini IA
+ * cuando el colaborador manifiesta cualquier inconformidad con su pago.
+ */
+async function generarRespuestaHumanaInconformidad({
+  nombre,
+  mensajeUsuario,
+  volante,
+  apiKey,
+}: {
+  nombre: string;
+  mensajeUsuario: string;
+  volante: { comprobante?: string; periodo_desde?: string; periodo_hasta?: string; neto?: number };
+  apiKey?: string;
+}): Promise<string> {
+  const primerNombre = nombre.split(" ")[0] || "colaborador";
+
+  if (apiKey) {
+    try {
+      const prompt = `Eres Mimi, la asistente de Recursos Humanos y Nómina de la empresa IVAD SRL en República Dominicana.
+Un colaborador llamado ${nombre} ha recibido su volante de pago (${volante.comprobante || "Nómina"}, período del ${volante.periodo_desde} al ${volante.periodo_hasta}, Neto RD$ ${volante.neto}) y ha manifestado su inconformidad o duda por WhatsApp.
+
+Mensaje exacto del colaborador: "${mensajeUsuario}"
+
+Tu misión:
+1. Responde como una persona humana real de Recursos Humanos: muy empática, cálida, respetuosa y comprensiva. ¡NUNCA suenes como un robot o una plantilla automatizada!
+2. Valida con empatía lo que el colaborador expresó (por ejemplo, si dice que siente que es muy poco o que faltan horas, dile con calidez que comprendes su inquietud respecto a lo devengado).
+3. Infórmale que ya has tomado nota de sus observaciones, que has abierto un caso formal y que se lo pasaste de inmediato al equipo de Soporte y Recursos Humanos para que revisen los cálculos detallados de su pago con prioridad.
+4. Explícale que si desea enviar fotos de sus registros, comprobantes de horas o hablar directamente con el departamento de Nómina, puede comunicarse a:
+   📧 nomina@ivadsrl.com
+5. Despídete asegurándole que su caso está en manos del equipo y se le dará pronta respuesta.
+6. Mantén la respuesta en 2 o 3 párrafos concisos y bien formateados para WhatsApp (puedes usar negritas y emojis discretos).`;
+
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      if (res.ok) {
+        const json = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const contenido = json?.choices?.[0]?.message?.content?.trim();
+        if (contenido) return contenido;
+      }
+    } catch (e) {
+      console.error("Error generando respuesta humana con Gemini:", e);
+    }
+  }
+
+  // Fallback humano y empático si la IA no estuviese disponible
+  return (
+    `Entiendo perfectamente cómo te sientes, ${primerNombre}. Lamento mucho que sientas que el monto recibido no es el esperado o que tengas alguna diferencia con tu volante de pago.\n\n` +
+    `Ya he registrado formalmente tu caso y le pasé el reporte con prioridad al equipo de Recursos Humanos y Nómina para que revisen los cálculos detallados de tu período.\n\n` +
+    `Si tienes algún comprobante de tus horas o deseas comunicarte directamente con el departamento de nómina, puedes escribirles a:\n` +
+    `📧 *nomina@ivadsrl.com*\n\n` +
+    `¡Estamos trabajando para darte una respuesta clara y justa a la mayor brevedad posible!`
+  );
 }
 
 /** Recibe los mensajes que llegan al WhatsApp de la empresa y los atiende con la IA Mimi. */
@@ -255,13 +321,12 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
             nuevo: true,
           });
 
-          const respuesta =
-            `Comprendo la situación, ${primerNombre}. He registrado tus observaciones y le pasaré el dato al equipo de soporte y Recursos Humanos para que revisen tu caso con prioridad.\n\n` +
-            `También puedes comunicarte directamente con nuestro departamento de nómina en:\n` +
-            `📧 *nomina@ivadsrl.com*\n\n` +
-            `O para cualquier duda de seguridad de datos:\n` +
-            `📧 *seguridad@ivadsrl.com*\n\n` +
-            `Estamos trabajando para darte una pronta respuesta. ¡Gracias por avisarnos!`;
+          const respuesta = await generarRespuestaHumanaInconformidad({
+            nombre: perfil.nombre,
+            mensajeUsuario: textoUsuario,
+            volante: volanteUltimo,
+            apiKey,
+          });
 
           return Response.json({ respuesta });
         }
@@ -334,9 +399,11 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           }
         }
 
-        // --- CASO 2: EL COLABORADOR DICE QUE NO Y YA EXPLICÓ EL MOTIVO ---
-        if (intencion === "INCONFORME_CON_DETALLE") {
-          const detalleFinal = motivo || textoUsuario;
+        // --- CASO 2: EL COLABORADOR ESTÁ INCONFORME (DICE NO, MONTO POCO, DIFERENCIA, ETC.) ---
+        if (intencion === "INCONFORME") {
+          const motivoFinal = motivo || textoUsuario;
+
+          // 1. Abrir ticket formal en soporte_tickets para Nómina y Recursos Humanos
           await supabaseAdmin.from("soporte_tickets").insert({
             creador_id: perfil.id,
             nombre: perfil.nombre,
@@ -346,46 +413,31 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
             mensaje:
               `Inconformidad manifestada por WhatsApp respecto al volante de pago ` +
               `(${volanteUltimo.periodo_desde} al ${volanteUltimo.periodo_hasta}, Neto RD$ ${volanteUltimo.neto}):\n\n` +
-              `Motivo indicado:\n"${detalleFinal}"`,
+              `Observaciones del colaborador:\n"${motivoFinal}"`,
             estado: "Abierto",
           });
 
-          // Actualizar estado a 'Reclamo' -> Mimi se desactiva para futuros mensajes
+          // 2. Actualizar estado a 'Reclamo' -> Mimi se auto-desactiva de inmediato
           await supabaseAdmin
             .from("volantes")
             .update({ estado: "Reclamo", updated_at: new Date().toISOString() })
             .eq("id", volanteUltimo.id);
 
+          // 3. Registrar aviso interno en el portal del colaborador
           await supabaseAdmin.from("avisos").insert({
             para_id: perfil.id,
-            titulo: "Reclamo de nómina registrado",
-            detalle: `Mimi registró tus observaciones sobre el pago. Tu caso fue transferido a soporte de Recursos Humanos.`,
+            titulo: "Caso de nómina transferido a soporte",
+            detalle: `Mimi registró tus observaciones sobre el volante y transfirió el caso al equipo de Recursos Humanos y Nómina.`,
             nuevo: true,
           });
 
-          const respuesta =
-            `Comprendo la situación, ${primerNombre}. He registrado tus observaciones y le pasaré el dato al equipo de soporte y Recursos Humanos para que revisen tu caso con prioridad.\n\n` +
-            `También puedes comunicarte directamente con nuestro departamento de nómina en:\n` +
-            `📧 *nomina@ivadsrl.com*\n\n` +
-            `O para cualquier duda de seguridad de datos:\n` +
-            `📧 *seguridad@ivadsrl.com*\n\n` +
-            `Estamos trabajando para ayudarte y darte una pronta respuesta. ¡Gracias por avisarnos!`;
-
-          return Response.json({ respuesta });
-        }
-
-        // --- CASO 3: EL COLABORADOR DICE QUE NO PERO NO HA DADO EL MOTIVO ---
-        if (intencion === "INCONFORME_SIN_DETALLE") {
-          // Cambiar estado a 'EsperandoMotivo' para esperar su siguiente mensaje con el detalle
-          await supabaseAdmin
-            .from("volantes")
-            .update({ estado: "EsperandoMotivo", updated_at: new Date().toISOString() })
-            .eq("id", volanteUltimo.id);
-
-          const respuesta =
-            `Entiendo perfectamente, ${primerNombre}. 📝\n\n` +
-            `¿Podrías indicarme cuál es el motivo o qué diferencia tienes con respecto a tu pago (horas extras, deducciones, comisiones o monto)?\n\n` +
-            `De esa manera podré registrar tu caso y pasarle el dato de inmediato a soporte.`;
+          // 4. Generar respuesta 100% humana, empática y personalizada con IA (sin plantillas robóticas)
+          const respuesta = await generarRespuestaHumanaInconformidad({
+            nombre: perfil.nombre,
+            mensajeUsuario: motivoFinal,
+            volante: volanteUltimo,
+            apiKey,
+          });
 
           return Response.json({ respuesta });
         }

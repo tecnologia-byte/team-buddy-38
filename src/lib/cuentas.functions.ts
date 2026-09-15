@@ -111,6 +111,20 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       .insert({ user_id: userId, role: data.rol });
     if (errorRol) return { ok: false as const, error: errorRol.message };
 
+    // Si se asignó contraseña provisional, enviarla de inmediato al correo del colaborador desde Cuenta@ivadsrl.com
+    if (provisional && data.clave) {
+      try {
+        const { enviarCorreoClaveProvisional } = await import("./correo.server");
+        await enviarCorreoClaveProvisional({
+          para: email,
+          nombre: data.nombre.trim(),
+          claveProvisional: data.clave,
+        });
+      } catch (errCorreo) {
+        console.error("No se pudo enviar correo con clave provisional:", errCorreo);
+      }
+    }
+
     return { ok: true as const };
   });
 
@@ -377,4 +391,122 @@ export const establecerClaveFn = createServerFn({ method: "POST" })
     }
 
     return { ok: true as const };
+  });
+
+/**
+ * Envía por correo desde Cuenta@ivadsrl.com la contraseña provisional a todos los colaboradores
+ * que la tienen asignada y pendiente de primer uso. Solo Administrador / Recursos Humanos.
+ */
+export const enviarClavesProvisionalesPendientesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const esGestor = (roles ?? []).some(
+      (r) => r.role === "Administrador" || r.role === "Recursos Humanos",
+    );
+    if (!esGestor) return { ok: false as const, error: "No tienes permisos para esta acción" };
+
+    const sb = await admin();
+    const { data: filas, error } = await sb
+      .from("perfiles")
+      .select("id, nombre, email, clave_provisional_texto")
+      .eq("clave_provisional", true)
+      .not("clave_provisional_texto", "is", null);
+
+    if (error) return { ok: false as const, error: error.message };
+    if (!filas || filas.length === 0) {
+      return {
+        ok: true as const,
+        total: 0,
+        enviados: 0,
+        mensaje: "No hay colaboradores con contraseña provisional pendiente de primer acceso.",
+      };
+    }
+
+    const { enviarCorreoClaveProvisional } = await import("./correo.server");
+    let enviados = 0;
+    const detalles: Array<{ nombre: string; email: string; ok: boolean; error?: string }> = [];
+
+    for (const f of filas) {
+      if (!f.email || !f.clave_provisional_texto) continue;
+      const res = await enviarCorreoClaveProvisional({
+        para: f.email,
+        nombre: f.nombre || "Colaborador",
+        claveProvisional: f.clave_provisional_texto,
+      });
+      if (res.ok) {
+        enviados++;
+        detalles.push({ nombre: f.nombre, email: f.email, ok: true });
+        // Notificación interna en el portal
+        await sb.from("avisos").insert({
+          para_id: f.id,
+          titulo: "Contraseña provisional enviada a tu correo",
+          detalle: `Se enviaron tus credenciales de acceso desde Cuenta@ivadsrl.com a ${f.email}. Al ingresar deberás crear tu propia contraseña personal.`,
+          nuevo: true,
+        });
+      } else {
+        detalles.push({ nombre: f.nombre, email: f.email, ok: false, error: res.error });
+      }
+    }
+
+    return {
+      ok: true as const,
+      total: filas.length,
+      enviados,
+      detalles,
+    };
+  });
+
+/**
+ * Envía por correo desde Cuenta@ivadsrl.com la contraseña provisional a un colaborador específico.
+ */
+export const enviarClaveProvisionalIndividualFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const esGestor = (roles ?? []).some(
+      (r) => r.role === "Administrador" || r.role === "Recursos Humanos",
+    );
+    if (!esGestor) return { ok: false as const, error: "No tienes permisos para esta acción" };
+
+    const sb = await admin();
+    const { data: f, error } = await sb
+      .from("perfiles")
+      .select("id, nombre, email, clave_provisional_texto, clave_provisional")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (error || !f) return { ok: false as const, error: "Colaborador no encontrado" };
+    if (!f.email) return { ok: false as const, error: "El colaborador no tiene correo registrado" };
+    if (!f.clave_provisional_texto) {
+      return {
+        ok: false as const,
+        error: "El colaborador no tiene una contraseña provisional asignada en el sistema",
+      };
+    }
+
+    const { enviarCorreoClaveProvisional } = await import("./correo.server");
+    const res = await enviarCorreoClaveProvisional({
+      para: f.email,
+      nombre: f.nombre || "Colaborador",
+      claveProvisional: f.clave_provisional_texto,
+    });
+
+    if (!res.ok) return { ok: false as const, error: res.error ?? "No se pudo enviar el correo" };
+
+    await sb.from("avisos").insert({
+      para_id: f.id,
+      titulo: "Contraseña provisional enviada a tu correo",
+      detalle: `Se enviaron tus credenciales de acceso desde Cuenta@ivadsrl.com a ${f.email}. Al ingresar deberás crear tu propia contraseña personal.`,
+      nuevo: true,
+    });
+
+    return { ok: true as const, email: f.email };
   });

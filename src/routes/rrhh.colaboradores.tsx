@@ -188,7 +188,7 @@ function GestionColaboradores() {
               <p className="truncate text-xs text-accent">{c.cargo}</p>
               <p className="truncate text-xs text-muted-foreground">{c.area}</p>
               {c.claveProvisional && c.claveProvisionalTexto ? (
-                <ClaveProvisional clave={c.claveProvisionalTexto} />
+                <ClaveProvisional clave={c.claveProvisionalTexto} id={c.id} email={c.email} />
               ) : null}
               {c.estadoFoto === "pendiente" ? (
                 <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary">
@@ -370,8 +370,17 @@ function GestionColaboradores() {
 }
 
 /** Muestra la contraseña provisional; deja de existir cuando el colaborador crea la suya. */
-function ClaveProvisional({ clave }: { clave: string }) {
+function ClaveProvisional({
+  clave,
+  id,
+  email,
+}: {
+  clave: string;
+  id?: string;
+  email?: string;
+}) {
   const [visible, setVisible] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2">
       <span className="rounded bg-secondary px-2 py-0.5 font-mono text-[11px] text-foreground">
@@ -394,6 +403,26 @@ function ClaveProvisional({ clave }: { clave: string }) {
       >
         Copiar
       </button>
+      {id ? (
+        <button
+          type="button"
+          disabled={enviando}
+          className="text-[11px] font-medium text-amber-700 dark:text-amber-400 underline inline-flex items-center gap-1 hover:text-amber-800 disabled:opacity-50"
+          onClick={async () => {
+            setEnviando(true);
+            const { enviarClaveProvisionalIndividualFn } = await import("@/lib/cuentas.functions");
+            const res = await enviarClaveProvisionalIndividualFn({ data: { id } });
+            setEnviando(false);
+            if (res.ok) {
+              toast.success(`Contraseña provisional enviada a ${email || "su correo"} desde Cuenta@ivadsrl.com`);
+            } else {
+              toast.error(res.error ?? "No se pudo enviar");
+            }
+          }}
+        >
+          {enviando ? "Enviando..." : "📧 Enviar al correo"}
+        </button>
+      ) : null}
     </div>
   );
 }
