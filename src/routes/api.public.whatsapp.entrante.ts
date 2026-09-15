@@ -62,7 +62,7 @@ Responde ÚNICAMENTE en formato JSON estricto:
           if (parsed.intencion) {
             return {
               intencion: parsed.intencion as IntencionMimi,
-              motivo: parsed.motivo ? String(parsed.motivo) : undefined,
+              ...(parsed.motivo ? { motivo: String(parsed.motivo) } : {}),
             };
           }
         }
