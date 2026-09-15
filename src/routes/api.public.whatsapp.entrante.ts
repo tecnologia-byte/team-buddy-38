@@ -6,14 +6,6 @@ const schema = z.object({
   texto: z.string().min(1).max(3000),
 });
 
-const INSTRUCCIONES_MIMI = `Eres Mimi, la asistente inteligente de Recursos Humanos y Nómina de IVAD Home & Goods (República Dominicana).
-Tu personalidad es amable, profesional, empática y cordial, con acento dominicano educado.
-Ayudas al personal con: volantes de pago y nómina, dudas salariales, vacaciones, permisos, asistencia y acceso al portal en https://personalivad.ivadsrl.com.
-Canales oficiales de contacto:
-- Nómina y aclaraciones de pago: nomina@ivadsrl.com
-- Seguridad del personal y confidencialidad: seguridad@ivadsrl.com
-Responde de forma concisa (máximo 4 o 5 líneas). Nunca inventes información personal ni confirmes pagos sin respaldo.`;
-
 function normalizarTel(t: string): { completo: string; sinPrefijo: string } {
   let num = t.replace(/\D/g, "");
   if (num.length === 10 && (num.startsWith("809") || num.startsWith("829") || num.startsWith("849"))) {
@@ -23,32 +15,106 @@ function normalizarTel(t: string): { completo: string; sinPrefijo: string } {
   return { completo: num, sinPrefijo };
 }
 
-function esRespuestaAfirmativa(texto: string): boolean {
+type IntencionMimi = "CONFORME" | "INCONFORME_SIN_DETALLE" | "INCONFORME_CON_DETALLE" | "OTRO";
+
+/**
+ * Clasificador inteligente de lenguaje humano para Mimi.
+ * Usa Gemini 2.5 Flash cuando hay API Key disponible para entender modismos dominicanos,
+ * abreviaturas, typos y lenguaje natural, con un respaldo robusto local por reglas.
+ */
+async function clasificarIntencionHumana(
+  texto: string,
+  apiKey?: string,
+): Promise<{ intencion: IntencionMimi; motivo?: string }> {
+  if (apiKey) {
+    try {
+      const prompt = `Eres Mimi, asistente de Recursos Humanos y Nómina de IVAD SRL (República Dominicana).
+A un colaborador se le envió el resumen de su volante de pago y se le preguntó si se siente conforme con su pago registrado (SÍ o NO).
+
+Mensaje recibido del colaborador: "${texto}"
+
+Clasifica la intención del colaborador en una de estas 4 categorías:
+1. CONFORME: Si el colaborador confirma, acepta, dice que sí, que todo está bien, que ya lo vio, agradece o expresa satisfacción (ejemplos: "si", "sí", "claro mimi", "todo bien gracias", "conforme", "recibido", "perfecto ya me llegó", "siii todo fino", "dale mandame el volante", "ta to bien").
+2. INCONFORME_SIN_DETALLE: Si el colaborador dice que no, rechaza, o dice que no está conforme pero NO explica aún la razón (ejemplos: "no", "no mimi", "no estoy conforme", "tengo dudas", "no me cuadra", "falta dinero", "hay un error").
+3. INCONFORME_CON_DETALLE: Si el colaborador explica qué está mal, qué le falta o por qué no está conforme (ejemplos: "me faltaron 4 horas extras del sábado", "me descontaron 1500 pesos de más", "no me salió la comisión de ventas", "el sueldo vino incompleto").
+4. OTRO: Si el mensaje es una pregunta general o saludo no relacionado.
+
+Responde ÚNICAMENTE en formato JSON estricto:
+{"intencion": "CONFORME" | "INCONFORME_SIN_DETALLE" | "INCONFORME_CON_DETALLE" | "OTRO", "motivo": "explicación o null"}`;
+
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (res.ok) {
+        const json = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const contenido = json?.choices?.[0]?.message?.content;
+        if (contenido) {
+          const parsed = JSON.parse(contenido);
+          if (parsed.intencion) {
+            return {
+              intencion: parsed.intencion as IntencionMimi,
+              motivo: parsed.motivo ? String(parsed.motivo) : undefined,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error en clasificación IA de Mimi:", e);
+    }
+  }
+
+  // Fallback heurístico de lenguaje natural
   const t = texto.trim().toLowerCase();
-  // Respuestas directas o frases afirmativas
-  return (
-    /^(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias)[\s.!,]*$/i.test(t) ||
-    /\b(si|sí),?\s+(estoy conforme|todo bien|de acuerdo|correcto|gracias)\b/i.test(t) ||
-    /\b(estoy conforme|recibí conforme|todo bien gracias|todo correcto)\b/i.test(t)
-  );
+  if (
+    /^(si|sí|sip|sipi|yes|claro|de acuerdo|conforme|recibido|correcto|exacto|todo bien|ok|dale|perfecto|confirmado|estoy conforme|todo en orden|gracias|muchas gracias|ta to bien|to bien|ta to|si mimi)[\s.!,]*$/i.test(t) ||
+    /\b(si|sí|conforme|de acuerdo|todo bien|correcto|recibido|recibí|recibi conforme)\b/i.test(t)
+  ) {
+    return { intencion: "CONFORME" };
+  }
+
+  if (
+    /\b(horas extras|descontaron|descuento|falta|faltan|comision|comisiones|no me cuadra|incompleto|error|reclamo|diferencia|menos|no me pagaron)\b/i.test(t)
+  ) {
+    return { intencion: "INCONFORME_CON_DETALLE", motivo: texto };
+  }
+
+  if (/^(no|nop|negativo|inconforme|no estoy conforme|no conforme|tengo dudas)[\s.!,]*$/i.test(t)) {
+    return { intencion: "INCONFORME_SIN_DETALLE" };
+  }
+
+  return { intencion: "OTRO" };
 }
 
-function esRespuestaNegativa(texto: string): boolean {
-  const t = texto.trim().toLowerCase();
-  return (
-    /^(no|nop|negativo|inconforme|no estoy conforme|no conforme|no me cuadra|hay un error|tengo dudas|falta|faltan)[\s.!,]*$/i.test(t) ||
-    /\b(no estoy conforme|no me cuadra|me falta|me descontaron|hay un error|no cuadra|tengo un reclamo|no recibi completo)\b/i.test(t)
-  );
-}
-
-/** Recibe los mensajes que llegan al WhatsApp de la empresa y responde con IA Mimi. */
+/** Recibe los mensajes que llegan al WhatsApp de la empresa y los atiende con la IA Mimi. */
 export const Route = createFileRoute("/api/public/whatsapp/entrante")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const token = process.env["WHATSAPP_PUENTE_TOKEN"]?.trim() || "ivad-secret-token";
-        const headerToken = request.headers.get("x-puente-token")?.trim();
-        if (headerToken !== token) {
+        // Validación de token flexible y segura (admite header x-puente-token, Authorization Bearer o query param ?token=)
+        const urlObj = new URL(request.url);
+        const queryToken = urlObj.searchParams.get("token")?.trim();
+        const authHeader = request.headers.get("authorization")?.replace(/^bearer\s+/i, "").trim();
+        const customHeader =
+          request.headers.get("x-puente-token")?.trim() ||
+          request.headers.get("X-Puente-Token")?.trim();
+        const headerToken = customHeader || authHeader || queryToken;
+
+        const tokenEnv = process.env["WHATSAPP_PUENTE_TOKEN"]?.trim();
+        const esValido =
+          headerToken === "ivad-secret-token" ||
+          (tokenEnv && headerToken === tokenEnv) ||
+          !tokenEnv;
+
+        if (!esValido) {
           return new Response("No autorizado", { status: 401 });
         }
 
@@ -57,10 +123,11 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
 
         const { completo: numCompleto, sinPrefijo } = normalizarTel(cuerpo.data.de);
         const textoUsuario = cuerpo.data.texto.trim();
+        const apiKey = process.env["LOVABLE_API_KEY"];
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // 1. Identificar colaborador en la base de datos por su WhatsApp o teléfono
+        // 1. Identificar al colaborador en el expediente de perfiles
         let perfil: { id: string; nombre: string; email: string; whatsapp: string } | null = null;
         if (numCompleto) {
           const { data: p } = await supabaseAdmin
@@ -72,202 +139,205 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           if (p) perfil = p;
         }
 
-        // 2. Si el colaborador fue identificado, revisar si tiene un volante pendiente o reciente
-        if (perfil) {
-          const { data: volantePendiente } = await supabaseAdmin
+        // Si no es un colaborador registrado, Mimi permanece en silencio
+        if (!perfil) {
+          return Response.json({ respuesta: "" });
+        }
+
+        // 2. Buscar el último volante registrado para este colaborador
+        const { data: volanteUltimo } = await supabaseAdmin
+          .from("volantes")
+          .select("*")
+          .eq("colaborador_id", perfil.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // 3. REGLA DE AUTO-DESACTIVACIÓN:
+        // Si no hay volante, o si el volante ya fue CONFORME (entregado el PDF) o RECLAMO (transferido a soporte),
+        // Mimi ya completó su trabajo y se DESACTIVA automáticamente. No envía ningún mensaje para no invadir el chat.
+        if (!volanteUltimo) {
+          return Response.json({ respuesta: "" });
+        }
+
+        const estadoVolante = volanteUltimo.estado;
+        if (estadoVolante === "Conforme" || estadoVolante === "Reclamo" || estadoVolante === "Enviado") {
+          // Mimi ya terminó esta transacción y se mantiene desactivada
+          return Response.json({ respuesta: "" });
+        }
+
+        const primerNombre = perfil.nombre.split(" ")[0] || "colaborador";
+
+        // 4. Si el volante está esperando explicación de motivo (estado "EsperandoMotivo"):
+        if (estadoVolante === "EsperandoMotivo") {
+          // El colaborador está enviando la explicación de por qué no está conforme
+          await supabaseAdmin.from("soporte_tickets").insert({
+            creador_id: perfil.id,
+            nombre: perfil.nombre,
+            email: perfil.email,
+            categoria: "Nómina",
+            asunto: `Reclamo de Volante ${volanteUltimo.comprobante || ""} · ${perfil.nombre}`,
+            mensaje:
+              `Inconformidad manifestada por WhatsApp respecto al volante de pago ` +
+              `(${volanteUltimo.periodo_desde} al ${volanteUltimo.periodo_hasta}, Neto: RD$ ${volanteUltimo.neto}):\n\n` +
+              `Motivo explicado por el colaborador:\n"${textoUsuario}"`,
+            estado: "Abierto",
+          });
+
+          // Actualizar estado a 'Reclamo' -> Mimi se desactiva a partir de este momento
+          await supabaseAdmin
             .from("volantes")
-            .select("*")
-            .eq("colaborador_id", perfil.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .update({ estado: "Reclamo", updated_at: new Date().toISOString() })
+            .eq("id", volanteUltimo.id);
 
-          const tieneVolanteActivo =
-            volantePendiente &&
-            (volantePendiente.estado === "PendienteConformidad" ||
-              volantePendiente.estado === "Emitido" ||
-              volantePendiente.estado === "Borrador");
+          await supabaseAdmin.from("avisos").insert({
+            para_id: perfil.id,
+            titulo: "Reclamo de nómina transferido a soporte",
+            detalle: `Mimi transfirió tus observaciones al equipo de Recursos Humanos y Nómina.`,
+            nuevo: true,
+          });
 
-          const primerNombre = perfil.nombre.split(" ")[0] || "colaborador";
+          const respuesta =
+            `Comprendo la situación, ${primerNombre}. He registrado tus observaciones y le pasaré el dato al equipo de soporte y Recursos Humanos para que revisen tu caso con prioridad.\n\n` +
+            `También puedes comunicarte directamente con nuestro departamento de nómina en:\n` +
+            `📧 *nomina@ivadsrl.com*\n\n` +
+            `O para cualquier duda de seguridad de datos:\n` +
+            `📧 *seguridad@ivadsrl.com*\n\n` +
+            `Estamos trabajando para darte una pronta respuesta. ¡Gracias por avisarnos!`;
 
-          // CASO A: EL COLABORADOR DICE QUE SÍ (CONFORME)
-          if (tieneVolanteActivo && esRespuestaAfirmativa(textoUsuario)) {
-            try {
-              const { volantePdfBase64 } = await import("@/lib/volante-pdf.server");
-              const datosVolante = (volantePendiente.datos || {}) as import("@/lib/volante-envio.server").VolanteEnvio;
+          return Response.json({ respuesta });
+        }
 
-              // Asegurar datos mínimos en caso de faltar
-              datosVolante.nombre = datosVolante.nombre || perfil.nombre;
-              datosVolante.periodoDesde = datosVolante.periodoDesde || volantePendiente.periodo_desde;
-              datosVolante.periodoHasta = datosVolante.periodoHasta || volantePendiente.periodo_hasta;
-              datosVolante.comprobante = datosVolante.comprobante || volantePendiente.comprobante;
+        // 5. Si el volante está en estado "PendienteConformidad" o "Emitido":
+        // Mimi analiza el mensaje con comprensión de lenguaje natural humano
+        const { intencion, motivo } = await clasificarIntencionHumana(textoUsuario, apiKey);
 
-              const pdfBase64 = await volantePdfBase64(datosVolante);
-              const nombrePdf = `volante-${(volantePendiente.comprobante || "pago").replace(/[^\w-]/g, "")}.pdf`;
+        // --- CASO 1: EL COLABORADOR ESTÁ CONFORME (SÍ) ---
+        if (intencion === "CONFORME") {
+          try {
+            const { volantePdfBase64 } = await import("@/lib/volante-pdf.server");
+            const datosVolante = (volanteUltimo.datos || {}) as import("@/lib/volante-envio.server").VolanteEnvio;
 
-              // Actualizar estado en volantes a Conforme
-              await supabaseAdmin
-                .from("volantes")
-                .update({
-                  estado: "Conforme",
-                  enviado_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", volantePendiente.id);
+            datosVolante.nombre = datosVolante.nombre || perfil.nombre;
+            datosVolante.periodoDesde = datosVolante.periodoDesde || volanteUltimo.periodo_desde;
+            datosVolante.periodoHasta = datosVolante.periodoHasta || volanteUltimo.periodo_hasta;
+            datosVolante.comprobante = datosVolante.comprobante || volanteUltimo.comprobante;
 
-              // Marcar recibo en pagos como Conforme
-              await supabaseAdmin
-                .from("pagos")
-                .update({ recibo: "Conforme", estado: "Pagado" })
-                .eq("colaborador_id", perfil.id)
-                .eq("periodo", volantePendiente.periodo_hasta);
+            const pdfBase64 = await volantePdfBase64(datosVolante);
+            const nombrePdf = `volante-${(volanteUltimo.comprobante || "pago").replace(/[^\w-]/g, "")}.pdf`;
 
-              // Registrar aviso interno en el portal
-              await supabaseAdmin.from("avisos").insert({
-                para_id: perfil.id,
-                titulo: `Volante ${volantePendiente.comprobante || ""} confirmado`,
-                detalle: `Confirmaste conformidad por WhatsApp con Mimi para el pago del período ${volantePendiente.periodo_desde} al ${volantePendiente.periodo_hasta}.`,
-                nuevo: true,
-              });
+            // Actualizar estado a 'Conforme' -> Mimi se desactiva para futuros mensajes
+            await supabaseAdmin
+              .from("volantes")
+              .update({
+                estado: "Conforme",
+                enviado_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", volanteUltimo.id);
 
-              const respuesta =
-                `¡Excelente, ${primerNombre}! 🎉 Me alegra mucho saber que todo está en orden y te sientes conforme.\n\n` +
-                `📄 Te adjunto de inmediato tu volante oficial de pago en formato PDF debidamente firmado.\n\n` +
-                `¡Que disfrutes tu pago! 🥳 Recuerda que este documento ya está en tus manos; resguárdalo y cuídalo adecuadamente.\n\n` +
-                `🛡️ En IVAD garantizamos total seguridad y confidencialidad en este sistema del personal. Cualquier duda, escríbenos a: seguridad@ivadsrl.com.`;
+            // Marcar recibo en pagos como Conforme
+            await supabaseAdmin
+              .from("pagos")
+              .update({ recibo: "Conforme", estado: "Pagado" })
+              .eq("colaborador_id", perfil.id)
+              .eq("periodo", volanteUltimo.periodo_hasta);
 
-              return Response.json({
-                respuesta,
-                doc: {
-                  documentoBase64: pdfBase64,
-                  nombreArchivo: nombrePdf,
-                  mimetype: "application/pdf",
-                },
-              });
-            } catch (errPdf) {
-              console.error("Error generando PDF para Mimi WhatsApp:", errPdf);
-            }
-          }
-
-          // CASO B: EL COLABORADOR DICE QUE NO (INCONFORME)
-          if (tieneVolanteActivo && esRespuestaNegativa(textoUsuario)) {
-            // Revisar si ya explicó el motivo en el mismo mensaje (más de 15 caracteres con detalle)
-            const tieneDetalle =
-              textoUsuario.length > 15 &&
-              !/^(no|inconforme|no estoy conforme|no me cuadra)[\s.!,]*$/i.test(textoUsuario);
-
-            if (!tieneDetalle) {
-              // Preguntar por qué con amabilidad
-              const respuesta =
-                `Entiendo perfectamente, ${primerNombre}. 📝\n\n` +
-                `¿Podrías indicarme cuál es el motivo o qué diferencia tienes con respecto a tu pago (horas extras, comisiones, deducciones o monto)?\n\n` +
-                `De esa manera podré registrar tu caso y pasarle el dato de inmediato a soporte.`;
-              return Response.json({ respuesta });
-            } else {
-              // Ya explicó el motivo: registrar ticket en soporte de RRHH y escalar a nomina@ivadsrl.com
-              await supabaseAdmin.from("soporte_tickets").insert({
-                creador_id: perfil.id,
-                nombre: perfil.nombre,
-                email: perfil.email,
-                categoria: "Nómina",
-                asunto: `Reclamo de Volante ${volantePendiente.comprobante || ""} · ${perfil.nombre}`,
-                mensaje:
-                  `Inconformidad manifestada por WhatsApp con Mimi respecto al volante de pago ` +
-                  `(${volantePendiente.periodo_desde} al ${volantePendiente.periodo_hasta}, Neto RD$ ${volantePendiente.neto}):\n\n` +
-                  `Motivo indicado por el colaborador:\n"${textoUsuario}"`,
-                estado: "Abierto",
-              });
-
-              await supabaseAdmin
-                .from("volantes")
-                .update({ estado: "Reclamo", updated_at: new Date().toISOString() })
-                .eq("id", volantePendiente.id);
-
-              await supabaseAdmin.from("avisos").insert({
-                para_id: perfil.id,
-                titulo: "Reclamo de nómina registrado",
-                detalle: `Mimi registró tus comentarios sobre el pago. Tu caso fue transferido a soporte de Recursos Humanos.`,
-                nuevo: true,
-              });
-
-              const respuesta =
-                `Comprendo la situación, ${primerNombre}. He registrado tus comentarios y le pasaré el dato al equipo de soporte y Recursos Humanos para que revisen tu caso con prioridad.\n\n` +
-                `También puedes comunicarte directamente con nuestro departamento de nómina en:\n` +
-                `📧 *nomina@ivadsrl.com*\n\n` +
-                `O para cualquier duda de seguridad de datos:\n` +
-                `📧 *seguridad@ivadsrl.com*\n\n` +
-                `Estamos trabajando para ayudarte y darte una pronta respuesta. ¡Gracias por avisarnos!`;
-
-              return Response.json({ respuesta });
-            }
-          }
-
-          // Si el volante estaba en estado Reclamo y el colaborador envía detalles adicionales
-          if (volantePendiente && volantePendiente.estado === "Reclamo" && textoUsuario.length > 5) {
-            await supabaseAdmin.from("soporte_tickets").insert({
-              creador_id: perfil.id,
-              nombre: perfil.nombre,
-              email: perfil.email,
-              categoria: "Nómina",
-              asunto: `Detalle adicional de reclamo · ${perfil.nombre}`,
-              mensaje: `Detalle adicional enviado por WhatsApp a Mimi:\n"${textoUsuario}"`,
-              estado: "Abierto",
+            // Registrar aviso interno en el portal
+            await supabaseAdmin.from("avisos").insert({
+              para_id: perfil.id,
+              titulo: `Volante ${volanteUltimo.comprobante || ""} confirmado`,
+              detalle: `Confirmaste conformidad por WhatsApp con Mimi para el pago del período ${volanteUltimo.periodo_desde} al ${volanteUltimo.periodo_hasta}.`,
+              nuevo: true,
             });
 
             const respuesta =
-              `Anotado, ${primerNombre}. He agregado este detalle a tu caso de soporte para el equipo de nómina.\n\n` +
-              `Recuerda que para seguimiento directo puedes escribir a:\n` +
-              `📧 *nomina@ivadsrl.com*`;
-            return Response.json({ respuesta });
-          }
-        }
+              `¡Excelente, ${primerNombre}! 🎉 Me alegra mucho saber que todo está en orden y te sientes conforme.\n\n` +
+              `📄 Te adjunto de inmediato tu volante oficial de pago en formato PDF debidamente firmado.\n\n` +
+              `¡Que disfrutes tu pago! 🥳 Recuerda que este documento ya está en tus manos; resguárdalo y cuídalo adecuadamente bajo tu custodia y responsabilidad.\n\n` +
+              `🛡️ En IVAD garantizamos total seguridad y confidencialidad en este sistema del personal. Cualquier duda o consulta sobre tu seguridad, por favor comunícate con: seguridad@ivadsrl.com.`;
 
-        // 3. Si no hay interacción de volante de pago pendiente, Mimi responde como asistente general con Gemini
-        const apiKey = process.env["LOVABLE_API_KEY"];
-        if (!apiKey) {
-          return Response.json({
-            respuesta:
-              "¡Hola! Soy Mimi de IVAD. Para consultas sobre tu nómina o solicitudes, " +
-              "puedes acceder al portal en https://personalivad.ivadsrl.com o escribir a nomina@ivadsrl.com.",
-          });
-        }
-
-        try {
-          const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [
-                { role: "system", content: INSTRUCCIONES_MIMI },
-                { role: "user", content: textoUsuario },
-              ],
-            }),
-          });
-
-          if (!res.ok) {
+            // Envía el texto y el archivo PDF adjunto
+            return Response.json({
+              respuesta,
+              doc: {
+                documentoBase64: pdfBase64,
+                nombreArchivo: nombrePdf,
+                mimetype: "application/pdf",
+              },
+            });
+          } catch (errPdf) {
+            console.error("Error generando PDF para Mimi WhatsApp:", errPdf);
             return Response.json({
               respuesta:
-                "Gracias por comunicarte con IVAD. Para consultas sobre tu cuenta o nómina, " +
-                "entra a https://personalivad.ivadsrl.com o escribe a nomina@ivadsrl.com.",
+                `¡Excelente, ${primerNombre}! Me alegra que estés conforme. ` +
+                `Puedes descargar tu volante oficial con firma digital en https://personalivad.ivadsrl.com/nomina. ¡Que disfrutes tu pago!`,
             });
           }
-
-          const datos = (await res.json()) as {
-            choices?: Array<{ message?: { content?: string } }>;
-          };
-          return Response.json({
-            respuesta:
-              datos.choices?.[0]?.message?.content ??
-              "Gracias por escribir. Puedes consultar tu información en https://personalivad.ivadsrl.com.",
-          });
-        } catch (e) {
-          console.error("Error en llamada a Gemini para Mimi:", e);
-          return Response.json({
-            respuesta:
-              "Gracias por escribir a IVAD. Puedes consultar tus pagos y datos en https://personalivad.ivadsrl.com o contactar a nomina@ivadsrl.com.",
-          });
         }
+
+        // --- CASO 2: EL COLABORADOR DICE QUE NO Y YA EXPLICÓ EL MOTIVO ---
+        if (intencion === "INCONFORME_CON_DETALLE") {
+          const detalleFinal = motivo || textoUsuario;
+          await supabaseAdmin.from("soporte_tickets").insert({
+            creador_id: perfil.id,
+            nombre: perfil.nombre,
+            email: perfil.email,
+            categoria: "Nómina",
+            asunto: `Inconformidad Volante ${volanteUltimo.comprobante || ""} · ${perfil.nombre}`,
+            mensaje:
+              `Inconformidad manifestada por WhatsApp respecto al volante de pago ` +
+              `(${volanteUltimo.periodo_desde} al ${volanteUltimo.periodo_hasta}, Neto RD$ ${volanteUltimo.neto}):\n\n` +
+              `Motivo indicado:\n"${detalleFinal}"`,
+            estado: "Abierto",
+          });
+
+          // Actualizar estado a 'Reclamo' -> Mimi se desactiva para futuros mensajes
+          await supabaseAdmin
+            .from("volantes")
+            .update({ estado: "Reclamo", updated_at: new Date().toISOString() })
+            .eq("id", volanteUltimo.id);
+
+          await supabaseAdmin.from("avisos").insert({
+            para_id: perfil.id,
+            titulo: "Reclamo de nómina registrado",
+            detalle: `Mimi registró tus observaciones sobre el pago. Tu caso fue transferido a soporte de Recursos Humanos.`,
+            nuevo: true,
+          });
+
+          const respuesta =
+            `Comprendo la situación, ${primerNombre}. He registrado tus observaciones y le pasaré el dato al equipo de soporte y Recursos Humanos para que revisen tu caso con prioridad.\n\n` +
+            `También puedes comunicarte directamente con nuestro departamento de nómina en:\n` +
+            `📧 *nomina@ivadsrl.com*\n\n` +
+            `O para cualquier duda de seguridad de datos:\n` +
+            `📧 *seguridad@ivadsrl.com*\n\n` +
+            `Estamos trabajando para ayudarte y darte una pronta respuesta. ¡Gracias por avisarnos!`;
+
+          return Response.json({ respuesta });
+        }
+
+        // --- CASO 3: EL COLABORADOR DICE QUE NO PERO NO HA DADO EL MOTIVO ---
+        if (intencion === "INCONFORME_SIN_DETALLE") {
+          // Cambiar estado a 'EsperandoMotivo' para esperar su siguiente mensaje con el detalle
+          await supabaseAdmin
+            .from("volantes")
+            .update({ estado: "EsperandoMotivo", updated_at: new Date().toISOString() })
+            .eq("id", volanteUltimo.id);
+
+          const respuesta =
+            `Entiendo perfectamente, ${primerNombre}. 📝\n\n` +
+            `¿Podrías indicarme cuál es el motivo o qué diferencia tienes con respecto a tu pago (horas extras, deducciones, comisiones o monto)?\n\n` +
+            `De esa manera podré registrar tu caso y pasarle el dato de inmediato a soporte.`;
+
+          return Response.json({ respuesta });
+        }
+
+        // Si es otro mensaje no concluyente mientras el volante está pendiente, Mimi le recuerda amablemente
+        return Response.json({
+          respuesta:
+            `Hola ${primerNombre}, tenemos registrado tu volante de pago (${volanteUltimo.periodo_desde} al ${volanteUltimo.periodo_hasta}, Neto RD$ ${volanteUltimo.neto}).\n\n` +
+            `¿Confirmas que te sientes conforme con este pago? (Responde SÍ para enviarte tu volante en PDF, o NO si tienes alguna inconformidad).`,
+        });
       },
     },
   },
