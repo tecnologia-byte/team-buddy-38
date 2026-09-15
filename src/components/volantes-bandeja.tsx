@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Mail, Pencil, RefreshCw, Trash2, CheckCircle2 } from "lucide-react";
+import { Copy, Mail, Pencil, RefreshCw, Trash2, CheckCircle2, Eye, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { enviarVolantesFn } from "@/lib/volantes.functions";
 import { pesos } from "@/lib/data";
-import type { DatosVolante } from "@/components/volante-pago";
+import { VolantePago, type DatosVolante } from "@/components/volante-pago";
 
 export type VolanteGuardado = {
   id: string;
@@ -37,6 +45,7 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
   const [sel, setSel] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [previewVolante, setPreviewVolante] = useState<VolanteGuardado | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -222,6 +231,15 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary font-medium"
+                  onClick={() => setPreviewVolante(v)}
+                >
+                  <Eye className="mr-2 h-4 w-4" /> Vista previa (PDF)
+                </Button>
                 {v.estado !== "Enviado" ? (
                   <>
                     <Button type="button" size="sm" variant="outline" onClick={() => onEditar(v)}>
@@ -266,6 +284,71 @@ export function VolantesBandeja({ onEditar }: { onEditar: (v: VolanteGuardado) =
           ))}
         </div>
       )}
+
+      {/* Modal de Vista Preliminar Oficial del Volante en PDF */}
+      <Dialog open={!!previewVolante} onOpenChange={(open) => !open && setPreviewVolante(null)}>
+        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="border-b pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Eye className="h-5 w-5 text-primary" />
+                  Vista previa del volante oficial (PDF)
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Así es exactamente como se genera e imprime el PDF para{" "}
+                  <strong className="text-foreground">{previewVolante?.datos?.nombre || "el colaborador"}</strong>.
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => window.print()}
+                className="shadow-sm"
+              >
+                <Printer className="mr-2 h-4 w-4" /> Imprimir / PDF
+              </Button>
+            </div>
+          </DialogHeader>
+
+          {previewVolante && (
+            <div className="my-2 rounded-lg border bg-card p-3 shadow-inner overflow-x-auto print:p-0 print:border-0 print:shadow-none">
+              <VolantePago datos={previewVolante.datos} />
+            </div>
+          )}
+
+          <DialogFooter className="border-t pt-3 flex flex-wrap justify-between items-center gap-2">
+            <p className="text-xs text-muted-foreground">
+              Comprobante: <strong className="text-foreground">{previewVolante?.comprobante || "—"}</strong> ·
+              Período: <span className="text-foreground font-medium">{previewVolante?.periodoDesde} al {previewVolante?.periodoHasta}</span> ·
+              Estado: <span className="font-semibold text-primary">{previewVolante?.estado}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewVolante(null)}
+              >
+                Cerrar vista previa
+              </Button>
+              {previewVolante && previewVolante.estado !== "Enviado" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const v = previewVolante;
+                    setPreviewVolante(null);
+                    onEditar(v);
+                  }}
+                >
+                  <Pencil className="mr-2 h-4 w-4" /> Editar este volante
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

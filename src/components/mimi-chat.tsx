@@ -152,15 +152,33 @@ function formatearTamano(bytes: number) {
 function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante: any | null } {
   // 1. Intentar bloque de código JSON
   const match =
-    /```(?:json:volante|json)\s*([\s\S]*?)```/.exec(texto) ||
-    /```\s*(\{[\s\S]*?"(?:ingresos|deducciones)"[\s\S]*?\})\s*```/.exec(texto);
+    /```(?:json:volante|json)?\s*(\{[\s\S]*?\})\s*```/.exec(texto) ||
+    /(\{[\s\S]*?"ingresos"[\s\S]*?"deducciones"[\s\S]*?\})/.exec(texto);
 
   if (match) {
     try {
       const parsed = JSON.parse(match[1]);
       if (parsed && (parsed.ingresos || parsed.deducciones || parsed.nombre)) {
+        const normalizar = (arr: any[]) =>
+          (Array.isArray(arr) ? arr : []).map((x) => ({
+            concepto: String(x.concepto || ""),
+            monto: String(x.monto ?? ""),
+          }));
+
+        const datosNormalizados = {
+          ...parsed,
+          nombre: String(parsed.nombre || "").trim(),
+          cargo: String(parsed.cargo || "").trim(),
+          departamento: String(parsed.departamento || "").trim(),
+          comprobante: parsed.comprobante ? String(parsed.comprobante) : undefined,
+          periodoDesde: parsed.periodoDesde ? String(parsed.periodoDesde) : undefined,
+          periodoHasta: parsed.periodoHasta ? String(parsed.periodoHasta) : undefined,
+          ingresos: normalizar(parsed.ingresos),
+          deducciones: normalizar(parsed.deducciones),
+        };
+
         const textoLimpio = texto.replace(match[0], "").trim();
-        return { textoLimpio, datosVolante: parsed };
+        return { textoLimpio, datosVolante: datosNormalizados };
       }
     } catch {
       /* continuar al detector de texto */
@@ -170,7 +188,7 @@ function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante:
   // 2. Fallback inteligente: Si el texto contiene cálculos de nómina dominicana
   const tieneCalculo =
     /(?:AFP|SFS|TSS|ISR|Salario Base|Neto a (?:pagar|cobrar))/i.test(texto) &&
-    /RD\$\s*[\d,.]+/i.test(texto);
+    /(?:RD\$|RD\s*\$|\b\d{4,}\b)/i.test(texto);
 
   if (tieneCalculo) {
     const extraerMonto = (regex: RegExp) => {
@@ -185,19 +203,19 @@ function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante:
     };
 
     const nombre = extraerTexto(
-      /(?:Colaborador(?:a)?|Empleado(?:a)?|Volante de)\s*:?\s*[*_]*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+)[*_]*/i,
+      /(?:Colaborador(?:a)?|Empleado(?:a)?|Volante de(?:l colaborador)?)\s*:?\s*[*_]*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)[*_]*(?:\n|$|·|-|,|\()/i,
     );
     const salario = extraerMonto(
-      /(?:Salario|Sueldo)(?:\s+Base)?(?:\s+del\s+per[íi]odo)?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+      /(?:Salario|Sueldo)(?:\s+Base)?(?:\s+del\s+per[íi]odo|\s+bruto)?\s*:?\s*[*_]*(?:RD\$\s*)?([\d,.]+)/i,
     );
     const afp = extraerMonto(
-      /(?:AFP|Pensiones)(?:\s*\(2\.87%\))?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+      /(?:AFP|Pensiones)(?:\s*\(2\.87%\))?\s*:?\s*[*_]*(?:RD\$\s*)?([\d,.]+)/i,
     );
     const sfs = extraerMonto(
-      /(?:SFS|Salud)(?:\s*\(3\.04%\))?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+      /(?:SFS|Salud)(?:\s*\(3\.04%\))?\s*:?\s*[*_]*(?:RD\$\s*)?([\d,.]+)/i,
     );
     const isr =
-      extraerMonto(/(?:Retenci[óo]n\s+)?ISR(?:\s*-\s*DGII)?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i) ||
+      extraerMonto(/(?:Retenci[óo]n\s+)?ISR(?:\s*-\s*DGII)?\s*:?\s*[*_]*(?:RD\$\s*)?([\d,.]+)/i) ||
       "0";
 
     if (salario) {

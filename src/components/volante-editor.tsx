@@ -57,19 +57,31 @@ export function VolanteEditor({
   onGuardado?: () => void;
 } = {}) {
   const { colaboradores } = usePortal();
-  const [datos, setDatos] = useState<DatosVolante>(volanteVacio);
-  const [seleccion, setSeleccion] = useState("");
+  const [datos, setDatos] = useState<DatosVolante>(() => {
+    if (inicial?.datos) {
+      return {
+        ...volanteVacio,
+        ...inicial.datos,
+      };
+    }
+    return { ...volanteVacio, ...datosAutomaticos() };
+  });
+  const [seleccion, setSeleccion] = useState<string>(() => inicial?.colaboradorId || "");
   const [firmante, setFirmante] = useState("");
   const [guardando, setGuardando] = useState(false);
-  const [idGuardado, setIdGuardado] = useState<string | null>(null);
-  const elegido = colaboradores.find((c) => c.id === seleccion);
-  const gestores = colaboradores.filter(
+  const [idGuardado, setIdGuardado] = useState<string | null>(() =>
+    inicial?.id && !inicial.id.startsWith("borrador-") && !inicial.id.startsWith("mimi-")
+      ? inicial.id
+      : null,
+  );
+  const listaCols = Array.isArray(colaboradores) ? colaboradores : [];
+  const elegido = listaCols.find((c) => c.id === seleccion);
+  const gestores = listaCols.filter(
     (c) =>
       c.rol === "Administrador" || c.rol === "Recursos Humanos" || c.rol === "Contabilidad",
   );
 
-
-  // Numeración y fechas automáticas al abrir la plantilla.
+  // Numeración y fechas automáticas si no tiene comprobante
   useEffect(() => {
     setDatos((d) => (d.comprobante ? d : { ...d, ...datosAutomaticos() }));
   }, []);
@@ -87,11 +99,11 @@ export function VolanteEditor({
         .trim();
     const nombreBuscado = norm(inicial.datos?.nombre);
     const c =
-      colaboradores.find((x) => x.id === inicial.colaboradorId) ||
+      listaCols.find((x) => x.id === inicial.colaboradorId) ||
       (nombreBuscado
-        ? colaboradores.find((x) => {
+        ? listaCols.find((x) => {
             const cn = norm(x.nombre);
-            return cn.includes(nombreBuscado) || nombreBuscado.includes(cn);
+            return cn === nombreBuscado || cn.includes(nombreBuscado) || nombreBuscado.includes(cn);
           })
         : undefined);
 
@@ -116,11 +128,14 @@ export function VolanteEditor({
       periodoHasta:
         inicial.datos?.periodoHasta || inicial.periodoHasta || datosAutomaticos().periodoHasta,
       nombre: c?.nombre || inicial.datos?.nombre || "",
+      cedula: c?.cedula || inicial.datos?.cedula || "",
       cargo: c?.cargo || inicial.datos?.cargo || "",
       departamento: c?.area || inicial.datos?.departamento || "",
       ingreso: c?.ingreso || inicial.datos?.ingreso || "",
+      banco: c?.banco || inicial.datos?.banco || "",
+      seguridadSocial: c?.seguridadSocial || inicial.datos?.seguridadSocial || "",
       codigo: c
-        ? `EMP-${String(colaboradores.indexOf(c) + 1).padStart(3, "0")}`
+        ? `EMP-${String(listaCols.indexOf(c) + 1).padStart(3, "0")}`
         : inicial.datos?.codigo || "EMP-001",
       firma: c && firmaVigente(c) ? c.firma : inicial.datos?.firma,
       firmaFecha: c && firmaVigente(c) ? c.firmaActualizada : inicial.datos?.firmaFecha,
@@ -129,8 +144,16 @@ export function VolanteEditor({
     };
 
     setDatos(datosCompletos);
-    setSeleccion(c ? c.id : inicial.colaboradorId);
-    setIdGuardado(inicial.id && !inicial.id.startsWith("mimi-") ? inicial.id : null);
+    if (c) {
+      setSeleccion(c.id);
+    } else if (inicial.colaboradorId) {
+      setSeleccion(inicial.colaboradorId);
+    }
+    setIdGuardado(
+      inicial.id && !inicial.id.startsWith("borrador-") && !inicial.id.startsWith("mimi-")
+        ? inicial.id
+        : null,
+    );
   }, [inicial, colaboradores]);
 
   const nuevoVolante = () => {
@@ -173,10 +196,26 @@ export function VolanteEditor({
     }));
   };
 
-  /** Guarda el volante en la bandeja privada como "Listo" (todavía no se envía a nadie). */
   const guardar = async () => {
-    if (!seleccion) {
-      toast.error("Selecciona primero al colaborador del volante.");
+    let colId = seleccion;
+    if (!colId) {
+      const norm = (s: string) =>
+        String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const nb = norm(datos.nombre);
+      const match = listaCols.find((c) => {
+        const cn = norm(c.nombre);
+        return cn === nb || (nb && (cn.includes(nb) || nb.includes(cn)));
+      });
+      if (match) {
+        colId = match.id;
+        setSeleccion(colId);
+      } else if (listaCols.length > 0) {
+        colId = listaCols[0].id;
+        setSeleccion(colId);
+      }
+    }
+    if (!colId && !datos.nombre.trim()) {
+      toast.error("Selecciona o escribe el nombre del colaborador para guardar el volante.");
       return;
     }
     setGuardando(true);
@@ -190,7 +229,7 @@ export function VolanteEditor({
         limpiar(datos.deducciones).reduce((t, l) => t + l.monto, 0);
 
       const fila = {
-        colaborador_id: seleccion,
+        colaborador_id: colId || (listaCols[0]?.id ?? ""),
         comprobante: datos.comprobante,
         fecha_emision: datos.fechaEmision,
         periodo_desde: datos.periodoDesde,

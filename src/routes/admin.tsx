@@ -70,7 +70,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
-  const { esAdmin, esContable, esNomina, sesion } = usePortal();
+  const { esAdmin, esContable, esNomina, sesion, colaboradores } = usePortal();
   const [pestana, setPestana] = useState(esNomina ? "contabilidad" : "firmas");
   const [editando, setEditando] = useState<VolanteGuardado | null>(null);
   const [refrescos, setRefrescos] = useState(0);
@@ -165,12 +165,13 @@ function Admin() {
                         .replace(/[\u0300-\u036f]/g, "")
                         .trim();
                     const nombreBuscado = norm(datosBorrador.nombre);
+                    const listaCols = Array.isArray(colaboradores) ? colaboradores : [];
                     const col =
-                      colaboradores.find((c) => colaboradorId && c.id === colaboradorId) ||
+                      listaCols.find((c) => colaboradorId && c.id === colaboradorId) ||
                       (nombreBuscado
-                        ? colaboradores.find((c) => {
+                        ? listaCols.find((c) => {
                             const cn = norm(c.nombre);
-                            if (cn.includes(nombreBuscado) || nombreBuscado.includes(cn)) return true;
+                            if (cn === nombreBuscado || cn.includes(nombreBuscado) || nombreBuscado.includes(cn)) return true;
                             const partes = nombreBuscado.split(/\s+/).filter((p) => p.length >= 3);
                             return partes.some((p) => cn.includes(p));
                           })
@@ -195,29 +196,38 @@ function Admin() {
                         : [{ concepto: "Aporte AFP - Fondo de Pensiones (2.87%)", monto: "" }],
                     );
 
+                    const numVal = (v: string) => {
+                      const n = Number(String(v || "").replace(/[^\d.-]/g, ""));
+                      return Number.isFinite(n) ? n : 0;
+                    };
+                    const brutoTotal = ingresos.reduce((s, l) => s + numVal(l.monto), 0);
+                    const deducTotal = deducciones.reduce((s, l) => s + numVal(l.monto), 0);
+                    const netoTotal = Math.max(0, brutoTotal - deducTotal);
+
+                    const borradorId = `borrador-mimi-${Date.now()}`;
+                    const comprobanteFinal =
+                      datosBorrador.comprobante ||
+                      `IVAD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, "0")}`;
+
                     setEditando({
-                      id: "",
-                      colaboradorId: col?.id ?? "",
-                      comprobante:
-                        datosBorrador.comprobante ||
-                        `IVAD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, "0")}`,
+                      id: borradorId,
+                      colaboradorId: col?.id ?? (listaCols[0]?.id || ""),
+                      comprobante: comprobanteFinal,
                       periodoDesde: datosBorrador.periodoDesde || "",
                       periodoHasta: datosBorrador.periodoHasta || "",
                       fechaEmision: datosBorrador.fechaEmision || new Date().toLocaleDateString("es-DO"),
-                      neto: 0,
+                      neto: netoTotal,
                       estado: "Borrador",
                       error: null,
                       datos: {
-                        comprobante:
-                          datosBorrador.comprobante ||
-                          `IVAD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, "0")}`,
+                        comprobante: comprobanteFinal,
                         fechaEmision: datosBorrador.fechaEmision || new Date().toLocaleDateString("es-DO"),
                         periodoDesde: datosBorrador.periodoDesde || "",
                         periodoHasta: datosBorrador.periodoHasta || "",
                         nombre: col?.nombre || datosBorrador.nombre || "",
                         cedula: col?.cedula || datosBorrador.cedula || "",
                         codigo: col
-                          ? `EMP-${String(colaboradores.indexOf(col) + 1).padStart(3, "0")}`
+                          ? `EMP-${String(listaCols.indexOf(col) + 1).padStart(3, "0")}`
                           : datosBorrador.codigo || "EMP-001",
                         cargo: col?.cargo || datosBorrador.cargo || "",
                         departamento: col?.area || datosBorrador.departamento || "",
