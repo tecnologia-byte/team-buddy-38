@@ -24,6 +24,7 @@ import {
   QrCode,
   Mail,
   ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { FirmaPad } from "@/components/firma-pad";
@@ -132,7 +133,7 @@ function Admin() {
           {esNomina ? (
             <>
               <TabsContent value="contabilidad" className="mt-4">
-                <Contabilidad />
+                <Contabilidad onAbrirMimi={() => setPestana("mimi")} />
               </TabsContent>
               <TabsContent value="volante" className="mt-4">
                 <VolanteEditor
@@ -240,7 +241,7 @@ async function enviarReciboPago(
   return res;
 }
 
-function Contabilidad() {
+function Contabilidad({ onAbrirMimi }: { onAbrirMimi?: () => void }) {
   const { pagos, colaboradores, actualizarPago, puenteWhatsappUrl, puenteWhatsappToken } = usePortal();
   const [enviandoTodos, setEnviandoTodos] = useState(false);
   const [progresoEnvio, setProgresoEnvio] = useState<string | null>(null);
@@ -251,6 +252,41 @@ function Contabilidad() {
 
   return (
     <div className="space-y-5">
+      {/* Asistente Privada Mimi para la Contable */}
+      <div className="surface-card p-4 rounded-2xl border-l-4 border-primary bg-primary/[0.03] space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0 shadow-sm">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-display font-semibold text-foreground text-sm sm:text-base">
+                  Asistente Contable Privada (Mimi)
+                </h4>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Lock className="h-2.5 w-2.5" /> 100% Confidencial y Aislada
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sube fotos de comprobantes, volantes o nóminas en PDF para que Mimi audite deducciones (TSS / ISR), calcule horas extras y cree propuestas de pago de forma privada.
+              </p>
+            </div>
+          </div>
+          {onAbrirMimi && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAbrirMimi}
+              className="shrink-0 flex items-center gap-1.5 shadow-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Abrir Asistente Mimi</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         <Metrica icon={Banknote} valor={`RD$ ${pesos(totalPeriodo)}`} label="Total del período" />
         <Metrica icon={Receipt} valor={String(pendientes.length)} label="Pagos pendientes" />
