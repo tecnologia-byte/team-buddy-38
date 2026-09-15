@@ -63,38 +63,77 @@ export async function despacharVolante({
   const medios: string[] = [];
   const errores: string[] = [];
 
-  // 1. Envío por WhatsApp (PDF adjunto) si el canal es 'whatsapp' o 'ambos'
+  // 1. Envío por WhatsApp con la IA Mimi (Consulta de Conformidad interactiva)
   if (canal === "whatsapp" || canal === "ambos") {
     let numWa = (destino.whatsapp ?? "").replace(/\D/g, "");
     if (numWa.length === 10 && (numWa.startsWith("809") || numWa.startsWith("829") || numWa.startsWith("849"))) {
       numWa = "1" + numWa;
     }
     if (numWa && numWa.length >= 10) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: colab } = await supabaseAdmin
+          .from("perfiles")
+          .select("id")
+          .or(`whatsapp.eq.${numWa},email.eq.${destino.correo || ""}`)
+          .maybeSingle();
+
+        if (colab?.id) {
+          const { data: existente } = await supabaseAdmin
+            .from("volantes")
+            .select("id")
+            .eq("colaborador_id", colab.id)
+            .eq("comprobante", volante.comprobante)
+            .maybeSingle();
+
+          if (existente?.id) {
+            await supabaseAdmin.from("volantes").update({
+              periodo_desde: volante.periodoDesde,
+              periodo_hasta: volante.periodoHasta,
+              fecha_emision: volante.fechaEmision,
+              neto,
+              datos: volante as never,
+              estado: "PendienteConformidad",
+              updated_at: new Date().toISOString(),
+            }).eq("id", existente.id);
+          } else {
+            await supabaseAdmin.from("volantes").insert({
+              colaborador_id: colab.id,
+              comprobante: volante.comprobante,
+              periodo_desde: volante.periodoDesde,
+              periodo_hasta: volante.periodoHasta,
+              fecha_emision: volante.fechaEmision,
+              neto,
+              datos: volante as never,
+              estado: "PendienteConformidad",
+            });
+          }
+        }
+      } catch (errDb) {
+        console.error("Error guardando volante para Mimi:", errDb);
+      }
+
       const textoWa =
-        `Hola ${volante.nombre}, se ha emitido tu volante oficial de pago de nómina.\n\n` +
+        `¡Hola ${volante.nombre.split(" ")[0]}! 👋 Soy *Mimi*, tu asistente de Gestión Humana y Nómina de IVAD.\n\n` +
+        `Se ha registrado tu volante oficial de pago:\n` +
         `• Período: ${volante.periodoDesde} al ${volante.periodoHasta}\n` +
         `• Comprobante: ${volante.comprobante}\n` +
         `• Monto neto: RD$ ${pesosCorreo(neto)}\n\n` +
-        `📄 Adjunto encontrarás tu volante de pago en formato PDF oficial.\n\n` +
+        `👉 *¿Te sientes conforme con este pago registrado?*\n\n` +
+        `• Responde *SÍ* si estás conforme para enviarte de inmediato tu volante oficial en PDF debidamente firmado.\n` +
+        `• Responde *NO* si tienes alguna duda, reclamo o diferencia.\n\n` +
         `🛡️ *Aviso de Seguridad y Confidencialidad IVAD:*\n` +
-        `Este volante de pago ya está en tus manos y contiene información confidencial; recuerda que debes resguardarlo y cuidarlo adecuadamente bajo tu custodia y responsabilidad.\n\n` +
-        `En IVAD garantizamos la seguridad y protección de datos en este sistema del personal. Cualquier información que no entiendas o consulta sobre tu seguridad, por favor comunícate con: seguridad@ivadsrl.com\n\n` +
-        `Puedes consultar tu histórico en cualquier momento en el portal: https://personalivad.ivadsrl.com/nomina`;
+        `En IVAD garantizamos total seguridad en este sistema del personal. Cualquier consulta o duda sobre tu seguridad, por favor comunícate con: seguridad@ivadsrl.com.`;
 
       const resWa = await enviarWhatsapp({
         puente: destino.puenteUrl || undefined,
         para: numWa,
         texto: textoWa,
         token: destino.puenteToken || undefined,
-        doc: {
-          documentoBase64: pdf,
-          nombreArchivo: nombrePdf,
-          mimetype: "application/pdf",
-        },
       }).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "Error WhatsApp" }));
 
       if (resWa.ok) {
-        medios.push("WhatsApp");
+        medios.push("WhatsApp (Mimi)");
       } else {
         errores.push(`WhatsApp: ${resWa.error}`);
       }

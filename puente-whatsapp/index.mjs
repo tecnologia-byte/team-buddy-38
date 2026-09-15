@@ -178,7 +178,16 @@ async function conectar() {
             body: JSON.stringify({ de: m.key.remoteJid?.split("@")[0], texto }),
           });
           const data = await res.json();
-          if (data?.respuesta) await sock.sendMessage(m.key.remoteJid, { text: data.respuesta });
+          if (data?.respuesta) {
+            await sock.sendMessage(m.key.remoteJid, { text: data.respuesta });
+          }
+          if (data?.doc?.documentoBase64) {
+            await sock.sendMessage(m.key.remoteJid, {
+              document: Buffer.from(data.doc.documentoBase64, "base64"),
+              mimetype: data.doc.mimetype || "application/pdf",
+              fileName: data.doc.nombreArchivo || "volante-de-pago.pdf",
+            });
+          }
         } catch (e) {
           log("[Puente WhatsApp] No se pudo responder con IA:", e.message);
         }
