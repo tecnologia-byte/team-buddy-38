@@ -291,7 +291,7 @@ function Calendario() {
       titulo: nuevoTitulo.trim(),
       fecha: nuevaFecha,
       tipo: nuevoTipo,
-      descripcion: nuevaDescripcion.trim() || undefined,
+      ...(nuevaDescripcion.trim() ? { descripcion: nuevaDescripcion.trim() } : {}),
     });
     setGuardando(false);
 
@@ -446,7 +446,7 @@ function Calendario() {
 
                     {/* Indicadores de eventos y cumpleaños */}
                     <div className="absolute bottom-1 flex items-center gap-0.5">
-                      {tieneEventos ? (
+                      {tieneEventos && eventosDelDia[0] ? (
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${
                             esSeleccionado
