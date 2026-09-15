@@ -17,6 +17,7 @@ import { Boom } from "@hapi/boom";
 import {
   makeWASocket,
   useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
   DisconnectReason,
   Browsers,
   fetchLatestBaileysVersion,
@@ -68,6 +69,17 @@ const lidToPhone = new Map([
 ]);
 let ultimoDestinoEnviado = { telefono: "18494252220", time: Date.now() };
 
+// Almacén de mensajes en memoria para responder a reintentos criptográficos (evita "Esperando el mensaje")
+const mensajeCache = new Map();
+function guardarMensaje(id, message) {
+  if (!id || !message) return;
+  mensajeCache.set(id, message);
+  if (mensajeCache.size > 1000) {
+    const primerId = mensajeCache.keys().next().value;
+    if (primerId) mensajeCache.delete(primerId);
+  }
+}
+
 async function conectar() {
   if (conectando) return;
   conectando = true;
@@ -85,6 +97,9 @@ async function conectar() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState("./sesion-whatsapp");
 
+    // Envolver las llaves con makeCacheableSignalKeyStore para evitar desincronización de cifrado Signal
+    const keys = makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }));
+
     // Obtener la versión de WhatsApp Web más reciente para evitar rechazos de protocolo
     let waVersion = [2, 3000, 1015901307];
     try {
@@ -97,7 +112,10 @@ async function conectar() {
 
     sock = makeWASocket({
       version: waVersion,
-      auth: state,
+      auth: {
+        creds: state.creds,
+        keys,
+      },
       logger: pino({ level: "silent" }),
       // Firma de Ubuntu Chrome: la más compatible y ampliamente aceptada por WhatsApp Web
       browser: Browsers.ubuntu("Chrome"),
@@ -106,8 +124,14 @@ async function conectar() {
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 25000,
       emitOwnEvents: false,
+      // Handler para que Baileys pueda responder a reintentos de descifrado del cliente receptor
+      getMessage: async (key) => {
+        const guardado = mensajeCache.get(key.id);
+        if (guardado?.message) return guardado.message;
+        if (guardado) return guardado;
+        return undefined;
+      },
       // Desactivar sincronización de historial completo para que la vinculación sea instantánea
-      // y no cause el error "debes permitir que permanezca conectado a Internet"
       syncFullHistory: false,
       shouldSyncHistoryMessage: () => false,
       markOnlineOnConnect: true,
@@ -200,6 +224,10 @@ async function conectar() {
         // Extraer texto contemplando mensajes efímeros, respuestas citadas, botones, captions y notas de voz
         const msg = m.message;
         if (!msg) continue;
+        if (m.key?.id) {
+          guardarMensaje(m.key.id, msg);
+        }
+
         const sub =
           msg.ephemeralMessage?.message ||
           msg.viewOnceMessage?.message ||
@@ -247,20 +275,31 @@ async function conectar() {
           }
 
           const data = await res.json();
+          // Si tenemos el teléfono numérico real, enviamos a su JID oficial para que WhatsApp
+          // resuelva y sincronice las claves de cifrado en todos sus dispositivos correctamente.
+          const jidDestino =
+            remitente && /^\d+$/.test(remitente) ? numeroWa(remitente) : m.key.remoteJid;
+
           if (data?.respuesta) {
             log(`[Puente WhatsApp] 💬 Mimi responde a ${remitente}: "${data.respuesta.slice(0, 90)}..."`);
-            await sock.sendMessage(m.key.remoteJid, { text: data.respuesta });
+            const enviado = await sock.sendMessage(jidDestino, { text: data.respuesta });
+            if (enviado?.key?.id && enviado?.message) {
+              guardarMensaje(enviado.key.id, enviado.message);
+            }
           } else {
             log(`[Puente WhatsApp] Mimi procesó el mensaje de ${remitente} sin emitir respuesta (silencio/desactivada).`);
           }
 
           if (data?.doc?.documentoBase64) {
             log(`[Puente WhatsApp] 📄 Enviando documento PDF adjunto a ${remitente}: ${data.doc.nombreArchivo || "volante.pdf"}`);
-            await sock.sendMessage(m.key.remoteJid, {
+            const enviadoDoc = await sock.sendMessage(jidDestino, {
               document: Buffer.from(data.doc.documentoBase64, "base64"),
               mimetype: data.doc.mimetype || "application/pdf",
               fileName: data.doc.nombreArchivo || "volante-de-pago.pdf",
             });
+            if (enviadoDoc?.key?.id && enviadoDoc?.message) {
+              guardarMensaje(enviadoDoc.key.id, enviadoDoc.message);
+            }
           }
         } catch (e) {
           log("[Puente WhatsApp] No se pudo responder con IA:", e.message);
@@ -384,16 +423,22 @@ createServer(async (req, res) => {
           "base64",
         );
         log(`[Puente WhatsApp] Enviando documento "${nombreArchivo || "documento.pdf"}" (${buffer.length} bytes) a ${jid}...`);
-        await sock.sendMessage(jid, {
+        const enviadoDoc = await sock.sendMessage(jid, {
           document: buffer,
           mimetype: mimetype || "application/pdf",
           fileName: nombreArchivo || "documento.pdf",
           caption: texto ? String(texto) : undefined,
         });
+        if (enviadoDoc?.key?.id && enviadoDoc?.message) {
+          guardarMensaje(enviadoDoc.key.id, enviadoDoc.message);
+        }
         log(`[Puente WhatsApp] Documento enviado exitosamente a ${jid}`);
       } else {
         log(`[Puente WhatsApp] Enviando texto a ${jid}...`);
-        await sock.sendMessage(jid, { text: String(texto ?? "") });
+        const enviado = await sock.sendMessage(jid, { text: String(texto ?? "") });
+        if (enviado?.key?.id && enviado?.message) {
+          guardarMensaje(enviado.key.id, enviado.message);
+        }
         log(`[Puente WhatsApp] Texto enviado exitosamente a ${jid}`);
       }
       return res.end(JSON.stringify({ ok: true }));
