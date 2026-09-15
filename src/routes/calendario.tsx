@@ -7,10 +7,8 @@ import {
   Trash2,
   CalendarDays,
   Calendar as CalendarIcon,
-  Tag,
   AlertCircle,
-  Clock,
-  Sparkles,
+  Bell,
   Cake,
   CheckCircle2,
 } from "lucide-react";
@@ -335,12 +333,9 @@ function Calendario() {
         {/* Cabecera superior con estado y botón de acción para Administradores */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 surface-card p-4 rounded-xl border border-border/70">
           <div>
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-primary" />
-              <h1 className="font-display text-lg font-bold text-foreground">
-                Calendario Institucional IVAD
-              </h1>
-            </div>
+            <h1 className="font-display text-lg font-bold text-foreground">
+              Calendario Institucional IVAD
+            </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {esAdministrador
                 ? "Como Administrador puedes programar o eliminar fechas clave visibles para todo el personal."
@@ -599,12 +594,11 @@ function Calendario() {
                         </Badge>
                       </div>
 
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                      <p className="text-xs text-muted-foreground">
                         <span>{formatearFechaEspanol(e.fecha)}</span>
                         {e.creadoPor ? (
                           <span className="text-muted-foreground/70">
-                            · Registrado por {e.creadoPor}
+                            {" "}· Registrado por {e.creadoPor}
                           </span>
                         ) : null}
                       </p>
@@ -666,11 +660,11 @@ function Calendario() {
           )}
         </section>
 
-        {/* Sección informativa de seguridad y notificaciones */}
+        {/* Sección informativa de avisos */}
         <section className="rounded-xl bg-brand-soft p-4.5 border border-primary/15">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
-              <Sparkles className="h-4 w-4" />
+              <Bell className="h-4 w-4" />
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">
