@@ -165,23 +165,63 @@ async function conectar() {
 
     // Respuestas automáticas con IA para mensajes entrantes
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
-      if (type !== "notify" || !PORTAL_URL) return;
+      if (!PORTAL_URL || !Array.isArray(messages)) return;
       for (const m of messages) {
         if (m.key.fromMe || m.key.remoteJid?.endsWith("@g.us")) continue;
-        const texto =
-          m.message?.conversation ?? m.message?.extendedTextMessage?.text ?? "";
+        const remitente = m.key.remoteJid?.split("@")[0] || "";
+
+        // Extraer texto contemplando mensajes efímeros, respuestas citadas y botones
+        const msg = m.message;
+        if (!msg) continue;
+        const sub =
+          msg.ephemeralMessage?.message ||
+          msg.viewOnceMessage?.message ||
+          msg.viewOnceMessageV2?.message ||
+          msg.documentWithCaptionMessage?.message ||
+          msg;
+
+        const texto = (
+          sub.conversation ||
+          sub.extendedTextMessage?.text ||
+          sub.buttonsResponseMessage?.selectedDisplayText ||
+          sub.buttonsResponseMessage?.selectedButtonId ||
+          sub.templateButtonReplyMessage?.selectedId ||
+          sub.listResponseMessage?.title ||
+          ""
+        ).trim();
+
         if (!texto) continue;
+
+        log(`[Puente WhatsApp] 📥 Mensaje recibido de ${remitente}: "${texto}"`);
+
         try {
-          const res = await fetch(`${PORTAL_URL}/api/public/whatsapp/entrante`, {
+          const urlDestino = `${PORTAL_URL}/api/public/whatsapp/entrante?token=${encodeURIComponent(TOKEN)}`;
+          const res = await fetch(urlDestino, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-Puente-Token": TOKEN },
-            body: JSON.stringify({ de: m.key.remoteJid?.split("@")[0], texto }),
+            headers: {
+              "Content-Type": "application/json",
+              "X-Puente-Token": TOKEN,
+              Authorization: `Bearer ${TOKEN}`,
+            },
+            body: JSON.stringify({ de: remitente, texto }),
           });
+
+          if (!res.ok) {
+            const txtErr = await res.text().catch(() => "");
+            log(`[Puente WhatsApp] Error en webhook del portal (${res.status}): ${txtErr}`);
+            continue;
+          }
+
           const data = await res.json();
           if (data?.respuesta) {
+            log(`[Puente WhatsApp] 💬 Mimi responde a ${remitente}: "${data.respuesta.slice(0, 90)}..."`);
             await sock.sendMessage(m.key.remoteJid, { text: data.respuesta });
+          } else {
+            log(`[Puente WhatsApp] Mimi procesó el mensaje de ${remitente} sin emitir respuesta (silencio/desactivada).`);
           }
+
           if (data?.doc?.documentoBase64) {
+            log(`[Puente WhatsApp] 📄 Enviando documento PDF adjunto a ${remitente}: ${data.doc.nombreArchivo || "volante.pdf"}`);
             await sock.sendMessage(m.key.remoteJid, {
               document: Buffer.from(data.doc.documentoBase64, "base64"),
               mimetype: data.doc.mimetype || "application/pdf",

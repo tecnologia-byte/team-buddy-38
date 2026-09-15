@@ -153,20 +153,39 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           .limit(1)
           .maybeSingle();
 
-        // 3. REGLA DE AUTO-DESACTIVACIÓN:
-        // Si no hay volante, o si el volante ya fue CONFORME (entregado el PDF) o RECLAMO (transferido a soporte),
-        // Mimi ya completó su trabajo y se DESACTIVA automáticamente. No envía ningún mensaje para no invadir el chat.
+        const primerNombre = perfil.nombre.split(" ")[0] || "colaborador";
+        const esCierreOagradecimiento =
+          /^(gracias|muchas gracias|mil gracias|ok|okay|vale|am[eé]n|perfecto|recibido|de acuerdo|bye|adi[oó]s|ta to|👍|🙏|🙌|❤️|👋)[\s.!,]*$/i.test(
+            textoUsuario,
+          );
+
+        // Si el colaborador no tiene volantes registrados:
         if (!volanteUltimo) {
-          return Response.json({ respuesta: "" });
+          if (esCierreOagradecimiento) return Response.json({ respuesta: "" });
+          return Response.json({
+            respuesta:
+              `¡Hola, ${primerNombre}! 👋 Soy Mimi, tu asistente de Gestión Humana de IVAD SRL.\n\n` +
+              `No tienes ningún volante de pago pendiente en este momento. Puedes consultar tus datos y solicitudes en https://personalivad.ivadsrl.com o escribir a nomina@ivadsrl.com y seguridad@ivadsrl.com.`,
+          });
         }
 
         const estadoVolante = volanteUltimo.estado;
-        if (estadoVolante === "Conforme" || estadoVolante === "Reclamo" || estadoVolante === "Enviado") {
-          // Mimi ya terminó esta transacción y se mantiene desactivada
-          return Response.json({ respuesta: "" });
-        }
 
-        const primerNombre = perfil.nombre.split(" ")[0] || "colaborador";
+        // 3. REGLA DE AUTO-DESACTIVACIÓN CUANDO YA CONCLUYÓ EL FLUJO (Conforme o Reclamo):
+        // Si el volante ya fue CONFORME (entregado el PDF) o RECLAMO (transferido a soporte),
+        // y el colaborador solo envía agradecimientos o cierres casuales ("gracias", "ok", "amén"),
+        // Mimi se mantiene en silencio para no invadir el chat.
+        if (estadoVolante === "Conforme" || estadoVolante === "Reclamo") {
+          if (esCierreOagradecimiento) {
+            return Response.json({ respuesta: "" });
+          }
+          return Response.json({
+            respuesta:
+              `¡Hola, ${primerNombre}! 👋 Soy Mimi, tu asistente de Gestión Humana de IVAD.\n\n` +
+              `Tu último volante de pago (${volanteUltimo.comprobante || ""}) ya fue procesado y archivado como ${estadoVolante}.\n\n` +
+              `Si necesitas consultar tu expediente, recibos anteriores o solicitar permisos, entra a https://personalivad.ivadsrl.com o contacta a nómina en nomina@ivadsrl.com.`,
+          });
+        }
 
         // 4. Si el volante está esperando explicación de motivo (estado "EsperandoMotivo"):
         if (estadoVolante === "EsperandoMotivo") {
