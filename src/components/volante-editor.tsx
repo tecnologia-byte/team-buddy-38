@@ -74,13 +74,64 @@ export function VolanteEditor({
     setDatos((d) => (d.comprobante ? d : { ...d, ...datosAutomaticos() }));
   }, []);
 
-  // Abrir un volante guardado para seguir editándolo.
+  // Abrir un volante guardado para seguir editándolo o cargado desde Mimi
   useEffect(() => {
     if (!inicial) return;
-    setDatos({ ...volanteVacio, ...inicial.datos });
-    setSeleccion(inicial.colaboradorId);
-    setIdGuardado(inicial.id);
-  }, [inicial]);
+
+    // Buscar colaborador por ID o coincidencia flexible de nombre
+    const norm = (s: string) =>
+      String(s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+    const nombreBuscado = norm(inicial.datos?.nombre);
+    const c =
+      colaboradores.find((x) => x.id === inicial.colaboradorId) ||
+      (nombreBuscado
+        ? colaboradores.find((x) => {
+            const cn = norm(x.nombre);
+            return cn.includes(nombreBuscado) || nombreBuscado.includes(cn);
+          })
+        : undefined);
+
+    const pad4 = (arr?: LineaVolante[], defecto?: LineaVolante[]): LineaVolante[] => {
+      const lista = arr && arr.length > 0 ? [...arr] : [...(defecto || [])];
+      while (lista.length < 4) {
+        lista.push({ concepto: "", monto: "" });
+      }
+      return lista;
+    };
+
+    const ingresos = pad4(inicial.datos?.ingresos, volanteVacio.ingresos);
+    const deducciones = pad4(inicial.datos?.deducciones, volanteVacio.deducciones);
+
+    const datosCompletos: DatosVolante = {
+      ...volanteVacio,
+      ...inicial.datos,
+      comprobante: inicial.datos?.comprobante || inicial.comprobante || siguienteComprobante(),
+      fechaEmision: inicial.datos?.fechaEmision || inicial.fechaEmision || fechaCorta(new Date()),
+      periodoDesde:
+        inicial.datos?.periodoDesde || inicial.periodoDesde || datosAutomaticos().periodoDesde,
+      periodoHasta:
+        inicial.datos?.periodoHasta || inicial.periodoHasta || datosAutomaticos().periodoHasta,
+      nombre: c?.nombre || inicial.datos?.nombre || "",
+      cargo: c?.cargo || inicial.datos?.cargo || "",
+      departamento: c?.area || inicial.datos?.departamento || "",
+      ingreso: c?.ingreso || inicial.datos?.ingreso || "",
+      codigo: c
+        ? `EMP-${String(colaboradores.indexOf(c) + 1).padStart(3, "0")}`
+        : inicial.datos?.codigo || "EMP-001",
+      firma: c && firmaVigente(c) ? c.firma : inicial.datos?.firma,
+      firmaFecha: c && firmaVigente(c) ? c.firmaActualizada : inicial.datos?.firmaFecha,
+      ingresos,
+      deducciones,
+    };
+
+    setDatos(datosCompletos);
+    setSeleccion(c ? c.id : inicial.colaboradorId);
+    setIdGuardado(inicial.id && !inicial.id.startsWith("mimi-") ? inicial.id : null);
+  }, [inicial, colaboradores]);
 
   const nuevoVolante = () => {
     setDatos({ ...volanteVacio, ...datosAutomaticos() });

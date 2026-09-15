@@ -150,15 +150,78 @@ function formatearTamano(bytes: number) {
 }
 
 function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante: any | null } {
-  const match = /```json:volante\s*([\s\S]*?)```/.exec(texto);
-  if (!match) return { textoLimpio: texto, datosVolante: null };
-  try {
-    const datosVolante = JSON.parse(match[1]);
-    const textoLimpio = texto.replace(/```json:volante\s*([\s\S]*?)```/, "").trim();
-    return { textoLimpio, datosVolante };
-  } catch {
-    return { textoLimpio: texto, datosVolante: null };
+  // 1. Intentar bloque de código JSON
+  const match =
+    /```(?:json:volante|json)\s*([\s\S]*?)```/.exec(texto) ||
+    /```\s*(\{[\s\S]*?"(?:ingresos|deducciones)"[\s\S]*?\})\s*```/.exec(texto);
+
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed && (parsed.ingresos || parsed.deducciones || parsed.nombre)) {
+        const textoLimpio = texto.replace(match[0], "").trim();
+        return { textoLimpio, datosVolante: parsed };
+      }
+    } catch {
+      /* continuar al detector de texto */
+    }
   }
+
+  // 2. Fallback inteligente: Si el texto contiene cálculos de nómina dominicana
+  const tieneCalculo =
+    /(?:AFP|SFS|TSS|ISR|Salario Base|Neto a (?:pagar|cobrar))/i.test(texto) &&
+    /RD\$\s*[\d,.]+/i.test(texto);
+
+  if (tieneCalculo) {
+    const extraerMonto = (regex: RegExp) => {
+      const m = regex.exec(texto);
+      if (!m) return "";
+      return m[1].replace(/,/g, "").trim();
+    };
+
+    const extraerTexto = (regex: RegExp) => {
+      const m = regex.exec(texto);
+      return m ? m[1].trim() : "";
+    };
+
+    const nombre = extraerTexto(
+      /(?:Colaborador(?:a)?|Empleado(?:a)?|Volante de)\s*:?\s*[*_]*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+)[*_]*/i,
+    );
+    const salario = extraerMonto(
+      /(?:Salario|Sueldo)(?:\s+Base)?(?:\s+del\s+per[íi]odo)?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+    );
+    const afp = extraerMonto(
+      /(?:AFP|Pensiones)(?:\s*\(2\.87%\))?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+    );
+    const sfs = extraerMonto(
+      /(?:SFS|Salud)(?:\s*\(3\.04%\))?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i,
+    );
+    const isr =
+      extraerMonto(/(?:Retenci[óo]n\s+)?ISR(?:\s*-\s*DGII)?\s*:?\s*[*_]*RD\$\s*([\d,.]+)/i) ||
+      "0";
+
+    if (salario) {
+      const numSalario = Number(salario);
+      const afpCalculado = afp || (numSalario * 0.0287).toFixed(2);
+      const sfsCalculado = sfs || (numSalario * 0.0304).toFixed(2);
+
+      const datosAuto = {
+        nombre: nombre || "",
+        ingresos: [
+          { concepto: "Salario Base del Período", monto: salario },
+          { concepto: "Horas Extras", monto: "0" },
+        ],
+        deducciones: [
+          { concepto: "Aporte AFP - Fondo de Pensiones (2.87%)", monto: String(afpCalculado) },
+          { concepto: "Aporte SFS - Seguro de Salud (3.04%)", monto: String(sfsCalculado) },
+          { concepto: "Retención ISR - DGII", monto: String(isr) },
+        ],
+      };
+      return { textoLimpio: texto, datosVolante: datosAuto };
+    }
+  }
+
+  return { textoLimpio: texto, datosVolante: null };
 }
 
 /** Chat de Mimi: Asistente Contable Privada con análisis de documentos y privacidad estricta */

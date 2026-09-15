@@ -137,6 +137,11 @@ function Admin() {
               </TabsContent>
               <TabsContent value="volante" className="mt-4">
                 <VolanteEditor
+                  key={
+                    editando
+                      ? `volante-${editando.id}-${editando.colaboradorId}-${editando.comprobante}`
+                      : "volante-nuevo"
+                  }
                   inicial={editando}
                   onGuardado={() => setRefrescos((n) => n + 1)}
                 />
@@ -153,14 +158,45 @@ function Admin() {
               <TabsContent value="mimi" className="mt-4">
                 <MimiChat
                   onCargarVolante={(datosBorrador, colaboradorId) => {
-                    const col = colaboradores.find(
-                      (c) =>
-                        (colaboradorId && c.id === colaboradorId) ||
-                        (datosBorrador.nombre &&
-                          c.nombre.toLowerCase().includes(String(datosBorrador.nombre).toLowerCase())),
+                    const norm = (s: string) =>
+                      String(s || "")
+                        .toLowerCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "")
+                        .trim();
+                    const nombreBuscado = norm(datosBorrador.nombre);
+                    const col =
+                      colaboradores.find((c) => colaboradorId && c.id === colaboradorId) ||
+                      (nombreBuscado
+                        ? colaboradores.find((c) => {
+                            const cn = norm(c.nombre);
+                            if (cn.includes(nombreBuscado) || nombreBuscado.includes(cn)) return true;
+                            const partes = nombreBuscado.split(/\s+/).filter((p) => p.length >= 3);
+                            return partes.some((p) => cn.includes(p));
+                          })
+                        : undefined);
+
+                    const pad4 = (arr: Array<{ concepto: string; monto: string }>) => {
+                      const list = [...(arr || [])];
+                      while (list.length < 4) {
+                        list.push({ concepto: "", monto: "" });
+                      }
+                      return list;
+                    };
+
+                    const ingresos = pad4(
+                      Array.isArray(datosBorrador.ingresos) && datosBorrador.ingresos.length > 0
+                        ? datosBorrador.ingresos
+                        : [{ concepto: "Salario Base del Período", monto: "" }],
                     );
+                    const deducciones = pad4(
+                      Array.isArray(datosBorrador.deducciones) && datosBorrador.deducciones.length > 0
+                        ? datosBorrador.deducciones
+                        : [{ concepto: "Aporte AFP - Fondo de Pensiones (2.87%)", monto: "" }],
+                    );
+
                     setEditando({
-                      id: "mimi-" + Date.now(),
+                      id: "",
                       colaboradorId: col?.id ?? "",
                       comprobante:
                         datosBorrador.comprobante ||
@@ -172,31 +208,33 @@ function Admin() {
                       estado: "Borrador",
                       error: null,
                       datos: {
-                        comprobante: datosBorrador.comprobante || "",
+                        comprobante:
+                          datosBorrador.comprobante ||
+                          `IVAD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999) + 1).padStart(4, "0")}`,
                         fechaEmision: datosBorrador.fechaEmision || new Date().toLocaleDateString("es-DO"),
                         periodoDesde: datosBorrador.periodoDesde || "",
                         periodoHasta: datosBorrador.periodoHasta || "",
                         nombre: col?.nombre || datosBorrador.nombre || "",
                         cedula: col?.cedula || datosBorrador.cedula || "",
-                        codigo: col?.codigo || datosBorrador.codigo || "",
+                        codigo: col
+                          ? `EMP-${String(colaboradores.indexOf(col) + 1).padStart(3, "0")}`
+                          : datosBorrador.codigo || "EMP-001",
                         cargo: col?.cargo || datosBorrador.cargo || "",
                         departamento: col?.area || datosBorrador.departamento || "",
                         ingreso: col?.ingreso || datosBorrador.ingreso || "",
                         banco: col?.banco || datosBorrador.banco || "",
                         seguridadSocial: col?.seguridadSocial || datosBorrador.seguridadSocial || "",
-                        ingresos:
-                          Array.isArray(datosBorrador.ingresos) && datosBorrador.ingresos.length > 0
-                            ? datosBorrador.ingresos
-                            : [{ concepto: "Salario Base del Período", monto: "" }],
-                        deducciones:
-                          Array.isArray(datosBorrador.deducciones) && datosBorrador.deducciones.length > 0
-                            ? datosBorrador.deducciones
-                            : [{ concepto: "Aporte AFP - Fondo de Pensiones (2.87%)", monto: "" }],
+                        firma: col?.firma,
+                        firmaFecha: col?.firmaActualizada,
+                        ingresos,
+                        deducciones,
                       },
                       creado: new Date().toISOString(),
                     });
                     setPestana("volante");
-                    toast.success("¡Propuesta de Mimi cargada directamente en el editor de volantes!");
+                    toast.success(
+                      `¡Volante de ${col?.nombre || datosBorrador.nombre || "colaborador"} cargado en el editor con todos los datos!`,
+                    );
                   }}
                 />
               </TabsContent>
