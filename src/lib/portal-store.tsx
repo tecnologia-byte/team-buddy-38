@@ -23,8 +23,27 @@ import {
   guardarColaboradorFn,
   normalizarWhatsApp,
 } from "@/lib/cuentas.functions";
+import {
+  type FechaImportante,
+  guardarFechasImportantesFn,
+} from "@/lib/calendario.functions";
 
-export type { Cuenta, Rol };
+export type { Cuenta, Rol, FechaImportante };
+
+export const FERIADOS_RD_INICIALES: FechaImportante[] = [
+  { id: "feriado-ano-nuevo", titulo: "Año Nuevo", fecha: "2026-01-01", tipo: "feriado", descripcion: "Feriado oficial no laborable." },
+  { id: "feriado-reyes", titulo: "Día de los Santos Reyes", fecha: "2026-01-06", tipo: "feriado", descripcion: "Feriado oficial." },
+  { id: "feriado-altagracia", titulo: "Día de Nuestra Señora de la Altagracia", fecha: "2026-01-21", tipo: "feriado", descripcion: "Fiesta religiosa oficial." },
+  { id: "feriado-duarte", titulo: "Día de Juan Pablo Duarte", fecha: "2026-01-26", tipo: "feriado", descripcion: "Conmemoración patriótica del Padre de la Patria." },
+  { id: "feriado-independencia", titulo: "Día de la Independencia Nacional", fecha: "2026-02-27", tipo: "feriado", descripcion: "Fiesta patria nacional de la República Dominicana." },
+  { id: "feriado-viernes-santo", titulo: "Viernes Santo", fecha: "2026-04-03", tipo: "feriado", descripcion: "Semana Santa." },
+  { id: "feriado-trabajo", titulo: "Día Internacional del Trabajo", fecha: "2026-05-01", tipo: "feriado", descripcion: "Feriado oficial laboral." },
+  { id: "feriado-corpus", titulo: "Corpus Christi", fecha: "2026-06-04", tipo: "feriado", descripcion: "Feriado religioso oficial." },
+  { id: "feriado-restauracion", titulo: "Día de la Restauración", fecha: "2026-08-16", tipo: "feriado", descripcion: "Conmemoración histórica de la Restauración Dominicana." },
+  { id: "feriado-mercedes", titulo: "Día de Nuestra Señora de las Mercedes", fecha: "2026-09-24", tipo: "feriado", descripcion: "Patrona oficial de la República Dominicana." },
+  { id: "feriado-constitucion", titulo: "Día de la Constitución", fecha: "2026-11-06", tipo: "feriado", descripcion: "Conmemoración de la Constitución dominicana." },
+  { id: "feriado-navidad", titulo: "Día de Navidad", fecha: "2026-12-25", tipo: "feriado", descripcion: "Celebración oficial de Navidad." },
+];
 
 /** Dirección pública del portal, para los enlaces que salen por WhatsApp. */
 const PORTAL_URL_PUBLICA = "https://personalivad.ivadsrl.com";
@@ -240,6 +259,14 @@ type Contexto = {
     canalAvisos: CanalAvisos,
     telefono?: string,
   ) => Promise<Resultado>;
+  fechasImportantes: FechaImportante[];
+  agregarFechaImportante: (datos: {
+    titulo: string;
+    fecha: string;
+    tipo?: FechaImportante["tipo"];
+    descripcion?: string;
+  }) => Promise<Resultado>;
+  eliminarFechaImportante: (id: string) => Promise<Resultado>;
 };
 
 // Se guarda en globalThis para que las recargas en caliente (HMR) no creen
@@ -331,6 +358,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [tareas, setTareas] = useState<TareaAsignada[]>([]);
+  const [fechasImportantes, setFechasImportantes] = useState<FechaImportante[]>(FERIADOS_RD_INICIALES);
   const [puenteWhatsappUrl, setPuenteWhatsappUrl] = useState<string>("https://puente-whatsapp-ivad.onrender.com");
   const [puenteWhatsappToken, setPuenteWhatsappToken] = useState<string>("ivad-secret-token");
   // Evita dependencias circulares entre pagos y firmas.
@@ -511,6 +539,20 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       (a) => a.clave === "whatsapp_puente_token",
     )?.valor;
     if (tokenAjuste) setPuenteWhatsappToken(tokenAjuste);
+
+    const fechasAjuste = ((ajustesRes.data ?? []) as Array<{ clave: string; valor: string }>).find(
+      (a) => a.clave === "calendario_fechas_importantes",
+    )?.valor;
+    if (fechasAjuste) {
+      try {
+        const parsed = JSON.parse(fechasAjuste);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFechasImportantes(parsed);
+        }
+      } catch {
+        // mantener por defecto si falla
+      }
+    }
 
     setCargando(false);
   }, []);
@@ -718,6 +760,73 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return { ok: true };
     },
     [userId, cargar],
+  );
+
+  const agregarFechaImportante = useCallback(
+    async (datos: {
+      titulo: string;
+      fecha: string;
+      tipo?: FechaImportante["tipo"];
+      descripcion?: string;
+    }): Promise<Resultado> => {
+      const nuevoItem: FechaImportante = {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `fecha-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        titulo: datos.titulo.trim(),
+        fecha: datos.fecha,
+        tipo: datos.tipo ?? "empresa",
+        descripcion: datos.descripcion?.trim() || undefined,
+        creadoPor: sesion.nombre || "Administrador",
+        creadoAt: new Date().toISOString(),
+      };
+      const nuevas = [...fechasImportantes, nuevoItem].sort((a, b) => a.fecha.localeCompare(b.fecha));
+      try {
+        const res = await guardarFechasImportantesFn({ data: { fechas: nuevas } });
+        if (res.ok) {
+          setFechasImportantes(nuevas);
+          return { ok: true };
+        }
+        return { ok: false, error: "No se pudo guardar la fecha en el servidor" };
+      } catch (e) {
+        // Fallback directo a Supabase
+        const { error } = await supabase.from("ajustes").upsert({
+          clave: "calendario_fechas_importantes",
+          valor: JSON.stringify(nuevas),
+          updated_at: new Date().toISOString(),
+        } as never, { onConflict: "clave" });
+        if (!error) {
+          setFechasImportantes(nuevas);
+          return { ok: true };
+        }
+        return { ok: false, error: e instanceof Error ? e.message : "Error al guardar la fecha importante" };
+      }
+    },
+    [fechasImportantes, sesion.nombre],
+  );
+
+  const eliminarFechaImportante = useCallback(
+    async (id: string): Promise<Resultado> => {
+      const nuevas = fechasImportantes.filter((f) => f.id !== id);
+      try {
+        const res = await guardarFechasImportantesFn({ data: { fechas: nuevas } });
+        if (res.ok) {
+          setFechasImportantes(nuevas);
+          return { ok: true };
+        }
+        return { ok: false, error: "No se pudo eliminar la fecha en el servidor" };
+      } catch (e) {
+        const { error } = await supabase.from("ajustes").upsert({
+          clave: "calendario_fechas_importantes",
+          valor: JSON.stringify(nuevas),
+          updated_at: new Date().toISOString(),
+        } as never, { onConflict: "clave" });
+        if (!error) {
+          setFechasImportantes(nuevas);
+          return { ok: true };
+        }
+        return { ok: false, error: e instanceof Error ? e.message : "Error al eliminar la fecha importante" };
+      }
+    },
+    [fechasImportantes],
   );
 
   const eliminarColaborador = useCallback(
@@ -1290,6 +1399,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     guardarPuenteWhatsappUrl,
     guardarPuenteWhatsappConfig,
     actualizarMisAvisos,
+    fechasImportantes,
+    agregarFechaImportante,
+    eliminarFechaImportante,
   };
 
   return <PortalContext.Provider value={valor}>{children}</PortalContext.Provider>;
