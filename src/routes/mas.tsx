@@ -158,6 +158,10 @@ function Mas() {
         >
           <LogOut className="h-4 w-4" /> Cerrar sesión
         </Link>
+
+        <p className="pt-1 text-center text-[11px] font-medium tracking-wide text-muted-foreground">
+          V 1.0.5 · TECNOLOGÍA IVAD
+        </p>
       </div>
     </AppShell>
   );
