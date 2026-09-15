@@ -98,13 +98,13 @@ function Login() {
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Correo corporativo</Label>
+            <Label htmlFor="email">Correo corporativo o WhatsApp / Teléfono</Label>
             <Input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="nombre@ivad.com.do"
+              placeholder="nombre@ivadsrl.com ó 809-555-1234"
               required
             />
           </div>

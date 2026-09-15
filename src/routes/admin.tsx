@@ -770,15 +770,17 @@ function CuentasUsuarios() {
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="c-email">Correo corporativo (acceso)</Label>
+          <Label htmlFor="c-email">Correo corporativo (acceso) — Opcional si tiene teléfono o WhatsApp</Label>
           <Input
             id="c-email"
             type="email"
-            placeholder="nombre@ivad.com.do"
+            placeholder="nombre@ivadsrl.com (opcional)"
             value={form.email}
             onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            required
           />
+          <p className="text-[11px] text-muted-foreground">
+            Si no tiene correo, podrá iniciar sesión directamente con su número de teléfono o WhatsApp.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="c-clave">
@@ -862,8 +864,21 @@ function CuentasUsuarios() {
 
         <div className="space-y-3">
           {cuentas.map((u) => {
-            const colab = colaboradores.find((c) => c.email.toLowerCase() === u.email.toLowerCase());
-            const canal = colab?.canalAvisos ?? u.canalAvisos ?? "correo";
+            const colab = colaboradores.find(
+              (c) =>
+                c.email.toLowerCase() === u.email.toLowerCase() ||
+                (c.whatsapp && u.email.includes(c.whatsapp)) ||
+                (c.telefono && u.email.includes(c.telefono.replace(/\D/g, ""))),
+            );
+            const sinCorreo = !u.email || u.email.endsWith("@personal.ivadsrl.com");
+            const contactoPrincipal = sinCorreo
+              ? colab?.whatsapp
+                ? `📱 +${colab.whatsapp}`
+                : colab?.telefono || u.telefono
+                ? `📞 ${colab?.telefono || u.telefono}`
+                : "Sin correo (acceso por teléfono)"
+              : u.email;
+            const canal = colab?.canalAvisos ?? u.canalAvisos ?? (sinCorreo ? "whatsapp" : "correo");
             const canalTexto =
               canal === "ambos"
                 ? "Correo y WhatsApp"
@@ -879,12 +894,14 @@ function CuentasUsuarios() {
                   <Avatar iniciales={u.iniciales} size="sm" foto={colab?.foto} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-foreground">{u.nombre}</p>
-                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                    {colab?.whatsapp ? (
+                    <p className={`truncate text-xs ${sinCorreo ? "font-medium text-foreground/85" : "text-muted-foreground"}`}>
+                      {contactoPrincipal}
+                    </p>
+                    {!sinCorreo && colab?.whatsapp ? (
                       <p className="truncate text-[11px] text-muted-foreground">
                         WA: +{colab.whatsapp} {colab.telefono ? `· Tel: ${colab.telefono}` : ""}
                       </p>
-                    ) : colab?.telefono ? (
+                    ) : !sinCorreo && colab?.telefono ? (
                       <p className="truncate text-[11px] text-muted-foreground">
                         Tel: {colab.telefono}
                       </p>
@@ -898,22 +915,28 @@ function CuentasUsuarios() {
                   {colab?.claveProvisional && colab?.claveProvisionalTexto ? (
                     <div className="flex items-center gap-1.5 rounded-md bg-amber-100/80 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-900/50">
                       <span>🔒 Clave: <strong>{colab.claveProvisionalTexto}</strong></span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-5 px-1 text-[10px] text-amber-800 hover:text-amber-950 hover:bg-amber-200/70 dark:text-amber-300 gap-1"
-                        onClick={async () => {
-                          const { enviarClaveProvisionalIndividualFn } = await import("@/lib/cuentas.functions");
-                          const res = await enviarClaveProvisionalIndividualFn({ data: { id: colab.id } });
-                          if (res.ok) {
-                            toast.success(`Contraseña provisional enviada a ${u.email} desde Cuenta@ivadsrl.com`);
-                          } else {
-                            toast.error(res.error ?? "Error al enviar correo");
-                          }
-                        }}
-                      >
-                        <Mail className="h-2.5 w-2.5" /> Enviar correo
-                      </Button>
+                      {!sinCorreo ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 px-1 text-[10px] text-amber-800 hover:text-amber-950 hover:bg-amber-200/70 dark:text-amber-300 gap-1"
+                          onClick={async () => {
+                            const { enviarClaveProvisionalIndividualFn } = await import("@/lib/cuentas.functions");
+                            const res = await enviarClaveProvisionalIndividualFn({ data: { id: colab.id } });
+                            if (res.ok) {
+                              toast.success(`Contraseña provisional enviada a ${u.email} desde Cuenta@ivadsrl.com`);
+                            } else {
+                              toast.error(res.error ?? "Error al enviar correo");
+                            }
+                          }}
+                        >
+                          <Mail className="h-2.5 w-2.5" /> Enviar correo
+                        </Button>
+                      ) : (
+                        <span className="text-[10px] text-amber-800/80 dark:text-amber-300/80 italic">
+                          (Acceso con teléfono)
+                        </span>
+                      )}
                     </div>
                   ) : null}
                   <div className="ml-auto flex gap-2">
@@ -923,10 +946,11 @@ function CuentasUsuarios() {
                       onClick={() => {
                         setForm({
                           ...u,
+                          email: sinCorreo ? "" : u.email,
                           clave: "",
                           telefono: colab?.telefono ?? u.telefono ?? "",
                           whatsapp: colab?.whatsapp ?? u.whatsapp ?? "",
-                          canalAvisos: colab?.canalAvisos ?? u.canalAvisos ?? "correo",
+                          canalAvisos: canal,
                         });
                         setEditando(u.email);
                       }}
@@ -975,19 +999,29 @@ function Accesos() {
           Sesión activa: <strong className="text-foreground">{sesion.nombre}</strong> ({sesion.rol})
         </p>
       </div>
-      {cuentas.map((u) => (
-        <article key={u.email} className="surface-card p-4">
-          <div className="flex items-center gap-3">
-            <Avatar iniciales={u.iniciales} size="sm" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-foreground">{u.nombre}</p>
-              <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+      {cuentas.map((u) => {
+        const esSintetico = !u.email || u.email.endsWith("@personal.ivadsrl.com");
+        const contacto = esSintetico
+          ? u.whatsapp
+            ? `📱 +${u.whatsapp}`
+            : u.telefono
+            ? `📞 ${u.telefono}`
+            : "Acceso con teléfono"
+          : u.email;
+        return (
+          <article key={u.email} className="surface-card p-4">
+            <div className="flex items-center gap-3">
+              <Avatar iniciales={u.iniciales} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{u.nombre}</p>
+                <p className="truncate text-xs text-muted-foreground">{contacto}</p>
+              </div>
+              <Etiqueta texto={u.rol} tono="accent" />
             </div>
-            <Etiqueta texto={u.rol} tono="accent" />
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">{permisos[u.rol]}</p>
-        </article>
-      ))}
+            <p className="mt-2 text-xs text-muted-foreground">{permisos[u.rol]}</p>
+          </article>
+        );
+      })}
       <div className="surface-card flex items-center gap-3 p-4">
         <Users className="h-5 w-5 text-accent" />
         <p className="text-sm text-muted-foreground">

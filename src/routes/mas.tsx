@@ -76,7 +76,13 @@ function Mas() {
               {colaboradorActual?.nombre ?? sesion.nombre}
             </p>
             <p className="text-sm text-accent">{colaboradorActual?.cargo ?? sesion.cargo}</p>
-            <p className="text-xs text-muted-foreground">{sesion.email}</p>
+            <p className="text-xs text-muted-foreground">
+              {!sesion.email || sesion.email.endsWith("@personal.ivadsrl.com")
+                ? colaboradorActual?.whatsapp
+                  ? `📱 +${colaboradorActual.whatsapp}`
+                  : colaboradorActual?.telefono || "Acceso con teléfono"
+                : sesion.email}
+            </p>
           </div>
         </Link>
 

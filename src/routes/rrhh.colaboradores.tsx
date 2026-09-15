@@ -47,7 +47,7 @@ const esquema = z.object({
   nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(80),
   cargo: z.string().trim().min(2, "Indica el cargo").max(80),
   area: z.string().trim().min(2, "Indica el área").max(60),
-  email: z.string().trim().email("Correo electrónico inválido").max(120),
+  email: z.string().trim().email("Correo electrónico inválido").max(120).optional().or(z.literal("")),
   telefono: z.string().default(""),
   whatsapp: z.string().default(""),
   canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
@@ -125,6 +125,10 @@ function GestionColaboradores() {
       toast.error(primerError);
       return;
     }
+    if (!r.data.email?.trim() && !r.data.whatsapp?.trim() && !r.data.telefono?.trim()) {
+      toast.error("Debes indicar un correo o al menos un número de teléfono / WhatsApp");
+      return;
+    }
     setErrores({});
     setGuardando(true);
     try {
@@ -180,56 +184,69 @@ function GestionColaboradores() {
         </p>
 
 
-        {lista.map((c) => (
-          <article key={c.id} className="surface-card flex items-center gap-3 p-4">
-            <Avatar iniciales={c.iniciales} size="sm" estado={c.estado} foto={c.foto} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-foreground">{c.nombre}</p>
-              <p className="truncate text-xs text-accent">{c.cargo}</p>
-              <p className="truncate text-xs text-muted-foreground">{c.area}</p>
-              {c.claveProvisional && c.claveProvisionalTexto ? (
-                <ClaveProvisional clave={c.claveProvisionalTexto} id={c.id} email={c.email} />
-              ) : null}
-              {c.estadoFoto === "pendiente" ? (
-                <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary">
-                  <Camera className="h-3 w-3" /> Foto en revisión
+        {lista.map((c) => {
+          const sinCorreo = !c.email || c.email.endsWith("@personal.ivadsrl.com");
+          const contacto = sinCorreo
+            ? c.whatsapp
+              ? `📱 +${c.whatsapp}`
+              : c.telefono
+              ? `📞 ${c.telefono}`
+              : "Sin correo registrado"
+            : c.email;
+
+          return (
+            <article key={c.id} className="surface-card flex items-center gap-3 p-4">
+              <Avatar iniciales={c.iniciales} size="sm" estado={c.estado} foto={c.foto} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{c.nombre}</p>
+                <p className="truncate text-xs text-accent">{c.cargo}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {c.area} · <span className={sinCorreo ? "font-medium text-foreground/80" : ""}>{contacto}</span>
                 </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              aria-label={`Editar ${c.nombre}`}
-              className="p-2 text-primary"
-              onClick={() =>
-                setBorrador({
-                  id: c.id,
-                  nombre: c.nombre,
-                  cargo: c.cargo,
-                  area: c.area,
-                  email: c.email,
-                  telefono: c.telefono,
-                  whatsapp: c.whatsapp ?? "",
-                  canalAvisos: c.canalAvisos ?? "correo",
-                  salario: String(c.salario),
-                  estado: c.estado,
-                })
-              }
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Eliminar ${c.nombre}`}
-              className="p-2 text-destructive"
-              onClick={() => {
-                eliminarColaborador(c.id);
-                toast.info(`${c.nombre} fue retirado del listado`);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </article>
-        ))}
+                {c.claveProvisional && c.claveProvisionalTexto ? (
+                  <ClaveProvisional clave={c.claveProvisionalTexto} id={c.id} email={c.email} />
+                ) : null}
+                {c.estadoFoto === "pendiente" ? (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary">
+                    <Camera className="h-3 w-3" /> Foto en revisión
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                aria-label={`Editar ${c.nombre}`}
+                className="p-2 text-primary"
+                onClick={() =>
+                  setBorrador({
+                    id: c.id,
+                    nombre: c.nombre,
+                    cargo: c.cargo,
+                    area: c.area,
+                    email: sinCorreo ? "" : c.email,
+                    telefono: c.telefono,
+                    whatsapp: c.whatsapp ?? "",
+                    canalAvisos: c.canalAvisos ?? (sinCorreo ? "whatsapp" : "correo"),
+                    salario: String(c.salario),
+                    estado: c.estado,
+                  })
+                }
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Eliminar ${c.nombre}`}
+                className="p-2 text-destructive"
+                onClick={() => {
+                  eliminarColaborador(c.id);
+                  toast.info(`${c.nombre} fue retirado del listado`);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </article>
+          );
+        })}
       </div>
 
       <Dialog open={borrador !== null} onOpenChange={(o) => !o && setBorrador(null)}>
@@ -274,14 +291,13 @@ function GestionColaboradores() {
               <div className="space-y-1">
                 <Campo
                   id="email"
-                  label="Correo corporativo (acceso)"
+                  label="Correo corporativo (acceso) — Opcional si tiene teléfono"
                   valor={borrador.email}
                   error={errores["email"]}
                   onChange={(v) => setBorrador({ ...borrador, email: v })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Al cambiarlo, el colaborador inicia sesión con el correo nuevo y recibe un aviso
-                  en esa dirección. El colaborador no puede cambiarlo por su cuenta.
+                  Si se deja en blanco, el colaborador accederá usando su número de teléfono o WhatsApp.
                 </p>
               </div>
               <Campo
@@ -403,7 +419,7 @@ function ClaveProvisional({
       >
         Copiar
       </button>
-      {id ? (
+      {id && email && !email.endsWith("@personal.ivadsrl.com") ? (
         <button
           type="button"
           disabled={enviando}
@@ -414,7 +430,7 @@ function ClaveProvisional({
             const res = await enviarClaveProvisionalIndividualFn({ data: { id } });
             setEnviando(false);
             if (res.ok) {
-              toast.success(`Contraseña provisional enviada a ${email || "su correo"} desde Cuenta@ivadsrl.com`);
+              toast.success(`Contraseña provisional enviada a ${email} desde Cuenta@ivadsrl.com`);
             } else {
               toast.error(res.error ?? "No se pudo enviar");
             }
@@ -422,6 +438,10 @@ function ClaveProvisional({
         >
           {enviando ? "Enviando..." : "📧 Enviar al correo"}
         </button>
+      ) : id ? (
+        <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 italic">
+          (Acceso con teléfono)
+        </span>
       ) : null}
     </div>
   );

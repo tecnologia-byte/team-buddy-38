@@ -599,12 +599,21 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [colaboradores],
   );
 
-  const autenticar = useCallback(async (email: string, clave: string): Promise<Resultado> => {
+  const autenticar = useCallback(async (identificador: string, clave: string): Promise<Resultado> => {
+    let emailFinal = identificador.trim().toLowerCase();
+    // Si no contiene '@', es un número de teléfono o WhatsApp
+    if (!emailFinal.includes("@")) {
+      let num = emailFinal.replace(/\D/g, "");
+      if (num.length === 10 && (num.startsWith("809") || num.startsWith("829") || num.startsWith("849"))) {
+        num = "1" + num;
+      }
+      emailFinal = `${num}@personal.ivadsrl.com`;
+    }
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: emailFinal,
       password: clave,
     });
-    if (error) return { ok: false, error: "Correo o contraseña incorrectos." };
+    if (error) return { ok: false, error: "Correo, teléfono o contraseña incorrectos." };
     await cargar();
     return { ok: true };
   }, [cargar]);
@@ -648,7 +657,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     async (cuenta: Cuenta & { area?: string }, emailOriginal?: string): Promise<Resultado> => {
       const r = await guardarCuentaFn({
         data: {
-          email: cuenta.email,
+          email: cuenta.email || "",
           ...(cuenta.clave ? { clave: cuenta.clave } : {}),
           nombre: cuenta.nombre,
           cargo: cuenta.cargo,
@@ -668,7 +677,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   const eliminarCuenta = useCallback(
     async (email: string): Promise<Resultado> => {
-      const c = colaboradores.find((x) => x.email.toLowerCase() === email.toLowerCase());
+      const limpio = email.toLowerCase().trim();
+      const c = colaboradores.find(
+        (x) =>
+          x.email.toLowerCase() === limpio ||
+          (x.whatsapp && limpio.includes(x.whatsapp)) ||
+          (x.telefono && limpio.includes(x.telefono.replace(/\D/g, ""))),
+      );
       if (!c) return { ok: false, error: "Cuenta no encontrada" };
       const r = await eliminarCuentaFn({ data: { id: c.id } });
       if (r.ok) await cargar();

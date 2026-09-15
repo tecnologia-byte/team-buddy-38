@@ -213,7 +213,15 @@ function Perfil() {
           </SectionTitle>
           <Dato icon={Briefcase} label="Año de ingreso" valor={c?.ingreso || "—"} />
           <Dato icon={Shield} label="Área" valor={c?.area ?? "—"} />
-          <Dato icon={Mail} label="Correo" valor={c?.email ?? sesion.email} />
+          <Dato
+            icon={Mail}
+            label="Correo"
+            valor={
+              (c?.email ?? sesion.email)?.endsWith("@personal.ivadsrl.com")
+                ? "Sin correo corporativo (acceso por teléfono)"
+                : (c?.email ?? sesion.email) || "Sin correo"
+            }
+          />
           <Dato icon={Phone} label="Teléfono" valor={c?.telefono ?? "—"} />
           <Dato icon={MessageSquare} label="WhatsApp" valor={c?.whatsapp ? `+${c.whatsapp}` : "No registrado"} />
         </section>

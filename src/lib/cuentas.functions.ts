@@ -11,7 +11,7 @@ const rolSchema = z.enum([
 ]);
 
 const cuentaSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email().optional().or(z.literal("")),
   clave: z.string().optional(),
   nombre: z.string().min(2),
   cargo: z.string().default(""),
@@ -20,7 +20,7 @@ const cuentaSchema = z.object({
   telefono: z.string().optional(),
   whatsapp: z.string().optional(),
   canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
-  emailOriginal: z.string().email().optional(),
+  emailOriginal: z.string().optional(),
 });
 
 const inicialesDe = (nombre: string) =>
@@ -51,7 +51,18 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
     if (!esGestor) return { ok: false as const, error: "No tienes permisos para esta acción" };
 
     const sb = await admin();
-    const email = data.email.trim().toLowerCase();
+    let email = data.email?.trim().toLowerCase() || "";
+    const telLimpio = normalizarWhatsApp(data.whatsapp) || (data.telefono ?? "").replace(/\D/g, "");
+
+    if (!email) {
+      if (!telLimpio) {
+        return {
+          ok: false as const,
+          error: "Debes ingresar al menos un correo electrónico o un número de teléfono / WhatsApp",
+        };
+      }
+      email = `${telLimpio}@personal.ivadsrl.com`;
+    }
 
     // ¿Ya existe el perfil que se está editando?
     const buscar = data.emailOriginal?.trim().toLowerCase() ?? email;
@@ -90,6 +101,10 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
     // Toda contraseña puesta por Administración es provisional: el colaborador
     // deberá crear la suya al iniciar sesión.
     const provisional = Boolean(data.clave && data.clave.length >= 6);
+    const canalEfectivo =
+      email.endsWith("@personal.ivadsrl.com") && data.canalAvisos === "correo"
+        ? "whatsapp"
+        : data.canalAvisos;
 
     const { error: errorPerfil } = await sb.from("perfiles").upsert({
       id: userId,
@@ -100,7 +115,7 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       iniciales: inicialesDe(data.nombre),
       ...(data.telefono !== undefined ? { telefono: data.telefono.trim() } : {}),
       ...(data.whatsapp !== undefined ? { whatsapp: normalizarWhatsApp(data.whatsapp) } : {}),
-      ...(data.canalAvisos !== undefined ? { canal_avisos: data.canalAvisos } : {}),
+      canal_avisos: canalEfectivo,
       ...(provisional ? { clave_provisional: true, clave_provisional_texto: data.clave ?? null } : {}),
     });
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
@@ -111,8 +126,8 @@ export const guardarCuentaFn = createServerFn({ method: "POST" })
       .insert({ user_id: userId, role: data.rol });
     if (errorRol) return { ok: false as const, error: errorRol.message };
 
-    // Si se asignó contraseña provisional, enviarla de inmediato al correo del colaborador desde Cuenta@ivadsrl.com
-    if (provisional && data.clave) {
+    // Si se asignó contraseña provisional y tiene un correo corporativo real, enviarla desde Cuenta@ivadsrl.com
+    if (provisional && data.clave && !email.endsWith("@personal.ivadsrl.com")) {
       try {
         const { enviarCorreoClaveProvisional } = await import("./correo.server");
         await enviarCorreoClaveProvisional({
@@ -142,7 +157,7 @@ const colaboradorSchema = z.object({
   nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(80),
   cargo: z.string().trim().max(80).default(""),
   area: z.string().trim().max(60).default(""),
-  email: z.string().trim().email("Correo electrónico inválido").max(120).optional(),
+  email: z.string().trim().email("Correo electrónico inválido").max(120).optional().or(z.literal("")),
   telefono: z.string().default(""),
   whatsapp: z.string().default(""),
   canalAvisos: z.enum(["correo", "whatsapp", "ambos", "ninguno"]).default("correo"),
@@ -188,18 +203,26 @@ export const guardarColaboradorFn = createServerFn({ method: "POST" })
 
     if (errorPerfil) return { ok: false as const, error: errorPerfil.message };
 
-    // Si se cambió el correo, actualizar auth y perfiles
-    if (data.email) {
-      const nuevoEmail = data.email.trim().toLowerCase();
-      const { data: actual } = await sb
-        .from("perfiles")
-        .select("email")
-        .eq("id", data.id)
-        .maybeSingle();
+    // Si se especificó correo (o se dejó en blanco con teléfono disponible), actualizar perfiles y auth
+    if (data.email !== undefined) {
+      let nuevoEmail = data.email.trim().toLowerCase();
+      if (!nuevoEmail) {
+        const telLimpio = whatsappNormalizado || data.telefono.replace(/\D/g, "");
+        if (telLimpio) {
+          nuevoEmail = `${telLimpio}@personal.ivadsrl.com`;
+        }
+      }
+      if (nuevoEmail) {
+        const { data: actual } = await sb
+          .from("perfiles")
+          .select("email")
+          .eq("id", data.id)
+          .maybeSingle();
 
-      if (actual?.email && nuevoEmail !== actual.email.toLowerCase()) {
-        await sb.from("perfiles").update({ email: nuevoEmail }).eq("id", data.id);
-        await sb.auth.admin.updateUserById(data.id, { email: nuevoEmail });
+        if (actual?.email && nuevoEmail !== actual.email.toLowerCase()) {
+          await sb.from("perfiles").update({ email: nuevoEmail }).eq("id", data.id);
+          await sb.auth.admin.updateUserById(data.id, { email: nuevoEmail });
+        }
       }
     }
 
@@ -431,7 +454,7 @@ export const enviarClavesProvisionalesPendientesFn = createServerFn({ method: "P
     const detalles: Array<{ nombre: string; email: string; ok: boolean; error?: string }> = [];
 
     for (const f of filas) {
-      if (!f.email || !f.clave_provisional_texto) continue;
+      if (!f.email || !f.clave_provisional_texto || f.email.endsWith("@personal.ivadsrl.com")) continue;
       const res = await enviarCorreoClaveProvisional({
         para: f.email,
         nombre: f.nombre || "Colaborador",
@@ -484,7 +507,12 @@ export const enviarClaveProvisionalIndividualFn = createServerFn({ method: "POST
       .maybeSingle();
 
     if (error || !f) return { ok: false as const, error: "Colaborador no encontrado" };
-    if (!f.email) return { ok: false as const, error: "El colaborador no tiene correo registrado" };
+    if (!f.email || f.email.endsWith("@personal.ivadsrl.com")) {
+      return {
+        ok: false as const,
+        error: "El colaborador no tiene un correo corporativo real registrado (su acceso es mediante su número telefónico).",
+      };
+    }
     if (!f.clave_provisional_texto) {
       return {
         ok: false as const,

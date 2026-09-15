@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Cake, Mail, Phone, Search } from "lucide-react";
+import { Cake, Mail, MessageSquare, Phone, Search } from "lucide-react";
 import { AppShell, Avatar, BrandLogo } from "@/components/app-shell";
 import { areas } from "@/lib/data";
 import { usePortal } from "@/lib/portal-store";
@@ -70,41 +70,68 @@ function Equipo() {
 
           <TabsContent value="todos" className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">{filtrados.length} colaboradores</p>
-            {filtrados.map((e) => (
-              <article key={e.id} className="surface-card flex gap-3 p-4">
-                <Avatar iniciales={e.iniciales} estado={e.estado} foto={e.foto} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="flex min-w-0 items-center gap-1.5 font-display font-bold text-foreground">
-                      <span className="truncate">{e.nombre}</span>
-                      <VerificacionPerfil colaborador={e} className="h-4.5 w-4.5" />
-                    </h3>
-                    <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground">
-                      {e.area}
-                    </span>
+            {filtrados.map((e) => {
+              const sinCorreo = !e.email || e.email.endsWith("@personal.ivadsrl.com");
+              const contactoNum = e.whatsapp ? `+${e.whatsapp}` : e.telefono;
+              return (
+                <article key={e.id} className="surface-card flex gap-3 p-4">
+                  <Avatar iniciales={e.iniciales} estado={e.estado} foto={e.foto} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="flex min-w-0 items-center gap-1.5 font-display font-bold text-foreground">
+                        <span className="truncate">{e.nombre}</span>
+                        <VerificacionPerfil colaborador={e} className="h-4.5 w-4.5" />
+                      </h3>
+                      <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground">
+                        {e.area}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-accent">{e.cargo}</p>
+                    {sinCorreo ? (
+                      <p className="truncate text-xs font-medium text-foreground/80">
+                        📱 {contactoNum || "Sin contacto"}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="truncate text-xs text-muted-foreground">{e.email}</p>
+                        {e.telefono ? <p className="text-xs text-muted-foreground">{e.telefono}</p> : null}
+                      </>
+                    )}
+                    <div className="mt-2 flex gap-2">
+                      {!sinCorreo && e.email ? (
+                        <a
+                          href={`mailto:${e.email}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-primary hover:bg-secondary/80"
+                          aria-label={`Escribir a ${e.nombre}`}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                      {e.whatsapp ? (
+                        <a
+                          href={`https://wa.me/${e.whatsapp}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-emerald-600 dark:text-emerald-400 hover:bg-secondary/80"
+                          aria-label={`WhatsApp a ${e.nombre}`}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                      {e.telefono ? (
+                        <a
+                          href={`tel:${e.telefono.replace(/\D/g, "")}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-primary hover:bg-secondary/80"
+                          aria-label={`Llamar a ${e.nombre}`}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className="text-sm font-medium text-accent">{e.cargo}</p>
-                  <p className="truncate text-xs text-muted-foreground">{e.email}</p>
-                  <p className="text-xs text-muted-foreground">{e.telefono}</p>
-                  <div className="mt-2 flex gap-2">
-                    <a
-                      href={`mailto:${e.email}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-primary"
-                      aria-label={`Escribir a ${e.nombre}`}
-                    >
-                      <Mail className="h-4 w-4" />
-                    </a>
-                    <a
-                      href={`tel:${e.telefono.replace(/\D/g, "")}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-primary"
-                      aria-label={`Llamar a ${e.nombre}`}
-                    >
-                      <Phone className="h-4 w-4" />
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="areas" className="mt-4 space-y-4">
