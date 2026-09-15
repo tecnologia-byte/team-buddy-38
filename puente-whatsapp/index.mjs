@@ -1,25 +1,29 @@
 /**
  * Puente de WhatsApp del Portal IVAD.
  *
- * Se conecta a WhatsApp mediante:
- * 1. Código QR nítido con alto contraste y compatibilidad estándar con WhatsApp Web (Ubuntu Chrome).
- * 2. Código de vinculación numérico de 8 caracteres (Pairing Code) para vincular por número de teléfono
- *    sin depender de la cámara.
- *
- * Optimizado para evitar errores de sincronización y desconexiones:
- * - Consulta dinámica de la última versión del protocolo de WhatsApp Web (fetchLatestBaileysVersion).
- * - syncFullHistory: false para que el teléfono no intente transferir años de historial ni se congele.
- * - Registro de logs en memoria accesibles vía /logs para diagnóstico inmediato.
+ * Conectividad ultra-estable y persistencia total:
+ * 1. Respaldo y restauración automática de credenciales en Supabase:
+ *    - Al arrancar o reiniciarse el contenedor, restaura la sesión desde Supabase.
+ *    - La sesión no se pierde si Render se reinicia, duerme o se actualiza.
+ *    - Nunca exige escanear de nuevo salvo que el usuario presione "Desvincular" explícitamente.
+ * 2. Reconexión resiliente:
+ *    - Ante desconexiones temporales (código 401, 408, 440, 515, microcortes), reintenta automáticamente
+ *      sin borrar las credenciales.
+ * 3. Keep-Alive anti-suspensión:
+ *    - Pings periódicos al router de Render cada 3 minutos para mantener el servicio despierto.
+ * 4. Compatibilidad Baileys Multi-Dispositivo:
+ *    - Versión dinámica más reciente de WhatsApp Web.
+ *    - Sincronización instantánea de mensajes y manejo de LIDs.
  */
 import { createServer } from "node:http";
 import fs from "node:fs";
+import path from "node:path";
 import { Boom } from "@hapi/boom";
 import {
   makeWASocket,
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
   DisconnectReason,
-  Browsers,
   fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
@@ -29,32 +33,34 @@ const TOKEN = process.env.PUENTE_TOKEN?.trim() || "ivad-secret-token";
 const PORT = Number(process.env.PORT ?? 8787);
 const PORTAL_URL = process.env.PORTAL_URL?.trim() || "https://personalivad.ivadsrl.com";
 const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL?.trim() || "https://puente-whatsapp-ivad.onrender.com/ping";
+const CARPETA_SESION = "./sesion-whatsapp";
 
-// Buffer de logs en memoria para diagnóstico
+// Buffer de logs en memoria para diagnóstico accesible en /logs
 const logs = [];
 function log(...args) {
   const msg = args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ");
   const line = `[${new Date().toISOString()}] ${msg}`;
   logs.push(line);
-  if (logs.length > 100) logs.shift();
+  if (logs.length > 150) logs.shift();
   console.log(line);
 }
 
-log(`[Puente WhatsApp] Iniciando servidor en puerto ${PORT}...`);
+log(`[Puente WhatsApp] Inicializando servicio de WhatsApp IVAD en puerto ${PORT}...`);
 
 const estado = {
   conectado: false,
   numero: "",
   qr: "",
   codigo: "",
+  restauradoDeBaseDatos: false,
 };
 
 let sock = null;
 let conectando = false;
+let desvinculacionVoluntaria = false;
 
 function normalizarNumero(n) {
   let num = String(n || "").replace(/\D/g, "");
-  // Si tiene 10 dígitos y es de República Dominicana (809, 829, 849), le agregamos el código de país 1
   if (num.length === 10 && (num.startsWith("809") || num.startsWith("829") || num.startsWith("849"))) {
     num = "1" + num;
   }
@@ -63,13 +69,13 @@ function normalizarNumero(n) {
 
 const numeroWa = (n) => `${normalizarNumero(n)}@s.whatsapp.net`;
 
-// Mapeo automático de LIDs (Linked Device Identifiers) a números de teléfono reales
+// Mapeo de LIDs (Linked Device Identifiers) a números telefónicos reales
 const lidToPhone = new Map([
   ["191500109537421", "18494252220"],
 ]);
 let ultimoDestinoEnviado = { telefono: "18494252220", time: Date.now() };
 
-// Almacén de mensajes en memoria para responder a reintentos criptográficos (evita "Esperando el mensaje")
+// Almacén de mensajes en memoria para responder a reintentos criptográficos
 const mensajeCache = new Map();
 function guardarMensaje(id, message) {
   if (!id || !message) return;
@@ -79,6 +85,119 @@ function guardarMensaje(id, message) {
     if (primerId) mensajeCache.delete(primerId);
   }
 }
+
+// =========================================================================
+// SISTEMA DE SINCRONIZACIÓN PERSISTENTE CON SUPABASE A TRAVÉS DEL PORTAL
+// =========================================================================
+
+/** Restaura los archivos de sesión desde la base de datos Supabase si existen */
+async function restaurarSesionDesdePortal() {
+  try {
+    const url = `${PORTAL_URL}/api/public/whatsapp/sesion?token=${encodeURIComponent(TOKEN)}`;
+    log(`[Puente WhatsApp] Verificando respaldo de sesión en el portal...`);
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Puente-Token": TOKEN,
+        Authorization: `Bearer ${TOKEN}`,
+      },
+    });
+
+    if (!res.ok) {
+      log(`[Puente WhatsApp] No se pudo consultar la sesión del portal (HTTP ${res.status}).`);
+      return false;
+    }
+
+    const data = await res.json();
+    if (data?.ok && data.archivos && typeof data.archivos === "object") {
+      const nombres = Object.keys(data.archivos);
+      if (nombres.length > 0) {
+        if (!fs.existsSync(CARPETA_SESION)) {
+          fs.mkdirSync(CARPETA_SESION, { recursive: true });
+        }
+        for (const [nombre, contenido] of Object.entries(data.archivos)) {
+          if (contenido) {
+            fs.writeFileSync(path.join(CARPETA_SESION, nombre), String(contenido), "utf-8");
+          }
+        }
+        estado.restauradoDeBaseDatos = true;
+        log(`[Puente WhatsApp] 💾 ¡Sesión restaurada desde Supabase con éxito! (${nombres.length} archivos). Conectando sin necesidad de escanear QR.`);
+        return true;
+      }
+    }
+    log(`[Puente WhatsApp] No hay sesión previa guardada en base de datos. Se requerirá vinculación.`);
+    return false;
+  } catch (err) {
+    log(`[Puente WhatsApp] Error al restaurar sesión desde portal:`, err.message);
+    return false;
+  }
+}
+
+let syncTimeout = null;
+/** Respalda los archivos de sesión de WhatsApp hacia la base de datos Supabase de forma segura y debounced */
+function sincronizarSesionHaciaPortal() {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    try {
+      if (!fs.existsSync(CARPETA_SESION)) return;
+      const archivos = fs.readdirSync(CARPETA_SESION).filter((f) => f.endsWith(".json"));
+      if (archivos.length === 0) return;
+
+      const mapa = {};
+      for (const archivo of archivos) {
+        try {
+          const ruta = path.join(CARPETA_SESION, archivo);
+          mapa[archivo] = fs.readFileSync(ruta, "utf-8");
+        } catch {
+          /* ignorar archivo ocupado */
+        }
+      }
+
+      if (Object.keys(mapa).length === 0) return;
+
+      const url = `${PORTAL_URL}/api/public/whatsapp/sesion?token=${encodeURIComponent(TOKEN)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Puente-Token": TOKEN,
+          Authorization: `Bearer ${TOKEN}`,
+        },
+        body: JSON.stringify({ archivos: mapa }),
+      });
+
+      if (res.ok) {
+        log(`[Puente WhatsApp] ☁️ Sesión de WhatsApp sincronizada y asegurada en Supabase (${Object.keys(mapa).length} archivos).`);
+      } else {
+        const txt = await res.text().catch(() => "");
+        log(`[Puente WhatsApp] Aviso al sincronizar sesión (HTTP ${res.status}): ${txt}`);
+      }
+    } catch (e) {
+      log(`[Puente WhatsApp] Error al sincronizar sesión hacia el portal:`, e.message);
+    }
+  }, 1500);
+}
+
+/** Elimina la sesión de Supabase si el usuario decide desvincular voluntariamente */
+async function eliminarSesionEnPortal() {
+  try {
+    const url = `${PORTAL_URL}/api/public/whatsapp/sesion?token=${encodeURIComponent(TOKEN)}`;
+    await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "X-Puente-Token": TOKEN,
+        Authorization: `Bearer ${TOKEN}`,
+      },
+    });
+    log(`[Puente WhatsApp] Respaldo de sesión eliminado de Supabase.`);
+  } catch (e) {
+    log(`[Puente WhatsApp] Error eliminando respaldo de sesión:`, e.message);
+  }
+}
+
+// =========================================================================
+// CONEXIÓN Y EVENTOS DE WHATSAPP CON BAILEYS
+// =========================================================================
 
 async function conectar() {
   if (conectando) return;
@@ -95,19 +214,26 @@ async function conectar() {
   }
 
   try {
-    const { state, saveCreds } = await useMultiFileAuthState("./sesion-whatsapp");
+    // Si la carpeta local no existe o está vacía, intentamos restaurar desde Supabase
+    const tieneCredsLocales =
+      fs.existsSync(CARPETA_SESION) &&
+      fs.existsSync(path.join(CARPETA_SESION, "creds.json"));
 
-    // Envolver las llaves con makeCacheableSignalKeyStore para evitar desincronización de cifrado Signal
+    if (!tieneCredsLocales) {
+      await restaurarSesionDesdePortal();
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(CARPETA_SESION);
     const keys = makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }));
 
-    // Obtener la versión de WhatsApp Web más reciente para evitar rechazos de protocolo
+    // Obtenemos versión dinámica más reciente de WhatsApp Web
     let waVersion = [2, 3000, 1015901307];
     try {
       const { version, isLatest } = await fetchLatestBaileysVersion();
       waVersion = version;
       log(`[Puente WhatsApp] Versión WhatsApp Web: ${waVersion.join(".")} (última: ${isLatest})`);
     } catch (e) {
-      log(`[Puente WhatsApp] Usando versión fija de respaldo: ${waVersion.join(".")} (${e.message})`);
+      log(`[Puente WhatsApp] Usando versión de respaldo: ${waVersion.join(".")} (${e.message})`);
     }
 
     sock = makeWASocket({
@@ -117,27 +243,29 @@ async function conectar() {
         keys,
       },
       logger: pino({ level: "silent" }),
-      // Firma de Ubuntu Chrome: la más compatible y ampliamente aceptada por WhatsApp Web
-      browser: Browsers.ubuntu("Chrome"),
+      // Firma de cliente Desktop para que WhatsApp Web mantenga la sesión permanente sin caducar
+      browser: ["IVAD Connect", "Desktop", "1.0.0"],
       printQRInTerminal: false,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
-      keepAliveIntervalMs: 25000,
+      // Ping keep-alive al servidor de WhatsApp cada 15 segundos para evitar desconexiones por inactividad
+      keepAliveIntervalMs: 15000,
       emitOwnEvents: false,
-      // Handler para que Baileys pueda responder a reintentos de descifrado del cliente receptor
       getMessage: async (key) => {
         const guardado = mensajeCache.get(key.id);
         if (guardado?.message) return guardado.message;
         if (guardado) return guardado;
         return undefined;
       },
-      // Desactivar sincronización de historial completo para que la vinculación sea instantánea
       syncFullHistory: false,
       shouldSyncHistoryMessage: () => false,
       markOnlineOnConnect: true,
     });
 
-    sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("creds.update", async () => {
+      await saveCreds();
+      sincronizarSesionHaciaPortal();
+    });
 
     sock.ev.on("connection.update", async (u) => {
       const { connection, lastDisconnect, qr } = u;
@@ -151,9 +279,9 @@ async function conectar() {
             color: { dark: "#0b141a", light: "#ffffff" },
           });
           estado.conectado = false;
-          log("[Puente WhatsApp] Nuevo QR criptográfico emitido y listo para escanear.");
+          log("[Puente WhatsApp] Código QR generado y listo para vincular en el portal.");
         } catch (err) {
-          log("[Puente WhatsApp] Error generando QR:", err.message);
+          log("[Puente WhatsApp] Error generando imagen QR:", err.message);
         }
       }
 
@@ -162,7 +290,10 @@ async function conectar() {
         estado.qr = "";
         estado.codigo = "";
         estado.numero = sock.user?.id?.split(":")[0] ?? "";
-        log(`[Puente WhatsApp] ¡WhatsApp Conectado exitosamente! Número: +${estado.numero}`);
+        desvinculacionVoluntaria = false;
+        log(`[Puente WhatsApp] 🟢 ¡WhatsApp CONECTADO y ACTIVO permanentemente! Número: +${estado.numero}`);
+        // Respaldamos de inmediato la sesión confirmada
+        sincronizarSesionHaciaPortal();
       }
 
       if (connection === "close") {
@@ -170,21 +301,20 @@ async function conectar() {
         const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
         log(`[Puente WhatsApp] Conexión cerrada. Código de estado: ${statusCode}`);
 
-        if (statusCode === DisconnectReason.loggedOut) {
-          log("[Puente WhatsApp] Sesión cerrada o desvinculada. Limpiando credenciales...");
-          try {
-            fs.rmSync("./sesion-whatsapp", { recursive: true, force: true });
-          } catch {
-            /* ignorar */
-          }
+        if (desvinculacionVoluntaria) {
+          log("[Puente WhatsApp] Desvinculación manual confirmada por el usuario.");
+          desvinculacionVoluntaria = false;
           estado.qr = "";
           estado.numero = "";
           estado.codigo = "";
           setTimeout(() => {
             conectando = false;
             conectar();
-          }, 2000);
+          }, 1500);
         } else {
+          // REGLA CRÍTICA: NUNCA borrar credenciales ante desconexiones automáticas o transitorias (401/408/515).
+          // Siempre reconectar para mantener el WhatsApp encendido y vinculado.
+          log("[Puente WhatsApp] Reconexión automática en marcha para mantener el WhatsApp activo...");
           setTimeout(() => {
             conectando = false;
             conectar();
@@ -194,7 +324,7 @@ async function conectar() {
     });
 
     // Respuestas automáticas con IA para mensajes entrantes
-    sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    sock.ev.on("messages.upsert", async ({ messages }) => {
       if (!PORTAL_URL || !Array.isArray(messages)) return;
       for (const m of messages) {
         if (
@@ -221,7 +351,6 @@ async function conectar() {
           }
         }
 
-        // Extraer texto contemplando mensajes efímeros, respuestas citadas, botones, captions y notas de voz
         const msg = m.message;
         if (!msg) continue;
         if (m.key?.id) {
@@ -275,8 +404,6 @@ async function conectar() {
           }
 
           const data = await res.json();
-          // Si tenemos el teléfono numérico real, enviamos a su JID oficial para que WhatsApp
-          // resuelva y sincronice las claves de cifrado en todos sus dispositivos correctamente.
           const jidDestino =
             remitente && /^\d+$/.test(remitente) ? numeroWa(remitente) : m.key.remoteJid;
 
@@ -313,6 +440,10 @@ async function conectar() {
   }
 }
 
+// =========================================================================
+// SERVIDOR HTTP REST DEL PUENTE
+// =========================================================================
+
 const leerCuerpo = (req) =>
   new Promise((resolve) => {
     let d = "";
@@ -328,11 +459,11 @@ const leerCuerpo = (req) =>
 
 createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Puente-Token");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Puente-Token, Authorization");
   res.setHeader("Content-Type", "application/json");
   if (req.method === "OPTIONS") return res.writeHead(204).end();
 
-  // Endpoint de ping para mantener activo el contenedor de Render
+  // Endpoint de ping para mantener activo el contenedor
   if (req.url === "/ping" && req.method === "GET") {
     res.writeHead(200);
     return res.end(
@@ -341,6 +472,7 @@ createServer(async (req, res) => {
         conectado: estado.conectado,
         numero: estado.numero,
         hora: new Date().toISOString(),
+        restaurado: estado.restauradoDeBaseDatos,
       }),
     );
   }
@@ -351,10 +483,11 @@ createServer(async (req, res) => {
     return res.end(JSON.stringify(logs));
   }
 
-  // Validación de token de seguridad para endpoints privados
-  if (req.headers["x-puente-token"] !== TOKEN) {
+  // Validación de token de seguridad
+  const headerToken = req.headers["x-puente-token"] || req.headers["authorization"]?.replace(/^bearer\s+/i, "");
+  if (headerToken !== TOKEN) {
     res.writeHead(401);
-    return res.end(JSON.stringify({ error: "Token invalido" }));
+    return res.end(JSON.stringify({ error: "Token inválido" }));
   }
 
   // Estado general de conexión, QR y código de vinculación
@@ -362,7 +495,7 @@ createServer(async (req, res) => {
     return res.end(JSON.stringify(estado));
   }
 
-  // Generación de Código de Vinculación de 8 Dígitos (Pairing Code)
+  // Código de Vinculación Numérico (Pairing Code)
   if (req.url === "/codigo" && req.method === "POST") {
     const { numero } = await leerCuerpo(req);
     const numLimpio = normalizarNumero(numero);
@@ -398,20 +531,18 @@ createServer(async (req, res) => {
     }
   }
 
-  // Envío de mensajes y documentos PDF (recibos/volantes de pago)
+  // Envío de mensajes y documentos PDF (volantes de pago)
   if (req.url === "/enviar" && req.method === "POST") {
     const { para, texto, documentoBase64, nombreArchivo, mimetype } = await leerCuerpo(req);
     const jid = numeroWa(para);
-    log(
-      `[Puente WhatsApp] Petición de envío a: ${jid} (para: "${para}", conectado=${estado.conectado}, doc=${Boolean(documentoBase64)})`,
-    );
+    ultimoDestinoEnviado = { telefono: normalizarNumero(para), time: Date.now() };
 
     if (!estado.conectado) {
       log(`[Puente WhatsApp] Intento de envío fallido: WhatsApp no está conectado.`);
       res.writeHead(409);
       return res.end(
         JSON.stringify({
-          error: "WhatsApp no está conectado. Escanea el código QR o vincula con el código en Administración > WhatsApp.",
+          error: "WhatsApp no está conectado. Por favor verifica el estado en Administración > WhatsApp.",
         }),
       );
     }
@@ -449,23 +580,27 @@ createServer(async (req, res) => {
     }
   }
 
-  // Cierre de sesión y limpieza completa para generar credenciales frescas
+  // Cierre de sesión y limpieza completa SOLO cuando el usuario solicita desvincular explícitamente
   if (req.url === "/salir" && req.method === "POST") {
+    desvinculacionVoluntaria = true;
     try {
       await sock?.logout();
     } catch {
       /* ignorar */
     }
     try {
-      fs.rmSync("./sesion-whatsapp", { recursive: true, force: true });
+      fs.rmSync(CARPETA_SESION, { recursive: true, force: true });
     } catch {
       /* ignorar */
     }
+    await eliminarSesionEnPortal();
+
     estado.conectado = false;
     estado.numero = "";
     estado.qr = "";
     estado.codigo = "";
-    log("[Puente WhatsApp] Sesión cerrada y credenciales limpiadas a petición.");
+    estado.restauradoDeBaseDatos = false;
+    log("[Puente WhatsApp] Sesión desvinculada por solicitud del usuario y credenciales limpiadas.");
     setTimeout(() => {
       conectando = false;
       conectar();
@@ -479,13 +614,14 @@ createServer(async (req, res) => {
   log(`[Puente WhatsApp] Servidor escuchando en http://localhost:${PORT}`);
 });
 
-// Self-ping para mantener el servicio activo en Render free tier (cada 9 minutos)
+// Self-ping anti-suspensión cada 3 minutos para mantener el servicio activo en Render
 setInterval(async () => {
   try {
     await fetch(KEEP_ALIVE_URL);
   } catch {
     /* ignorar */
   }
-}, 9 * 60 * 1000);
+}, 3 * 60 * 1000);
 
+// Iniciar conexión
 conectar();

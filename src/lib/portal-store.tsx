@@ -565,6 +565,22 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, [cargar]);
 
+  // Mantiene activo el puente de WhatsApp en Render haciéndole ping periódico cada 4 minutos
+  useEffect(() => {
+    if (!puenteWhatsappUrl) return;
+    const ping = () => {
+      try {
+        const url = puenteWhatsappUrl.replace(/\/+$/, "") + "/ping";
+        void fetch(url, { method: "GET", mode: "no-cors" }).catch(() => undefined);
+      } catch {
+        /* ignorar */
+      }
+    };
+    ping();
+    const timer = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [puenteWhatsappUrl]);
+
   const sesion: Cuenta = useMemo(() => {
     const yo = colaboradores.find((c) => c.id === userId);
     if (!yo) return sesionVacia;
