@@ -58,8 +58,14 @@ export const enviarVolantesFn = createServerFn({ method: "POST" })
       .select("clave, valor")
       .in("clave", ["whatsapp_puente_url", "whatsapp_puente_token"]);
 
-    const puenteUrl = ajustesFilas?.find((a) => a.clave === "whatsapp_puente_url")?.valor;
-    const puenteToken = ajustesFilas?.find((a) => a.clave === "whatsapp_puente_token")?.valor;
+    const puenteUrl =
+      ajustesFilas?.find((a) => a.clave === "whatsapp_puente_url")?.valor ||
+      process.env["WHATSAPP_PUENTE_URL"] ||
+      "https://puente-whatsapp-ivad.onrender.com";
+    const puenteToken =
+      ajustesFilas?.find((a) => a.clave === "whatsapp_puente_token")?.valor ||
+      process.env["WHATSAPP_PUENTE_TOKEN"] ||
+      "ivad-secret-token";
 
     const resultados: Array<{ id: string; nombre: string; ok: boolean; error?: string; medios?: string }> = [];
 

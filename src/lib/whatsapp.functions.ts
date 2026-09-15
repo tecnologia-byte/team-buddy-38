@@ -13,7 +13,7 @@ const resultado = <T,>(fn: () => Promise<T>) =>
     error: e instanceof Error ? e.message : "Error del puente de WhatsApp",
   }));
 
-/** Estado de la conexión de WhatsApp y QR pendiente de escanear. */
+/** Estado de la conexión de WhatsApp, QR y Pairing Code pendiente. */
 export const estadoWhatsappFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => puenteSchema.parse(data))
@@ -22,6 +22,24 @@ export const estadoWhatsappFn = createServerFn({ method: "POST" })
       const { estadoPuente } = await import("./whatsapp.server");
       const e = await estadoPuente(data.puente, data.token);
       return { ok: true as const, ...e };
+    }),
+  );
+
+/** Solicita un código de vinculación numérico de 8 dígitos para vincular con el número de teléfono. */
+export const pedirCodigoWhatsappFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    puenteSchema
+      .extend({
+        numero: z.string().min(8).max(25),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) =>
+    resultado(async () => {
+      const { pedirCodigoVinculacion } = await import("./whatsapp.server");
+      const r = await pedirCodigoVinculacion(data.puente, data.numero, data.token);
+      return { ok: true as const, codigo: r.codigo };
     }),
   );
 

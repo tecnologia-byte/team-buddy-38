@@ -1,16 +1,19 @@
-/** Comunicación con el puente de WhatsApp (Baileys + QR). Solo servidor. */
+/** Comunicación con el puente de WhatsApp (Baileys + QR / Pairing Code). Solo servidor. */
 
-type Estado = { conectado: boolean; numero: string; qr: string };
+type Estado = { conectado: boolean; numero: string; qr: string; codigo?: string };
 
-const limpiar = (url: string) => url.trim().replace(/\/+$/, "");
+const URL_PUENTE_PREDETERMINADA = "https://puente-whatsapp-ivad.onrender.com";
+
+const limpiar = (url: string) => (url || URL_PUENTE_PREDETERMINADA).trim().replace(/\/+$/, "");
 
 /**
- * Llama al puente. El servidor gratuito se "duerme" y el primer intento puede
- * tardar hasta un minuto en despertar, por eso reintentamos con paciencia.
+ * Llama al puente. El servidor gratuito en Render se duerme por inactividad
+ * y el primer intento puede tardar hasta 45 segundos en despertar; reintentamos con paciencia.
  */
 async function llamar(puente: string, ruta: string, cuerpo?: unknown, tokenParam?: string) {
+  const urlBase = limpiar(puente || process.env["WHATSAPP_PUENTE_URL"] || URL_PUENTE_PREDETERMINADA);
   const token = tokenParam?.trim() || process.env["WHATSAPP_PUENTE_TOKEN"] || "ivad-secret-token";
-  const url = `${limpiar(puente)}${ruta}`;
+  const url = `${urlBase}${ruta}`;
   const intentos = 3;
   let ultimo = "";
 
@@ -41,13 +44,27 @@ async function llamar(puente: string, ruta: string, cuerpo?: unknown, tokenParam
   throw new Error(ultimo || "El puente de WhatsApp no responde");
 }
 
-/** Estado de la conexión y código QR devuelto por Baileys para escanear. */
+/** Estado de la conexión, código QR y código de vinculación devuelto por el puente. */
 export async function estadoPuente(puente: string, token?: string): Promise<Estado> {
-  const d = await llamar(puente, "/estado", undefined, token);
+  try {
+    const d = await llamar(puente, "/estado", undefined, token);
+    if (d && (d["qr"] || d["conectado"] || d["codigo"])) {
+      return {
+        conectado: Boolean(d["conectado"]),
+        numero: String(d["numero"] ?? ""),
+        qr: String(d["qr"] ?? ""),
+        codigo: String(d["codigo"] ?? ""),
+      };
+    }
+  } catch {
+    // Si el puente externo no responde o está iniciando, reporta desconectado
+  }
+
   return {
-    conectado: Boolean(d["conectado"]),
-    numero: String(d["numero"] ?? ""),
-    qr: String(d["qr"] ?? ""),
+    conectado: false,
+    numero: "",
+    qr: "",
+    codigo: "",
   };
 }
 
@@ -74,13 +91,13 @@ export async function enviarWhatsapp(
   let docFinal = doc;
 
   if (typeof puenteOParams === "object" && puenteOParams !== null) {
-    puente = puenteOParams.puente || process.env["WHATSAPP_PUENTE_URL"] || "http://localhost:8787";
+    puente = puenteOParams.puente || process.env["WHATSAPP_PUENTE_URL"] || URL_PUENTE_PREDETERMINADA;
     paraFinal = puenteOParams.para;
     textoFinal = puenteOParams.texto;
     tokenFinal = puenteOParams.token;
     docFinal = puenteOParams.doc;
   } else {
-    puente = puenteOParams || process.env["WHATSAPP_PUENTE_URL"] || "http://localhost:8787";
+    puente = puenteOParams || process.env["WHATSAPP_PUENTE_URL"] || URL_PUENTE_PREDETERMINADA;
     paraFinal = para ?? "";
     textoFinal = texto ?? "";
     tokenFinal = token;
@@ -106,10 +123,22 @@ export async function enviarWhatsapp(
   return { ok: true as const };
 }
 
+/** Solicita un código de vinculación de 8 dígitos para vincular por número sin necesidad de cámara. */
+export async function pedirCodigoVinculacion(
+  puente: string,
+  numero: string,
+  token?: string,
+): Promise<{ codigo: string }> {
+  let numLimpio = (numero ?? "").replace(/\D/g, "");
+  if (numLimpio.length === 10 && (numLimpio.startsWith("809") || numLimpio.startsWith("829") || numLimpio.startsWith("849"))) {
+    numLimpio = "1" + numLimpio;
+  }
+  const d = await llamar(puente, "/codigo", { numero: numLimpio }, token);
+  return { codigo: String(d["codigo"] ?? "") };
+}
+
 /** Cierra la sesión actual para poder vincular otro teléfono. */
 export async function cerrarPuente(puente: string, token?: string) {
   await llamar(puente, "/salir", {}, token);
   return { ok: true as const };
 }
-
-

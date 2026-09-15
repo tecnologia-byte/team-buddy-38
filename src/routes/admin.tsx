@@ -19,6 +19,9 @@ import {
   UserPlus,
   Users,
   X,
+  Copy,
+  KeyRound,
+  QrCode,
 } from "lucide-react";
 import { AppShell, AppHeader, Avatar, SectionTitle } from "@/components/app-shell";
 import { FirmaPad } from "@/components/firma-pad";
@@ -41,6 +44,7 @@ import {
   estadoWhatsappFn,
   enviarWhatsappFn,
   desvincularWhatsappFn,
+  pedirCodigoWhatsappFn,
 } from "@/lib/whatsapp.functions";
 
 export const Route = createFileRoute("/admin")({
@@ -210,8 +214,8 @@ async function enviarReciboPago(
       para: c.email || "",
       whatsapp: c.whatsapp ?? undefined,
       canalAvisos: canal,
-      puenteWhatsappUrl: puenteUrl,
-      puenteWhatsappToken: puenteToken,
+      puenteWhatsappUrl: puenteUrl || "https://puente-whatsapp-ivad.onrender.com",
+      puenteWhatsappToken: puenteToken || "ivad-secret-token",
       comprobante,
       fechaEmision: new Date().toLocaleDateString("es-DO"),
       periodoDesde: pago.periodo,
@@ -255,12 +259,22 @@ function Contabilidad() {
               type="button"
               className="text-xs font-medium text-primary underline"
               onClick={async () => {
+                let despachados = 0;
                 for (const p of pagos.filter((x) => x.recibo === "No enviado")) {
-                  await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
                   const col = colaboradores.find((x) => x.id === p.colaboradorId);
-                  if (col) await enviarReciboPago(p, col, puenteWhatsappUrl, puenteWhatsappToken).catch(() => undefined);
+                  if (col) {
+                    const res = await enviarReciboPago(p, col, puenteWhatsappUrl, puenteWhatsappToken).catch(() => undefined);
+                    if (res && "ok" in res && res.ok) {
+                      await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
+                      despachados++;
+                    }
+                  }
                 }
-                toast.success("Recibos despachados según las preferencias de cada colaborador");
+                if (despachados > 0) {
+                  toast.success(`${despachados} recibos despachados según las preferencias de cada colaborador`);
+                } else {
+                  toast.error("No se pudo entregar ningún recibo. Verifica la conexión de WhatsApp o el correo.");
+                }
               }}
             >
               Enviar todos
@@ -311,20 +325,20 @@ function Contabilidad() {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
                           const res = await enviarReciboPago(p, c, puenteWhatsappUrl, puenteWhatsappToken).catch((e) => ({
                             ok: false as const,
                             medios: "",
                             error: e instanceof Error ? e.message : "Error de envío",
                           }));
-                          if (res.ok) {
+                          if (res && "ok" in res && res.ok) {
+                            await actualizarPago(p.id, { recibo: "Enviado", estado: "Pagado" });
                             if ("advertencia" in res && res.advertencia) {
-                              toast.warning(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "Correo"}, pero falló: ${res.advertencia}`);
+                              toast.warning(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "canal configurado"}, pero falló: ${res.advertencia}`);
                             } else {
-                              toast.success(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "Correo"} a ${c.nombre}`);
+                              toast.success(`Recibo enviado por ${"medios" in res && res.medios ? res.medios : "canal configurado"} a ${c.nombre}`);
                             }
                           } else {
-                            toast.error(res.error ?? "No se pudo enviar el recibo");
+                            toast.error(res?.error ?? "No se pudo enviar el recibo");
                           }
                         }}
                       >
@@ -1456,14 +1470,20 @@ function SolicitudesPanel() {
 }
 
 function AdminWhatsApp() {
-  const { puenteWhatsappUrl, puenteWhatsappToken, guardarPuenteWhatsappConfig } = usePortal();
-  const [puente, setPuente] = useState(puenteWhatsappUrl);
+  const { puenteWhatsappUrl, puenteWhatsappToken, guardarPuenteWhatsappConfig, colaboradores } = usePortal();
+  const [puente, setPuente] = useState(puenteWhatsappUrl || "https://puente-whatsapp-ivad.onrender.com");
   const [token, setToken] = useState(puenteWhatsappToken || "ivad-secret-token");
-  const [guardandoPuente, setGuardandoPuente] = useState(false);
   const [consultando, setConsultando] = useState(false);
   const [desvinculando, setDesvinculando] = useState(false);
-  const [estado, setEstado] = useState<{ conectado: boolean; numero: string; qr: string } | null>(null);
+  const [estado, setEstado] = useState<{ conectado: boolean; numero: string; qr: string; codigo?: string } | null>(null);
   const [errorPuente, setErrorPuente] = useState<string | null>(null);
+
+  // Método de vinculación: "codigo" (8 dígitos - recomendado) o "qr" (cámara)
+  const [metodo, setMetodo] = useState<"codigo" | "qr">("codigo");
+  const [telefonoVinculacion, setTelefonoVinculacion] = useState("+1 ");
+  const [pidiendoCodigo, setPidiendoCodigo] = useState(false);
+  const [codigoGenerado, setCodigoGenerado] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   // Mensaje de prueba
   const [telefonoPrueba, setTelefonoPrueba] = useState("");
@@ -1471,7 +1491,7 @@ function AdminWhatsApp() {
   const [enviandoPrueba, setEnviandoPrueba] = useState(false);
 
   useEffect(() => {
-    setPuente(puenteWhatsappUrl);
+    if (puenteWhatsappUrl) setPuente(puenteWhatsappUrl);
   }, [puenteWhatsappUrl]);
 
   useEffect(() => {
@@ -1479,9 +1499,8 @@ function AdminWhatsApp() {
   }, [puenteWhatsappToken]);
 
   const consultar = async (urlTarget?: string, tokenTarget?: string) => {
-    const target = (urlTarget ?? puente).trim();
-    const tok = (tokenTarget ?? token).trim();
-    if (!target) return;
+    const target = (urlTarget ?? puente).trim() || "https://puente-whatsapp-ivad.onrender.com";
+    const tok = (tokenTarget ?? token).trim() || "ivad-secret-token";
     setConsultando(true);
     setErrorPuente(null);
     try {
@@ -1494,7 +1513,11 @@ function AdminWhatsApp() {
           conectado: Boolean(res.conectado),
           numero: String(res.numero ?? ""),
           qr: String(res.qr ?? ""),
+          codigo: "codigo" in res ? String(res.codigo ?? "") : "",
         });
+        if ("codigo" in res && res.codigo) {
+          setCodigoGenerado(String(res.codigo));
+        }
       }
     } catch (e) {
       setErrorPuente(e instanceof Error ? e.message : "Error al consultar estado");
@@ -1508,36 +1531,57 @@ function AdminWhatsApp() {
     void consultar(puente, token);
   }, [puente, token]);
 
-  // Sondeo cada 5s si hay un QR visible para actualizar automáticamente al escanear
+  // Sondeo continuo cada 4s mientras esté desconectado para detectar el emparejamiento al instante
   useEffect(() => {
-    if (estado && !estado.conectado && estado.qr) {
+    if (estado && !estado.conectado) {
       const interval = setInterval(() => {
         void consultar();
-      }, 5000);
+      }, 4000);
       return () => clearInterval(interval);
     }
     return undefined;
-  }, [estado, puente, token]);
+  }, [estado?.conectado, puente, token]);
 
-  const guardarConfig = async () => {
-    setGuardandoPuente(true);
-    const r = await guardarPuenteWhatsappConfig(puente, token);
-    setGuardandoPuente(false);
-    if (!r.ok) {
-      toast.error(r.error ?? "No se pudo guardar la configuración");
+  const solicitarCodigo = async () => {
+    const num = telefonoVinculacion.replace(/\D/g, "");
+    if (!num || num.length < 10) {
+      toast.error("Ingresa tu número de WhatsApp con prefijo (ej: +1 849 425 2220 o 18494252220)");
       return;
     }
-    toast.success("Configuración del puente guardada");
-    await consultar(puente, token);
+    setPidiendoCodigo(true);
+    try {
+      const res = await pedirCodigoWhatsappFn({
+        data: { puente, numero: num, token },
+      });
+      if (res.ok && res.codigo) {
+        setCodigoGenerado(res.codigo);
+        toast.success("¡Código de vinculación listo! Ingrésalo en tu WhatsApp.");
+      } else {
+        toast.error(res.error ?? "No se pudo generar el código");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al solicitar código");
+    } finally {
+      setPidiendoCodigo(false);
+    }
+  };
+
+  const copiarCodigo = () => {
+    if (!codigoGenerado) return;
+    navigator.clipboard.writeText(codigoGenerado.replace(/\s+/g, ""));
+    setCopiado(true);
+    toast.success("Código copiado al portapapeles");
+    setTimeout(() => setCopiado(false), 2500);
   };
 
   const desvincular = async () => {
-    if (!confirm("¿Seguro que deseas desvincular el WhatsApp actual? Se cerrará la sesión y se generará un código QR nuevo.")) return;
+    if (!confirm("¿Deseas desvincular el WhatsApp actual? Se cerrará la sesión y se reiniciará el puente.")) return;
     setDesvinculando(true);
+    setCodigoGenerado(null);
     try {
       const res = await desvincularWhatsappFn({ data: { puente, token } });
       if (res.ok) {
-        toast.success("Sesión cerrada. Generando nuevo código QR...");
+        toast.success("Sesión cerrada. Puedes vincular tu teléfono nuevamente.");
         await consultar();
       } else {
         toast.error(res.error ?? "Error al desvincular");
@@ -1565,7 +1609,7 @@ function AdminWhatsApp() {
         data: { puente, para: num, texto: textoPrueba, token },
       });
       if (res.ok) {
-        toast.success("Mensaje de prueba enviado por WhatsApp");
+        toast.success("Mensaje de prueba entregado exitosamente por WhatsApp");
       } else {
         toast.error(res.error ?? "No se pudo enviar el mensaje");
       }
@@ -1578,26 +1622,46 @@ function AdminWhatsApp() {
 
   return (
     <div className="space-y-6">
-      {/* Vinculación Directa con Código QR */}
+      {/* Vinculación Directa: Código de 8 Dígitos o Código QR */}
       <section className="surface-card p-6 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
           <div>
             <SectionTitle>Conectar WhatsApp Corporativo</SectionTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Escanea el código QR desde tu teléfono para vincular la cuenta y enviar avisos automáticos al personal.
+              Vincula tu cuenta de WhatsApp para enviar automáticamente comprobantes de pago en PDF y notificaciones.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void consultar()}
-            disabled={consultando}
-            className="self-start sm:self-auto"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
-            {consultando ? "Actualizando..." : "Actualizar QR"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void consultar()}
+              disabled={consultando}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
+              {consultando ? "Comprobando..." : "Actualizar Estado"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void desvincular()}
+              disabled={desvinculando}
+              title="Reinicia la sesión si el código no responde"
+              className="text-xs text-muted-foreground hover:text-destructive"
+            >
+              Reiniciar sesión
+            </Button>
+          </div>
         </div>
+
+        {errorPuente ? (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200 flex items-center justify-between">
+            <span>El puente en la nube se está iniciando o respondiendo ({errorPuente}).</span>
+            <Button size="sm" variant="outline" onClick={() => void consultar()} disabled={consultando}>
+              Reintentar
+            </Button>
+          </div>
+        ) : null}
 
         {estado?.conectado ? (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-emerald-950 dark:text-emerald-200 space-y-4">
@@ -1608,12 +1672,12 @@ function AdminWhatsApp() {
               <div>
                 <p className="text-lg font-bold text-foreground">WhatsApp Conectado y Operativo</p>
                 <p className="text-sm text-muted-foreground">
-                  Número activo: <strong className="font-mono text-foreground font-semibold">+{estado.numero}</strong>
+                  Número emisor activo: <strong className="font-mono text-foreground font-semibold">+{estado.numero}</strong>
                 </p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground max-w-xl">
-              Los avisos de nómina, estados de permisos, vacaciones y tareas se enviarán automáticamente a través de este WhatsApp a los colaboradores registrados.
+              Los comprobantes oficiales de nómina en PDF, avisos de pago y notificaciones del personal se entregarán en tiempo real a través de este número.
             </p>
             <Button
               variant="destructive"
@@ -1621,47 +1685,159 @@ function AdminWhatsApp() {
               onClick={() => void desvincular()}
               disabled={desvinculando}
             >
-              {desvinculando ? "Desvinculando..." : "Desvincular este teléfono"}
+              {desvinculando ? "Desvinculando..." : "Desvincular este WhatsApp"}
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-6 px-4">
-            {estado?.qr ? (
-              <div className="flex flex-col items-center justify-center space-y-4 bg-muted/20 border rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-sm">
-                <div className="bg-white p-3 rounded-2xl shadow-md border">
-                  <img
-                    src={estado.qr}
-                    alt="Código QR de WhatsApp"
-                    className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
-                  />
-                </div>
+          <div className="space-y-6 pt-2">
+            {/* Selector de método de vinculación */}
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-xl bg-muted p-1 border shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setMetodo("codigo")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    metodo === "codigo"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <KeyRound className="h-4 w-4 text-emerald-500" />
+                  Vincular con Código de 8 Dígitos (Recomendado)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetodo("qr")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    metodo === "qr"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <QrCode className="h-4 w-4 text-primary" />
+                  Escanear Código QR
+                </button>
+              </div>
+            </div>
+
+            {metodo === "codigo" ? (
+              /* MÉTODO 1: Código de 8 Dígitos (Pairing Code) */
+              <div className="max-w-xl mx-auto bg-muted/20 border rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
                 <div className="text-center space-y-1.5">
-                  <p className="text-sm font-semibold text-foreground">
-                    Escanea este código con WhatsApp
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    1. Abre WhatsApp en tu celular &rarr; 2. Ajustes o Menú (&#8942;) &rarr; 3. Dispositivos vinculados &rarr; 4. Vincular un dispositivo.
+                  <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-600 mb-2">
+                    <Smartphone className="h-6 w-6" />
+                  </span>
+                  <h3 className="text-base font-bold text-foreground">
+                    Vinculación Rápida por Número (Sin Cámara)
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                    Escribe el número de teléfono donde tienes WhatsApp. Te generaremos un código de 8 caracteres para vincularlo directamente desde la app.
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 text-xs font-medium text-primary animate-pulse pt-2">
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Esperando escaneo desde tu teléfono...
-                </span>
+
+                <div className="space-y-3 max-w-sm mx-auto">
+                  <div className="space-y-1">
+                    <Label htmlFor="tel-vinc" className="text-xs font-medium">
+                      Tu número de WhatsApp (con prefijo +1)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="tel-vinc"
+                        placeholder="+1 849 425 2220"
+                        value={telefonoVinculacion}
+                        onChange={(e) => setTelefonoVinculacion(e.target.value)}
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        onClick={() => void solicitarCodigo()}
+                        disabled={pidiendoCodigo}
+                        className="shrink-0"
+                      >
+                        {pidiendoCodigo ? "Generando..." : "Generar Código"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {codigoGenerado ? (
+                  <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/5 p-6 text-center space-y-4 animate-in fade-in zoom-in duration-200">
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                      Tu Código de Vinculación
+                    </p>
+                    <div className="inline-flex items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-background border shadow-inner">
+                      <span className="font-mono text-3xl sm:text-4xl font-black tracking-widest text-foreground">
+                        {codigoGenerado}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={copiarCodigo}
+                        className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                        title="Copiar código"
+                      >
+                        {copiado ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5" />}
+                      </Button>
+                    </div>
+
+                    <div className="text-left bg-background/80 rounded-xl p-4 border text-xs space-y-2 text-muted-foreground">
+                      <p className="font-semibold text-foreground">Pasos para activar en tu teléfono:</p>
+                      <ol className="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
+                        <li>Abre <strong>WhatsApp</strong> en tu celular.</li>
+                        <li>Toca los tres puntos <strong>(⋮)</strong> o <strong>Ajustes</strong> &rarr; <strong>Dispositivos vinculados</strong>.</li>
+                        <li>Toca <strong>Vincular un dispositivo</strong>.</li>
+                        <li>En la parte inferior de la pantalla de la cámara, toca <strong>"Vincular con el número de teléfono"</strong>.</li>
+                        <li>Ingresa el código: <strong className="font-mono text-foreground font-bold">{codigoGenerado}</strong></li>
+                      </ol>
+                    </div>
+
+                    <div className="inline-flex items-center gap-2 text-xs font-medium text-emerald-600 animate-pulse">
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Esperando que ingreses el código en WhatsApp...
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center max-w-sm">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <Smartphone className="h-8 w-8" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-foreground">Preparando código QR...</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {consultando ? "Generando sesión segura..." : "Haz clic en el botón para cargar el código QR."}
-                  </p>
-                </div>
-                <Button onClick={() => void consultar()} disabled={consultando}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
-                  Cargar código QR
-                </Button>
+              /* MÉTODO 2: Escanear Código QR con marco nítido */
+              <div className="flex flex-col items-center justify-center py-4 px-4">
+                {estado?.qr ? (
+                  <div className="flex flex-col items-center justify-center space-y-4 bg-muted/20 border rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-sm">
+                    {/* Marco blanco puro con padding generoso para lectura infalible */}
+                    <div className="bg-white p-4 rounded-3xl shadow-lg border-4 border-white inline-block">
+                      <img
+                        src={estado.qr}
+                        alt="Código QR de WhatsApp"
+                        className="w-64 h-64 sm:w-72 sm:h-72 object-contain select-none block"
+                      />
+                    </div>
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-semibold text-foreground">
+                        Apunta tu cámara de WhatsApp a este código
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+                        1. Abre WhatsApp &rarr; 2. Ajustes / Menú (⋮) &rarr; 3. Dispositivos vinculados &rarr; 4. Vincular dispositivo.
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-primary animate-pulse pt-1">
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Esperando escaneo desde tu teléfono...
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 space-y-4 text-center max-w-sm">
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <Smartphone className="h-8 w-8" />
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-foreground">Generando sesión de WhatsApp...</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {consultando ? "Conectando con el servidor en Render..." : "Haz clic para cargar el código QR."}
+                      </p>
+                    </div>
+                    <Button onClick={() => void consultar()} disabled={consultando}>
+                      <RefreshCw className={`mr-2 h-4 w-4 ${consultando ? "animate-spin" : ""}`} />
+                      Cargar código QR
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1674,10 +1850,10 @@ function AdminWhatsApp() {
           <SectionTitle>Prueba de Envío Directo</SectionTitle>
           <div className="space-y-3 max-w-xl">
             <div className="space-y-1">
-              <Label htmlFor="tel-prueba">Número de destino (con código de país)</Label>
+              <Label htmlFor="tel-prueba">Número de destino (con código de país, ej: +1 849 425 2220)</Label>
               <Input
                 id="tel-prueba"
-                placeholder="18095551234"
+                placeholder="18494252220"
                 value={telefonoPrueba}
                 onChange={(e) => setTelefonoPrueba(e.target.value)}
               />
