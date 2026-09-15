@@ -62,6 +62,12 @@ function normalizarNumero(n) {
 
 const numeroWa = (n) => `${normalizarNumero(n)}@s.whatsapp.net`;
 
+// Mapeo automático de LIDs (Linked Device Identifiers) a números de teléfono reales
+const lidToPhone = new Map([
+  ["191500109537421", "18494252220"],
+]);
+let ultimoDestinoEnviado = { telefono: "18494252220", time: Date.now() };
+
 async function conectar() {
   if (conectando) return;
   conectando = true;
@@ -166,6 +172,7 @@ async function conectar() {
     // Respuestas automáticas con IA para mensajes entrantes
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
       if (!PORTAL_URL || !Array.isArray(messages)) return;
+      for (const m of messages) {
         if (
           m.key.fromMe ||
           !m.key.remoteJid ||
@@ -175,7 +182,20 @@ async function conectar() {
           continue;
         }
 
-        const remitente = m.key.remoteJid.split("@")[0] || "";
+        let remitente = m.key.remoteJid.split("@")[0] || "";
+        const esLid = m.key.remoteJid.endsWith("@lid");
+
+        if (esLid) {
+          const mapeado = lidToPhone.get(remitente);
+          if (mapeado) {
+            log(`[Puente WhatsApp] 🔄 Mapeando LID ${remitente} -> Teléfono ${mapeado}`);
+            remitente = mapeado;
+          } else if (ultimoDestinoEnviado.telefono && Date.now() - ultimoDestinoEnviado.time < 60 * 60 * 1000) {
+            log(`[Puente WhatsApp] 🔄 Asociando LID reciente ${remitente} -> Teléfono ${ultimoDestinoEnviado.telefono}`);
+            lidToPhone.set(remitente, ultimoDestinoEnviado.telefono);
+            remitente = ultimoDestinoEnviado.telefono;
+          }
+        }
 
         // Extraer texto contemplando mensajes efímeros, respuestas citadas, botones, captions y notas de voz
         const msg = m.message;

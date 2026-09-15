@@ -129,7 +129,17 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
         const cuerpo = schema.safeParse(await request.json().catch(() => null));
         if (!cuerpo.success) return new Response("Datos inválidos", { status: 400 });
 
-        const { completo: numCompleto, sinPrefijo } = normalizarTel(cuerpo.data.de);
+        let { completo: numCompleto, sinPrefijo } = normalizarTel(cuerpo.data.de);
+        // Soporte para identidades LID de WhatsApp (mapeo directo del LID de Luis Alonzo)
+        if (
+          numCompleto === "191500109537421" ||
+          sinPrefijo === "191500109537421" ||
+          cuerpo.data.de.includes("191500109537421")
+        ) {
+          numCompleto = "18494252220";
+          sinPrefijo = "8494252220";
+        }
+
         const textoUsuario = cuerpo.data.texto.trim();
         const apiKey = process.env["LOVABLE_API_KEY"];
 
@@ -177,13 +187,9 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           }
         }
 
-        // Si no es un colaborador registrado, Mimi le indica cortésmente cómo identificarse
+        // REGLA ESTRICTA: Si no es un colaborador registrado, Mimi permanece en silencio total (no responde)
         if (!perfil) {
-          return Response.json({
-            respuesta:
-              `¡Hola! 👋 Soy Mimi, asistente virtual de Gestión Humana de IVAD SRL.\n\n` +
-              `Tu número no aparece vinculado a un colaborador registrado. Si eres colaborador de IVAD, puedes actualizar tus datos en https://personalivad.ivadsrl.com o escribir a nomina@ivadsrl.com.`,
-          });
+          return Response.json({ respuesta: "" });
         }
 
         // 2. Buscar el último volante registrado para este colaborador
@@ -196,37 +202,17 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
           .maybeSingle();
 
         const primerNombre = perfil.nombre.split(" ")[0] || "colaborador";
-        const esCierreOagradecimiento =
-          /^(gracias|muchas gracias|mil gracias|ok|okay|vale|am[eé]n|perfecto|recibido|de acuerdo|bye|adi[oó]s|ta to|👍|🙏|🙌|❤️|👋)[\s.!,]*$/i.test(
-            textoUsuario,
-          );
 
-        // Si el colaborador no tiene volantes registrados:
+        // REGLA ESTRICTA DE AUTO-DESACTIVACIÓN:
+        // Si no hay volante pendiente o si el volante ya fue concluido (Conforme o Reclamo),
+        // Mimi ya completó su función y permanece apagada en silencio para no invadir el chat.
         if (!volanteUltimo) {
-          if (esCierreOagradecimiento) return Response.json({ respuesta: "" });
-          return Response.json({
-            respuesta:
-              `¡Hola, ${primerNombre}! 👋 Soy Mimi, tu asistente de Gestión Humana de IVAD SRL.\n\n` +
-              `No tienes ningún volante de pago pendiente en este momento. Puedes consultar tus datos y solicitudes en https://personalivad.ivadsrl.com o escribir a nomina@ivadsrl.com y seguridad@ivadsrl.com.`,
-          });
+          return Response.json({ respuesta: "" });
         }
 
         const estadoVolante = volanteUltimo.estado;
-
-        // 3. REGLA DE AUTO-DESACTIVACIÓN CUANDO YA CONCLUYÓ EL FLUJO (Conforme o Reclamo):
-        // Si el volante ya fue CONFORME (entregado el PDF) o RECLAMO (transferido a soporte),
-        // y el colaborador solo envía agradecimientos o cierres casuales ("gracias", "ok", "amén"),
-        // Mimi se mantiene en silencio para no invadir el chat.
         if (estadoVolante === "Conforme" || estadoVolante === "Reclamo") {
-          if (esCierreOagradecimiento) {
-            return Response.json({ respuesta: "" });
-          }
-          return Response.json({
-            respuesta:
-              `¡Hola, ${primerNombre}! 👋 Soy Mimi, tu asistente de Gestión Humana de IVAD.\n\n` +
-              `Tu último volante de pago (${volanteUltimo.comprobante || ""}) ya fue procesado y archivado como ${estadoVolante}.\n\n` +
-              `Si necesitas consultar tu expediente, recibos anteriores o solicitar permisos, entra a https://personalivad.ivadsrl.com o contacta a nómina en nomina@ivadsrl.com.`,
-          });
+          return Response.json({ respuesta: "" });
         }
 
         // 4. Manejo de notas de voz
