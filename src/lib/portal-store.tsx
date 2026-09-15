@@ -741,13 +741,26 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         insignias?: boolean;
       },
     ) => {
-      const c = colaboradores.find((x) => x.id === paraId);
-      if (!c?.email) return;
+      let c = colaboradores.find((x) => x.id === paraId);
+      let email = c?.email;
+      let nombre = c?.nombre;
+      if (!email) {
+        const { data: p } = await supabase
+          .from("perfiles")
+          .select("nombre, email, correo_alterno")
+          .eq("id", paraId)
+          .maybeSingle();
+        if (p?.email) {
+          email = p.email;
+          nombre = p.nombre || "Colaborador";
+        }
+      }
+      if (!email) return;
       try {
         await enviarCorreoFn({
           data: {
-            para: c.email,
-            nombre: c.nombre,
+            para: email,
+            nombre: nombre || "Colaborador",
             titulo,
             detalle,
             etiqueta: opciones?.etiqueta ?? "Notificación",
@@ -776,16 +789,34 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       },
     ) => {
       await supabase.from("avisos").insert({ para_id: paraId, titulo, detalle });
-      const c = colaboradores.find((x) => x.id === paraId);
-      const canal = c?.canalAvisos ?? "correo";
-      if (canal === "ninguno") return;
+      let c = colaboradores.find((x) => x.id === paraId);
+      let canal = c?.canalAvisos;
+      let whatsapp = c?.whatsapp;
+      let nombre = c?.nombre;
 
-      const quiereWhatsapp = canal === "whatsapp" || canal === "ambos";
-      const puedeWhatsapp = Boolean(quiereWhatsapp && c?.whatsapp && puenteWhatsappUrl);
+      if (!canal || !whatsapp || !nombre) {
+        const { data: p } = await supabase
+          .from("perfiles")
+          .select("nombre, whatsapp, canal_avisos, email")
+          .eq("id", paraId)
+          .maybeSingle();
+        if (p) {
+          if (!canal) canal = (p.canal_avisos as CanalAvisos) ?? "correo";
+          if (!whatsapp && p.whatsapp) whatsapp = p.whatsapp;
+          if (!nombre && p.nombre) nombre = p.nombre;
+        }
+      }
+
+      const canalFinal = canal ?? "correo";
+      if (canalFinal === "ninguno") return;
+
+      const quiereWhatsapp = canalFinal === "whatsapp" || canalFinal === "ambos";
+      const numWa = normalizarWhatsApp(whatsapp);
+      const puedeWhatsapp = Boolean(quiereWhatsapp && numWa && puenteWhatsappUrl);
 
       // 1. WhatsApp: mensaje con el mismo contenido del aviso y enlace al portal
       let waEnviado = false;
-      if (puedeWhatsapp && c) {
+      if (puedeWhatsapp && numWa) {
         try {
           const enlaceAbs = opciones?.enlace
             ? opciones.enlace.startsWith("http")
@@ -793,12 +824,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
               : `${PORTAL_URL_PUBLICA}${opciones.enlace}`
             : PORTAL_URL_PUBLICA;
           const texto =
-            `*Portal IVAD · ${titulo}*\n\nHola ${c.nombre},\n${detalle}\n\n` +
+            `*Portal IVAD · ${titulo}*\n\nHola ${nombre || "Colaborador"},\n${detalle}\n\n` +
             `${opciones?.enlaceTexto ?? "Ver en el portal"}: ${enlaceAbs}`;
           const r = await enviarWhatsappFn({
             data: {
               puente: puenteWhatsappUrl,
-              para: c.whatsapp,
+              para: numWa,
               texto,
               token: puenteWhatsappToken,
             },
@@ -809,8 +840,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 2. Correo: cuando lo pidió, o como respaldo si el WhatsApp no salió
-      if (canal === "correo" || canal === "ambos" || !waEnviado) {
+      // 2. Correo: cuando lo pidió (correo o ambos), o como respaldo si el WhatsApp no salió
+      if (canalFinal === "correo" || canalFinal === "ambos" || !waEnviado) {
         await enviarCorreo(paraId, titulo, detalle, opciones);
       }
     },
@@ -883,7 +914,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         await crearAviso(
           pago.colaboradorId,
           "Recibo de nómina disponible",
-          `${pago.periodo}: tu recibo fue enviado por Contabilidad.`,
+          `${pago.periodo}: tu recibo oficial fue emitido por Contabilidad.\n\n🛡️ Aviso de Seguridad IVAD:\nEste volante ya está en tus manos; recuerda resguardarlo y cuidarlo adecuadamente bajo tu custodia y responsabilidad. Hay total seguridad en IVAD en este sistema del personal. Cualquier información que no entiendas, por favor comunícate con: seguridad@ivadsrl.com.`,
+          { enlace: "/nomina", enlaceTexto: "Ver mi nómina", etiqueta: "Nómina" },
         );
       }
       await cargar();

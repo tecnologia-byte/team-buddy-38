@@ -71,11 +71,15 @@ export async function despacharVolante({
     }
     if (numWa && numWa.length >= 10) {
       const textoWa =
-        `Hola ${volante.nombre}, se ha emitido tu recibo de pago de nómina.\n\n` +
+        `Hola ${volante.nombre}, se ha emitido tu volante oficial de pago de nómina.\n\n` +
         `• Período: ${volante.periodoDesde} al ${volante.periodoHasta}\n` +
         `• Comprobante: ${volante.comprobante}\n` +
         `• Monto neto: RD$ ${pesosCorreo(neto)}\n\n` +
-        `Adjunto encontrarás tu documento de pago oficial en PDF. También puedes revisarlo en el portal: https://personalivad.ivadsrl.com/nomina`;
+        `📄 Adjunto encontrarás tu volante de pago en formato PDF oficial.\n\n` +
+        `🛡️ *Aviso de Seguridad y Confidencialidad IVAD:*\n` +
+        `Este volante de pago ya está en tus manos y contiene información confidencial; recuerda que debes resguardarlo y cuidarlo adecuadamente bajo tu custodia y responsabilidad.\n\n` +
+        `En IVAD garantizamos la seguridad y protección de datos en este sistema del personal. Cualquier información que no entiendas o consulta sobre tu seguridad, por favor comunícate con: seguridad@ivadsrl.com\n\n` +
+        `Puedes consultar tu histórico en cualquier momento en el portal: https://personalivad.ivadsrl.com/nomina`;
 
       const resWa = await enviarWhatsapp({
         puente: destino.puenteUrl || undefined,
@@ -112,7 +116,10 @@ export async function despacharVolante({
           detalle:
             `Contabilidad registró tu pago correspondiente al período ${volante.periodoDesde} al ${volante.periodoHasta}.\n` +
             `Comprobante No. ${volante.comprobante}\nNeto recibido: RD$ ${pesosCorreo(neto)}\n\n` +
-            `Adjuntamos tu recibo de pago en PDF; puedes abrirlo, imprimirlo o guardarlo.`,
+            `Adjuntamos tu volante de pago oficial en PDF; puedes abrirlo, imprimirlo o guardarlo.\n\n` +
+            `🛡️ Aviso de Seguridad y Confidencialidad IVAD:\n` +
+            `Este volante de pago ya está en tus manos y contiene información confidencial; recuerda que debes resguardarlo y cuidarlo adecuadamente bajo tu custodia y responsabilidad.\n\n` +
+            `En IVAD garantizamos la seguridad y protección de datos en este sistema del personal. Si hay cualquier información que no entiendas o tienes alguna consulta de seguridad, por favor comunícate con: seguridad@ivadsrl.com.`,
           enlace: "/nomina",
           enlaceTexto: "Ver mi nómina",
         },

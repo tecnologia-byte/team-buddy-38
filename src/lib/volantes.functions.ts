@@ -129,7 +129,9 @@ export const enviarVolantesFn = createServerFn({ method: "POST" })
           titulo: `Volante de pago ${fila.comprobante || ""}`.trim(),
           detalle:
             `Se registró tu pago del período ${fila.periodo_desde} al ${fila.periodo_hasta}. ` +
-            `Neto recibido: RD$ ${pesos(neto)}. Te enviamos el volante en PDF por ${mediosTexto}.`,
+            `Neto recibido: RD$ ${pesos(neto)}. Te enviamos el volante en PDF por ${mediosTexto}.\n\n` +
+            `🛡️ Aviso de Seguridad IVAD:\n` +
+            `Este volante ya está en tus manos; recuerda resguardarlo y cuidarlo adecuadamente bajo tu custodia y responsabilidad. En IVAD garantizamos total seguridad en este sistema del personal. Si hay cualquier información que no entiendas, por favor comunícate con: seguridad@ivadsrl.com.`,
           nuevo: true,
         });
 
