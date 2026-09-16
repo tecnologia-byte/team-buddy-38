@@ -53,11 +53,32 @@ CAPACIDADES Y FUNCIONES CONTABLES EN REPÚBLICA DOMINICANA:
 3. CÁLCULO Y RETENCIÓN DE ISR ASALARIADOS (DGII 2026):
    - La base imponible para el ISR se calcula DESPUÉS de restar la TSS del trabajador:
      Base Imponible = Salario Bruto - Deducción TSS (5.91%).
-   - Escala Anual DGII para asalariados:
-     * Hasta RD$ 416,220.00 anuales (RD$ 34,685.00 mensuales): EXENTO (0%).
-     * Desde RD$ 416,220.01 hasta RD$ 624,329.00 anuales (RD$ 34,685.01 a RD$ 52,027.42 mensuales): 15% del excedente de RD$ 416,220.01.
-     * Desde RD$ 624,329.01 hasta RD$ 867,123.00 anuales (RD$ 52,027.43 a RD$ 72,260.25 mensuales): RD$ 31,216.00 fijos + 20% del excedente de RD$ 624,329.01.
-     * Desde RD$ 867,123.01 en adelante (más de RD$ 72,260.25 mensuales): RD$ 79,776.00 fijos + 25% del excedente de RD$ 867,123.01.
+   - ESCALA OFICIAL DGII PARA ASALARIADOS (MENSUAL Y QUINCENAL):
+     * Tramo 1 (Exento):
+       - Anual: Hasta RD$ 416,220.00
+       - Mensual: Hasta RD$ 34,685.00
+       - Quincenal: Hasta RD$ 17,342.50
+       - Tasa: EXENTO (RD$ 0.00 de ISR).
+     * Tramo 2 (15%):
+       - Anual: Desde RD$ 416,220.01 hasta RD$ 624,329.00
+       - Mensual: Desde RD$ 34,685.01 hasta RD$ 52,027.42 -> 15% del excedente de RD$ 34,685.01
+       - Quincenal: Desde RD$ 17,342.51 hasta RD$ 26,013.71 -> 15% del excedente de RD$ 17,342.50
+     * Tramo 3 (20%):
+       - Anual: Desde RD$ 624,329.01 hasta RD$ 867,123.00
+       - Mensual: Desde RD$ 52,027.43 hasta RD$ 72,260.25 -> RD$ 2,601.33 fijos + 20% del excedente de RD$ 52,027.42
+       - Quincenal: Desde RD$ 26,013.72 hasta RD$ 36,130.13 -> RD$ 1,300.67 fijos + 20% del excedente de RD$ 26,013.71
+     * Tramo 4 (25%):
+       - Anual: Más de RD$ 867,123.00
+       - Mensual: Más de RD$ 72,260.25 -> RD$ 6,648.00 fijos + 25% del excedente de RD$ 72,260.25
+       - Quincenal: Más de RD$ 36,130.13 -> RD$ 3,324.00 fijos + 25% del excedente de RD$ 36,130.13
+
+   - MANEJO DE SALARIO QUINCENAL (15NAL) VS MENSUAL:
+     * Si la contable dice "quincenal", "15nal", "de la quincena" o da un salario quincenal (ej: "Natalia quincenal 22,500" o "salario 15nal 30,000"):
+       Calcula el volante directo con ese salario base para la quincena (AFP 2.87%, SFS 3.04% y escala ISR quincenal DGII). El período asignado por defecto será la quincena activa (ej: 01/MM/AAAA al 15/MM/AAAA o 16/MM/AAAA al fin de mes).
+     * Si la contable dice "mensual" pero pide el volante de una quincena:
+       Divide el salario mensual entre 2 para obtener el salario base de la quincena y aplica la escala quincenal.
+     * Si la contable solo da el número y dice "salario 45,000":
+       Pregunta o calcula en base quincenal o mensual según corresponda y déjalo claro: "Calculado para período quincenal / mensual...". Si es para el volante regular quincenal, aclara si los 45,000 son el total mensual (22,500 quincenal) o si gana 45,000 quincenales, pero SIEMPRE entrega el volante listo y cargable de inmediato.
 
 4. CÓDIGO DE TRABAJO (LEY 16-92):
    - Salario promedio diario = Salario mensual ordinario / 23.83.

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Send,
   Sparkles,
@@ -13,6 +13,7 @@ import {
   Calculator,
   FileSpreadsheet,
   ArrowRight,
+  Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,135 @@ function formatearTamano(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Renderiza el texto de Mimi de forma limpia, elegante y sin asteriscos crudos (** o ****) */
+function MarkdownMensaje({ texto }: { texto: string }) {
+  // 1. Limpieza de asteriscos múltiples huérfanos (como **** o ***)
+  const textoSaneado = texto
+    .replace(/\*{4,}/g, "")
+    .replace(/\*{3}/g, "*")
+    .trim();
+
+  // 2. Separar por párrafos / líneas
+  const lineas = textoSaneado.split("\n");
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-foreground font-sans">
+      {lineas.map((linea, idx) => {
+        const lineaTrim = linea.trim();
+
+        // Línea vacía
+        if (!lineaTrim) {
+          return <div key={idx} className="h-1" />;
+        }
+
+        // Encabezados (###, ##, #)
+        if (
+          lineaTrim.startsWith("### ") ||
+          lineaTrim.startsWith("## ") ||
+          lineaTrim.startsWith("# ")
+        ) {
+          const contenidoHeader = lineaTrim.replace(/^#{1,3}\s+/, "");
+          return (
+            <div key={idx} className="pt-2 pb-0.5 first:pt-0">
+              <h4 className="font-display font-bold text-foreground text-[13px] sm:text-sm tracking-tight flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                <span>{renderizarInline(contenidoHeader)}</span>
+              </h4>
+            </div>
+          );
+        }
+
+        // Elementos de lista con viñetas (* item, - item, • item)
+        if (/^[-*•]\s+/.test(lineaTrim)) {
+          const contenidoItem = lineaTrim.replace(/^[-*•]\s+/, "");
+          return (
+            <div key={idx} className="flex items-start gap-2.5 pl-1 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/80 mt-2 shrink-0" />
+              <div className="flex-1 min-w-0">{renderizarInline(contenidoItem)}</div>
+            </div>
+          );
+        }
+
+        // Elementos de lista numerada (1. item, 2. item)
+        const matchNum = /^(\d+)[.)]\s+(.*)/.exec(lineaTrim);
+        if (matchNum) {
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1 py-0.5">
+              <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
+                {matchNum[1]}
+              </span>
+              <div className="flex-1 min-w-0">{renderizarInline(matchNum[2])}</div>
+            </div>
+          );
+        }
+
+        // Separador horizontal (--- o ***)
+        if (/^[-*_]{3,}$/.test(lineaTrim)) {
+          return <hr key={idx} className="border-border/60 my-2" />;
+        }
+
+        // Párrafo normal
+        return (
+          <p key={idx} className="min-w-0">
+            {renderizarInline(linea)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Procesa negritas (**texto**), cursivas (*texto*) y código (`texto`) eliminando cualquier asterisco */
+function renderizarInline(segmento: string): React.ReactNode[] {
+  const partes: React.ReactNode[] = [];
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  let ultimoIndice = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(segmento)) !== null) {
+    if (match.index > ultimoIndice) {
+      partes.push(limpiarAsteriscosSueltos(segmento.slice(ultimoIndice, match.index)));
+    }
+    const token = match[0];
+    if (token.startsWith("**") && token.endsWith("**")) {
+      const contenido = token.slice(2, -2).trim();
+      partes.push(
+        <strong key={match.index} className="font-semibold text-foreground">
+          {contenido}
+        </strong>,
+      );
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      const contenido = token.slice(1, -1);
+      partes.push(
+        <code
+          key={match.index}
+          className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary"
+        >
+          {contenido}
+        </code>,
+      );
+    } else if (token.startsWith("*") && token.endsWith("*")) {
+      const contenido = token.slice(1, -1).trim();
+      partes.push(
+        <em key={match.index} className="italic text-foreground/90">
+          {contenido}
+        </em>,
+      );
+    }
+    ultimoIndice = regex.lastIndex;
+  }
+
+  if (ultimoIndice < segmento.length) {
+    partes.push(limpiarAsteriscosSueltos(segmento.slice(ultimoIndice)));
+  }
+
+  return partes.length ? partes : [limpiarAsteriscosSueltos(segmento)];
+}
+
+function limpiarAsteriscosSueltos(str: string): string {
+  return str.replace(/\*{2,}/g, "").replace(/(?<!\w)\*(?!\w)/g, "");
+}
+
 function extraerVolanteJson(texto: string): { textoLimpio: string; datosVolante: any | null } {
   // 1. Intentar bloque de código JSON
   const match =
@@ -255,6 +385,11 @@ export function MimiChat({
   const [arrastrando, setArrastrando] = useState(false);
   const [copiadoId, setCopiadoId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [mensajes, pensando]);
 
   const agregarArchivos = async (archivos: FileList | null) => {
     if (!archivos || archivos.length === 0) return;
@@ -406,13 +541,13 @@ export function MimiChat({
         </div>
 
         {/* Sugerencias rápidas */}
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-border/50">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
           {SUGERENCIAS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => void enviar(s)}
-              className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="rounded-full border border-border/80 bg-card px-3 py-1 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all duration-150 shadow-2xs font-medium active:scale-95 text-left"
             >
               {s}
             </button>
@@ -421,146 +556,213 @@ export function MimiChat({
       </div>
 
       {/* Historial de Mensajes */}
-      <div className="surface-card space-y-4 p-4 min-h-[360px] max-h-[560px] overflow-y-auto">
+      <div className="surface-card space-y-4 p-4 min-h-[360px] max-h-[580px] overflow-y-auto rounded-2xl border border-border/80">
         {mensajes.map((m, i) => {
           const { textoLimpio, datosVolante } =
             m.rol === "assistant"
               ? extraerVolanteJson(m.texto)
               : { textoLimpio: m.texto, datosVolante: null };
 
+          if (m.rol === "user") {
+            return (
+              <div
+                key={i}
+                className="flex justify-end items-end gap-2 ml-auto max-w-[88%] sm:max-w-[78%] animate-in fade-in slide-in-from-bottom-2 duration-300"
+              >
+                <div className="rounded-2xl rounded-tr-xs bg-primary text-primary-foreground shadow-sm p-3.5 text-sm leading-relaxed space-y-2">
+                  {/* Adjuntos del mensaje */}
+                  {m.adjuntos && m.adjuntos.length > 0 ? (
+                    <div className="mb-2 space-y-1.5 pb-2 border-b border-primary-foreground/20">
+                      <p className="text-[11px] font-semibold opacity-90">Documentos adjuntos:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {m.adjuntos.map((a, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-1 text-xs backdrop-blur-sm"
+                          >
+                            {a.vistaPrevia ? (
+                              <img
+                                src={a.vistaPrevia}
+                                alt={a.nombre}
+                                className="h-5 w-5 rounded object-cover border border-white/20"
+                              />
+                            ) : a.tipo.includes("pdf") ? (
+                              <FileText className="h-4 w-4" />
+                            ) : a.tipo.includes("csv") || a.nombre.endsWith(".csv") ? (
+                              <FileSpreadsheet className="h-4 w-4" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                            <span className="truncate max-w-[160px] font-medium">{a.nombre}</span>
+                            {a.tamano ? (
+                              <span className="text-[10px] opacity-75">
+                                ({formatearTamano(a.tamano)})
+                              </span>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="whitespace-pre-wrap font-sans">{m.texto}</div>
+                </div>
+              </div>
+            );
+          }
+
+          // Mensaje de la asistente (Mimi)
           return (
             <div
               key={i}
-              className={`max-w-[90%] rounded-2xl p-3.5 text-sm ${
-                m.rol === "user"
-                  ? "ml-auto bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary text-secondary-foreground border border-border/50"
-              }`}
+              className="flex items-start gap-3 max-w-[94%] sm:max-w-[88%] animate-in fade-in slide-in-from-bottom-2 duration-300"
             >
-              {/* Adjuntos del mensaje */}
-              {m.adjuntos && m.adjuntos.length > 0 ? (
-                <div className="mb-2 space-y-1.5 pb-2 border-b border-primary-foreground/20">
-                  <p className="text-[11px] font-semibold opacity-90">Documentos adjuntos:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {m.adjuntos.map((a, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-1.5 rounded-lg bg-black/15 px-2.5 py-1 text-xs backdrop-blur-sm"
-                      >
-                        {a.vistaPrevia ? (
-                          <img
-                            src={a.vistaPrevia}
-                            alt={a.nombre}
-                            className="h-5 w-5 rounded object-cover border border-white/20"
-                          />
-                        ) : a.tipo.includes("pdf") ? (
-                          <FileText className="h-4 w-4" />
-                        ) : a.tipo.includes("csv") || a.nombre.endsWith(".csv") ? (
-                          <FileSpreadsheet className="h-4 w-4" />
-                        ) : (
-                          <FileText className="h-4 w-4" />
-                        )}
-                        <span className="truncate max-w-[160px] font-medium">{a.nombre}</span>
-                        {a.tamano ? (
-                          <span className="text-[10px] opacity-75">({formatearTamano(a.tamano)})</span>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Texto del mensaje con formato limpio */}
-              <div className="whitespace-pre-wrap leading-relaxed font-sans">{textoLimpio}</div>
-
-              {/* Tarjeta de acción interactiva para Cargar en el Editor de Volantes */}
-              {datosVolante && (
-                <div className="mt-3 p-3 rounded-xl bg-primary/10 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-foreground">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">
-                        Propuesta de Volante Lista para Cargar
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {datosVolante.nombre || "Colaborador"} · {datosVolante.periodoDesde || "Período"} {datosVolante.periodoHasta ? `al ${datosVolante.periodoHasta}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  {onCargarVolante && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => onCargarVolante(datosVolante)}
-                      className="text-xs h-8 flex items-center gap-1.5 shadow-sm shrink-0"
-                    >
-                      <span>Cargar en Editor de Volantes</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Botón para copiar respuesta de la asistente */}
-              {m.rol === "assistant" && i > 0 ? (
-                <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => void copiarTexto(textoLimpio, i)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {copiadoId === i ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Copiado</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span>Copiar cálculo / reporte</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : null}
-
-            {/* Fuentes oficiales consultadas */}
-            {m.fuentes?.length ? (
-              <div className="mt-2.5 space-y-1 border-t border-border/60 pt-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                  Fuentes oficiales consultadas (DGII / TSS / MT):
-                </p>
-                {m.fuentes.map((f) => (
-                  <a
-                    key={f.url}
-                    href={f.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block truncate text-[11px] underline opacity-90 hover:opacity-100"
-                  >
-                    {f.titulo || f.url}
-                  </a>
-                ))}
+              {/* Avatar de Mimi con colores de IVAD */}
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-primary/85 text-primary-foreground flex items-center justify-center shrink-0 shadow-sm mt-0.5 border border-primary/20">
+                <Sparkles className="h-4 w-4" />
               </div>
-            ) : null}
-          </div>
-        );
-      })}
 
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-foreground font-display">Mimi</span>
+                  <span className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border/60">
+                    Asistente Contable IVAD
+                  </span>
+                </div>
+
+                <div className="rounded-2xl rounded-tl-xs bg-card text-card-foreground border border-border/80 shadow-xs p-4 space-y-3">
+                  {/* Adjuntos */}
+                  {m.adjuntos && m.adjuntos.length > 0 ? (
+                    <div className="mb-2 space-y-1.5 pb-2 border-b border-border/60">
+                      <p className="text-[11px] font-semibold text-muted-foreground">Documentos analizados:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {m.adjuntos.map((a, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1 text-xs border border-border/70"
+                          >
+                            <FileText className="h-4 w-4 text-primary" />
+                            <span className="truncate max-w-[160px] font-medium">{a.nombre}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Texto formateado limpio y sin asteriscos */}
+                  <MarkdownMensaje texto={textoLimpio} />
+
+                  {/* Tarjeta de acción interactiva para Cargar en el Editor de Volantes */}
+                  {datosVolante && (
+                    <div className="mt-3.5 p-3.5 rounded-xl bg-primary/5 dark:bg-primary/15 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-foreground transition-all hover:border-primary/45 shadow-2xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate font-display">
+                            Volante Calculado y Listo para Cargar
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {datosVolante.nombre || "Colaborador"} · {datosVolante.periodoDesde || "Período"}{" "}
+                            {datosVolante.periodoHasta ? `al ${datosVolante.periodoHasta}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      {onCargarVolante && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => onCargarVolante(datosVolante)}
+                          className="text-xs h-8.5 px-3.5 font-medium flex items-center gap-1.5 shadow-sm shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                          <span>Cargar en Editor de Volantes</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Botón para copiar respuesta de la asistente */}
+                  {i > 0 ? (
+                    <div className="flex items-center justify-end border-t border-border/40 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => void copiarTexto(textoLimpio, i)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {copiadoId === i ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Copiado</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>Copiar cálculo / reporte</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {/* Fuentes oficiales consultadas */}
+                  {m.fuentes?.length ? (
+                    <div className="mt-2.5 space-y-1 border-t border-border/60 pt-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80 text-muted-foreground">
+                        Fuentes oficiales consultadas (DGII / TSS / MT):
+                      </p>
+                      {m.fuentes.map((f) => (
+                        <a
+                          key={f.url}
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block truncate text-[11px] text-primary underline opacity-90 hover:opacity-100"
+                        >
+                          {f.titulo || f.url}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Animación fluida de Mimi pensando / escribiendo con puntos sincronizados */}
         {pensando ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/40 p-3 rounded-xl border border-border/40">
-            <Sparkles className="h-4 w-4 animate-spin text-primary" />
-            <span>Mimi está analizando los documentos contables y verificando deducciones…</span>
+          <div className="flex items-start gap-3 max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-primary/85 text-primary-foreground flex items-center justify-center shrink-0 shadow-sm mt-0.5 border border-primary/20">
+              <Sparkles className="h-4 w-4 animate-spin" style={{ animationDuration: "3s" }} />
+            </div>
+            <div className="rounded-2xl rounded-tl-xs bg-card border border-border/80 shadow-xs p-3.5 space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground font-display">Mimi</span>
+                <span className="text-[10px] text-muted-foreground">analizando nómina</span>
+              </div>
+              <div className="flex items-center gap-1.5 py-1">
+                <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                <span className="h-2 w-2 rounded-full bg-primary animate-bounce" />
+                <span className="text-xs text-muted-foreground font-medium ml-2 animate-pulse">
+                  Verificando leyes TSS & DGII…
+                </span>
+              </div>
+            </div>
           </div>
         ) : null}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Zona de Entrada, Adjuntos y Drag & Drop */}
+      {/* Zona de Entrada, Adjuntos y Drag & Drop con colores de IVAD */}
       <div
-        className={`surface-card space-y-3 p-3 transition-colors ${
-          arrastrando ? "border-primary bg-primary/5" : ""
+        className={`surface-card rounded-2xl border transition-all duration-200 p-3 space-y-3 shadow-xs ${
+          arrastrando
+            ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+            : "border-border/80 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"
         }`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -575,11 +777,11 @@ export function MimiChat({
       >
         {/* Vista previa de archivos adjuntos pendientes de envío */}
         {adjuntos.length > 0 && (
-          <div className="flex flex-wrap gap-2 p-2 bg-secondary/50 rounded-xl border border-border">
+          <div className="flex flex-wrap gap-2 p-2 bg-secondary/50 rounded-xl border border-border/70">
             {adjuntos.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-2 rounded-lg bg-background px-2.5 py-1.5 text-xs shadow-sm border border-border"
+                className="flex items-center gap-2 rounded-lg bg-background px-2.5 py-1.5 text-xs shadow-xs border border-border/80"
               >
                 {a.vistaPrevia ? (
                   <img
@@ -628,7 +830,8 @@ export function MimiChat({
           onChange={(e) => setTexto(e.target.value)}
           rows={3}
           maxLength={6000}
-          placeholder="Escríbele a Mimi o sube documentos: ej: 'Audita este volante que adjunto', '¿Por qué dio RD$ 42,300 de neto?', 'Calcula la regalía pascual'..."
+          placeholder="Escribe a Mimi: ej. 'Crea volante de Natalia quincenal de 25,000', 'Audita este volante que adjunto'..."
+          className="resize-none border-0 bg-transparent p-2 text-foreground focus-visible:ring-0 placeholder:text-muted-foreground/70 text-sm leading-relaxed"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -637,21 +840,21 @@ export function MimiChat({
           }}
         />
 
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               disabled={pensando || adjuntos.length >= 5}
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
             >
-              <Paperclip className="h-3.5 w-3.5 text-primary" />
+              <Paperclip className="h-4 w-4 text-primary" />
               <span>Adjuntar documento o foto</span>
             </Button>
             <span className="text-[11px] text-muted-foreground hidden sm:inline">
-              (PDF, fotos de recibos, volantes o Excel/CSV)
+              (PDF, imágenes, contratos o planillas)
             </span>
           </div>
 
@@ -660,7 +863,7 @@ export function MimiChat({
               type="button"
               disabled={pensando || (!texto.trim() && adjuntos.length === 0)}
               onClick={() => void enviar(texto)}
-              className="flex items-center gap-1.5"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-xl shadow-xs hover:shadow-md transition-all flex items-center gap-2 active:scale-[0.98]"
             >
               <Send className="h-4 w-4" />
               <span>Enviar a Mimi</span>
