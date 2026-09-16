@@ -75,6 +75,14 @@ export type Colaborador = Empleado & {
   whatsapp: string;
   /** Canal por el que quiere recibir los avisos del portal. */
   canalAvisos: CanalAvisos;
+  /** Apariencia elegida por el colaborador. */
+  tema: "claro" | "oscuro" | "sistema";
+  /** Avisar por correo cada vez que se accede a la cuenta. */
+  alertaAcceso: boolean;
+  /** Pedir un código por correo cuando entra desde un dispositivo nuevo. */
+  verificarDispositivo: boolean;
+  /** Correo personal confirmado con código. */
+  correoAlternoVerificado: boolean;
 };
 
 export type CanalAvisos = "correo" | "whatsapp" | "ambos" | "ninguno";
