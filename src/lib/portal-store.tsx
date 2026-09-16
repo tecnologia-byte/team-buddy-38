@@ -357,6 +357,10 @@ const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
   whatsapp: p.whatsapp ?? "",
   canalAvisos: ((p.canal_avisos as CanalAvisos) ?? "correo") satisfies CanalAvisos,
   accesoNomina: Boolean(p.acceso_nomina),
+  tema: ((p.tema as Colaborador["tema"]) ?? "sistema") satisfies Colaborador["tema"],
+  alertaAcceso: Boolean(p.alerta_acceso),
+  verificarDispositivo: Boolean(p.verificar_dispositivo),
+  correoAlternoVerificado: Boolean(p.correo_alterno_verificado),
   rol,
 });
 
