@@ -322,6 +322,10 @@ type FilaPerfil = {
   whatsapp?: string | null;
   canal_avisos?: string | null;
   acceso_nomina?: boolean | null;
+  tema?: string | null;
+  alerta_acceso?: boolean | null;
+  verificar_dispositivo?: boolean | null;
+  correo_alterno_verificado?: boolean | null;
 };
 
 const aColaborador = (p: FilaPerfil, rol?: Rol): Colaborador => ({
