@@ -345,12 +345,19 @@ export const mimiFn = createServerFn({ method: "POST" })
             consulta = "";
           }
 
-          // Sanitización estricta: Jamás enviar cédulas ni números privados a la búsqueda pública
+          // Sanitización estricta: jamás enviar cédulas, correos, teléfonos, montos,
+          // firmas ni textos largos de documentos a una búsqueda pública.
           const consultaLimpia = consulta
             .replace(/[0-9]{3}-?[0-9]{7}-?[0-9]{1}/g, "")
-            .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, "")
+            .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, "")
             .replace(/RD\$\s*[\d,.]+/gi, "")
-            .trim();
+            .replace(/data:[^\s]+/gi, "")
+            .replace(/\b\d{7,}\b/g, "")
+            .replace(/[\d,]{4,}(\.\d+)?/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 160);
+
 
           const fuentes = consultaLimpia ? await buscarFuentes(consultaLimpia).catch(() => []) : [];
           fuentesUsadas.push(...fuentes);
