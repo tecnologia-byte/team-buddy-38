@@ -81,7 +81,11 @@ async function clasificarIntencionHumana(
       const prompt = `Eres Mimi, asistente de Recursos Humanos y Nómina de IVAD SRL (República Dominicana).
 A un colaborador se le envió el resumen de su volante de pago y se le preguntó si se siente conforme con su pago registrado (SÍ o NO).
 
-Mensaje recibido del colaborador: "${texto}"
+${BLINDAJE_IA}
+
+<<<MENSAJE>>>
+${textoSeguro(texto)}
+<<<FIN MENSAJE>>>
 
 Clasifica la intención del colaborador en una de estas 3 categorías:
 1. CONFORME: Si el colaborador confirma, acepta, dice que sí, que todo está bien, que ya lo vio, agradece o expresa satisfacción (ejemplos: "si", "sí", "claro mimi", "todo bien gracias", "conforme", "recibido", "perfecto", "siii todo fino", "dale mandame el volante", "ta to bien").
@@ -97,6 +101,7 @@ Responde ÚNICAMENTE en formato JSON estricto:
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [{ role: "user", content: prompt }],
+
           response_format: { type: "json_object" },
         }),
       });
