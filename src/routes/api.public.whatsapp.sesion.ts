@@ -1,30 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const TOKEN_DEFECTO = "ivad-secret-token";
+import { validarTokenPuente } from "@/lib/puente-auth.server";
 
-function validarToken(request: Request): boolean {
-  const urlObj = new URL(request.url);
-  const queryToken = urlObj.searchParams.get("token")?.trim();
-  const authHeader = request.headers.get("authorization")?.replace(/^bearer\s+/i, "").trim();
-  const customHeader =
-    request.headers.get("x-puente-token")?.trim() ||
-    request.headers.get("X-Puente-Token")?.trim();
-  const tokenRecibido = customHeader || authHeader || queryToken;
-
-  const tokenEnv = process.env["WHATSAPP_PUENTE_TOKEN"]?.trim();
-  return (
-    tokenRecibido === TOKEN_DEFECTO ||
-    (Boolean(tokenEnv) && tokenRecibido === tokenEnv) ||
-    !tokenEnv
-  );
+function validarToken(request: Request): Promise<boolean> {
+  return validarTokenPuente(request);
 }
+
 
 export const Route = createFileRoute("/api/public/whatsapp/sesion")({
   server: {
     handlers: {
       // 1. Obtener la sesión respaldada de WhatsApp para que el puente la restaure al encender o reiniciar
       GET: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -74,7 +62,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sesion")({
 
       // 2. Guardar o sincronizar credenciales de WhatsApp en Supabase
       POST: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -153,7 +141,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sesion")({
 
       // 3. Eliminar respaldo de sesión cuando el usuario decida desvincular explícitamente el WhatsApp
       DELETE: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
