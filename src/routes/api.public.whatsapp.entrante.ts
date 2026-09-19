@@ -173,24 +173,11 @@ export const Route = createFileRoute("/api/public/whatsapp/entrante")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Validación de token flexible y segura (admite header x-puente-token, Authorization Bearer o query param ?token=)
-        const urlObj = new URL(request.url);
-        const queryToken = urlObj.searchParams.get("token")?.trim();
-        const authHeader = request.headers.get("authorization")?.replace(/^bearer\s+/i, "").trim();
-        const customHeader =
-          request.headers.get("x-puente-token")?.trim() ||
-          request.headers.get("X-Puente-Token")?.trim();
-        const headerToken = customHeader || authHeader || queryToken;
-
-        const tokenEnv = process.env["WHATSAPP_PUENTE_TOKEN"]?.trim();
-        const esValido =
-          headerToken === "ivad-secret-token" ||
-          (tokenEnv && headerToken === tokenEnv) ||
-          !tokenEnv;
-
-        if (!esValido) {
+        // Validación estricta del token del puente (header x-puente-token, Authorization Bearer o ?token=)
+        if (!(await validarTokenPuente(request))) {
           return new Response("No autorizado", { status: 401 });
         }
+
 
         const cuerpo = schema.safeParse(await request.json().catch(() => null));
         if (!cuerpo.success) return new Response("Datos inválidos", { status: 400 });

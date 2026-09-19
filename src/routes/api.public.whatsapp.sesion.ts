@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sesion")({
     handlers: {
       // 1. Obtener la sesión respaldada de WhatsApp para que el puente la restaure al encender o reiniciar
       GET: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sesion")({
 
       // 2. Guardar o sincronizar credenciales de WhatsApp en Supabase
       POST: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sesion")({
 
       // 3. Eliminar respaldo de sesión cuando el usuario decida desvincular explícitamente el WhatsApp
       DELETE: async ({ request }) => {
-        if (!validarToken(request)) {
+        if (!(await validarToken(request))) {
           return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
