@@ -70,6 +70,110 @@ export type Database = {
           },
         ]
       }
+      capacitaciones: {
+        Row: {
+          certificado: string | null
+          colaborador_id: string
+          created_at: string
+          descripcion: string
+          emitido: string
+          estado: string
+          id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          certificado?: string | null
+          colaborador_id: string
+          created_at?: string
+          descripcion?: string
+          emitido?: string
+          estado?: string
+          id?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          certificado?: string | null
+          colaborador_id?: string
+          created_at?: string
+          descripcion?: string
+          emitido?: string
+          estado?: string
+          id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capacitaciones_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      codigos_verificacion: {
+        Row: {
+          codigo: string
+          created_at: string
+          destino: string | null
+          expira_at: string
+          id: string
+          proposito: string
+          usado: boolean
+          user_id: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          destino?: string | null
+          expira_at: string
+          id?: string
+          proposito: string
+          usado?: boolean
+          user_id: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          destino?: string | null
+          expira_at?: string
+          id?: string
+          proposito?: string
+          usado?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dispositivos_confiables: {
+        Row: {
+          created_at: string
+          huella: string
+          id: string
+          nombre: string
+          ultimo_acceso: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          huella: string
+          id?: string
+          nombre?: string
+          ultimo_acceso?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          huella?: string
+          id?: string
+          nombre?: string
+          ultimo_acceso?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pagos: {
         Row: {
           colaborador_id: string
@@ -111,12 +215,14 @@ export type Database = {
       perfiles: {
         Row: {
           acceso_nomina: boolean
+          alerta_acceso: boolean
           area: string
           canal_avisos: string
           cargo: string
           clave_provisional: boolean
           clave_provisional_texto: string | null
           correo_alterno: string | null
+          correo_alterno_verificado: boolean
           created_at: string
           cumple: string
           email: string
@@ -137,18 +243,22 @@ export type Database = {
           nombre: string
           salario: number
           telefono: string
+          tema: string
           verificado: boolean
           verificado_at: string | null
+          verificar_dispositivo: boolean
           whatsapp: string
         }
         Insert: {
           acceso_nomina?: boolean
+          alerta_acceso?: boolean
           area?: string
           canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
           clave_provisional_texto?: string | null
           correo_alterno?: string | null
+          correo_alterno_verificado?: boolean
           created_at?: string
           cumple?: string
           email?: string
@@ -169,18 +279,22 @@ export type Database = {
           nombre?: string
           salario?: number
           telefono?: string
+          tema?: string
           verificado?: boolean
           verificado_at?: string | null
+          verificar_dispositivo?: boolean
           whatsapp?: string
         }
         Update: {
           acceso_nomina?: boolean
+          alerta_acceso?: boolean
           area?: string
           canal_avisos?: string
           cargo?: string
           clave_provisional?: boolean
           clave_provisional_texto?: string | null
           correo_alterno?: string | null
+          correo_alterno_verificado?: boolean
           created_at?: string
           cumple?: string
           email?: string
@@ -201,8 +315,10 @@ export type Database = {
           nombre?: string
           salario?: number
           telefono?: string
+          tema?: string
           verificado?: boolean
           verificado_at?: string | null
+          verificar_dispositivo?: boolean
           whatsapp?: string
         }
         Relationships: []
