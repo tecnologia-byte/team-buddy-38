@@ -228,10 +228,10 @@ export const mimiFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: esNomina } = await supabase.rpc("es_nomina", { _user_id: userId });
-    const { data: esAdmin } = await supabase.rpc("es_admin", { _user_id: userId });
-    if (!esNomina && !esAdmin) {
+    if (!esNomina) {
       return { ok: false as const, error: "Mimi es de uso exclusivo para Contabilidad y Nómina." };
     }
+
 
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { ok: false as const, error: "Mimi no está disponible en este momento." };
