@@ -149,9 +149,15 @@ async function generarRespuestaHumanaInconformidad({
   if (apiKey) {
     try {
       const prompt = `Eres Mimi, la asistente de Recursos Humanos y Nómina de la empresa IVAD SRL en República Dominicana.
-Un colaborador llamado ${nombre} ha recibido su volante de pago (${volante.comprobante || "Nómina"}, período del ${volante.periodo_desde} al ${volante.periodo_hasta}, Neto RD$ ${volante.neto}) y ha manifestado su inconformidad o duda por WhatsApp.
+Un colaborador al que llamarás ${primerNombre} recibió su volante de pago y manifestó una inconformidad o duda por WhatsApp.
+Nunca menciones montos, cédulas, salarios ni datos de otras personas en tu respuesta.
 
-Mensaje exacto del colaborador: "${mensajeUsuario}"
+${BLINDAJE_IA}
+
+<<<MENSAJE>>>
+${textoSeguro(mensajeUsuario)}
+<<<FIN MENSAJE>>>
+
 
 Tu misión:
 1. Responde como una persona humana real de Recursos Humanos: muy empática, cálida, respetuosa y comprensiva. ¡NUNCA suenes como un robot o una plantilla automatizada!
